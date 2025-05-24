@@ -95,7 +95,7 @@ export default function Home({navigation}) {
               </View>
               <View style={styles.welcomeTextContainer}>
                 <Text style={styles.welcomeText}>{strings.welcome},</Text>
-                <Text style={styles.userName}>{profileData?.name}</Text>
+                <Text style={styles.userName}>{profileData?.name || "Loading.."}</Text>
               </View>
             </View>
             <TouchableOpacity style={styles.notificationButton}>
@@ -136,7 +136,7 @@ export default function Home({navigation}) {
             </View>
           </View>
           <View style={styles.servicesContainer}>
-            <Text style={styles.sectionTitle}>Our Services</Text>
+            <Text style={styles.sectionTitle}>{strings.OurServices}</Text>
             <View style={styles.servicesGrid}>
               <ReusableView
                 text={strings.OnlineDoctorConsultations}
@@ -179,7 +179,7 @@ export default function Home({navigation}) {
                   <TouchableOpacity
                     style={styles.bookNowButton}
                     onPress={() => navigation.navigate('NearestLabPage')}>
-                    <Text style={styles.bookNowText}>Book Now</Text>
+                    <Text style={styles.bookNowText}>{strings.BookNow}</Text>
                     <Ionicons
                       name="arrow-forward"
                       size={20}

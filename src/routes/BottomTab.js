@@ -7,6 +7,7 @@ import Cart from '../screens/Cart/Cart';
 import Wallet from '../screens/Wallet/Wallet';
 import strings from '../../localization';
 import {useSelector} from 'react-redux';
+import { Fonts } from '../Theme/Fonts';
 
 const Tab = createBottomTabNavigator();
 
@@ -15,9 +16,16 @@ export default function MainStack() {
 
   return (
     <Tab.Navigator
+      key={language}
       initialRouteName={strings.Home}
-
-      screenOptions={{headerShown: false,tabBarHideOnKeyboard: true}}>
+      screenOptions={{
+        headerShown: false,
+        tabBarHideOnKeyboard: true,
+        tabBarLabelStyle: {
+          fontFamily:Fonts.Medium,
+          fontSize: 12,
+        },
+      }}>
       <Tab.Screen
         name={strings.Home}
         component={Home}

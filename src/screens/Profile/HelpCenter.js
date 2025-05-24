@@ -15,6 +15,7 @@ import {COLORS} from '../../Theme/Colors';
 import {Fonts} from '../../Theme/Fonts';
 import {Container} from '../../component/Container/Container';
 import {moderateScale, scale} from '../../utils/Scaling';
+import strings from '../../../localization';
 
 export default function HelpCenter ({navigation}) {
   const menuItems = [
@@ -60,7 +61,7 @@ export default function HelpCenter ({navigation}) {
       statusBarStyle={'dark-content'}
       statusBarBackgroundColor={COLORS.white}
       backgroundColor={COLORS.white}>
-      <CustomHeader title="Help Center" navigation={navigation}/>
+      <CustomHeader title={strings.HelpCenter} navigation={navigation}/>
       <Text style={styles.heading}>Hi Test How can we help you?</Text>
       <Image
         style={styles.logoImage}

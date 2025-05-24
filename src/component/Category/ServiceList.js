@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   FlatList,
   Image,
@@ -15,33 +15,7 @@ import {Fonts} from '../../Theme/Fonts';
 import {COLORS} from '../../Theme/Colors';
 import {useNavigation} from '@react-navigation/native';
 import strings from '../../../localization';
-
-const ServicesData = [
-  {
-    id: 1,
-    title: strings.OnlineDoctorConsultations,
-    img: 'https://png.pngtree.com/png-clipart/20240701/original/pngtree-indian-doctor-woman-smiling-at-camera-png-image_15456626.png',
-    screen: 'Dr_List',
-  },
-  {
-    id: 2,
-    title:strings.LabTestsAndScans,
-    img: 'https://static.vecteezy.com/system/resources/thumbnails/048/742/000/small/microscope-isolated-against-a-transparent-background-png.png',
-    screen: 'NearestLabPage',
-  },
-  {
-    id: 3,
-    title: strings.Reports,
-    img: 'https://static.vecteezy.com/system/resources/previews/021/950/979/non_2x/3d-file-report-icon-illustration-png.png',
-    screen: 'Reports',
-  },
-  {
-    id: 4,
-    title: strings.OrderMedicines,
-    img: 'https://static.vecteezy.com/system/resources/thumbnails/043/987/887/small/medicine-3d-icon-png.png',
-    screen: 'MedicineScreen',
-  },
-];
+import {useSelector} from 'react-redux';
 
 const backgroundColors = [
   ['#e0f7fa', '#b2ebf2', '#80deea'],
@@ -52,10 +26,42 @@ const backgroundColors = [
 
 const ServiceList = () => {
   const navigation = useNavigation();
+  const language = useSelector(state => state.Common.language);
+  const [servicesData, setServicesData] = useState([]);
+
+  useEffect(() => {
+    setServicesData([
+      {
+        id: 1,
+        title: strings.OnlineDoctorConsultations,
+        img: 'https://png.pngtree.com/png-clipart/20240701/original/pngtree-indian-doctor-woman-smiling-at-camera-png-image_15456626.png',
+        screen: 'Dr_List',
+      },
+      {
+        id: 2,
+        title: strings.LabTestsAndScans,
+        img: 'https://static.vecteezy.com/system/resources/thumbnails/048/742/000/small/microscope-isolated-against-a-transparent-background-png.png',
+        screen: 'NearestLabPage',
+      },
+      {
+        id: 3,
+        title: strings.Reports,
+        img: 'https://static.vecteezy.com/system/resources/previews/021/950/979/non_2x/3d-file-report-icon-illustration-png.png',
+        screen: 'Reports',
+      },
+      {
+        id: 4,
+        title: strings.OrderMedicines,
+        img: 'https://static.vecteezy.com/system/resources/thumbnails/043/987/887/small/medicine-3d-icon-png.png',
+        screen: 'MedicineScreen',
+      },
+    ]);
+  }, [language]);
+
   return (
     <View>
       <FlatList
-        data={ServicesData}
+        data={servicesData}
         keyExtractor={item => item.id.toString()}
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -63,7 +69,7 @@ const ServiceList = () => {
           marginHorizontal: scale(5),
         }}
         renderItem={({item, index}) => (
-          <TouchableOpacity   onPress={() => navigation.navigate(item.screen)}>
+          <TouchableOpacity onPress={() => navigation.navigate(item.screen)}>
             <LinearGradient
               colors={backgroundColors[index % backgroundColors.length]}
               start={{x: 0, y: 0}}

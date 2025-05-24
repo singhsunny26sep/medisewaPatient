@@ -19,6 +19,7 @@ import {Instance} from '../../api/Instance';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ToastMessage from '../../component/ToastMessage/ToastMessage';
 import {Fonts} from '../../Theme/Fonts';
+import strings from '../../../localization';
 
 export default function EditProfile({navigation}) {
   const [profileImage, setProfileImage] = useState(
@@ -160,7 +161,7 @@ export default function EditProfile({navigation}) {
       statusBarStyle={'dark-content'}
       statusBarBackgroundColor={COLORS.white}
       backgroundColor={COLORS.background}>
-      <CustomHeader title="Edit Profile" navigation={navigation} />
+      <CustomHeader title={strings.EditProfile} navigation={navigation} />
       <ScrollView>
         <View style={styles.profileHeader}>
           <View style={styles.profileImageContainer}>
@@ -174,8 +175,8 @@ export default function EditProfile({navigation}) {
         </View>
         <View style={{marginHorizontal: scale(15)}}>
           <CustomTextInput
-            label="Name"
-            placeholder="Enter your name"
+            label={strings.Name}
+            placeholder={strings.EnterYourName}
             leftIcon="person"
             value={name}
             onChangeText={text => {
@@ -185,8 +186,8 @@ export default function EditProfile({navigation}) {
             error={nameError}
           />
           <CustomTextInput
-            label="Email"
-            placeholder="Enter your Email"
+            label={strings.Email}
+            placeholder={strings.EnterYourEmail}
             keyboardType="email-address"
             leftIcon="mail"
             value={email}
@@ -197,8 +198,8 @@ export default function EditProfile({navigation}) {
             error={emailError}
           />
           <CustomTextInput
-            label="Mobile No"
-            placeholder="Enter your Mobile No"
+            label={strings.Mobile}
+            placeholder={strings.EnterYourMobile}
             keyboardType="phone-pad"
             leftIcon="call"
             value={mobile}
@@ -217,7 +218,7 @@ export default function EditProfile({navigation}) {
             {loading ? (
               <ActivityIndicator size="small" color={COLORS.white} />
             ) : (
-              <Text style={styles.submitButtonText}>Submit</Text>
+              <Text style={styles.submitButtonText}>{strings.Submit}</Text>
             )}
           </TouchableOpacity>
         </View>

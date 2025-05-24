@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -60,7 +60,53 @@ const faqData = [
 
 export default function FaqScreen({navigation}) {
   const [expandedFaq, setExpandedFaq] = useState(null);
+  const [localFaqData, setLocalFaqData] = useState(faqData);
   const language = useSelector(state => state.Common.language);
+
+  useEffect(() => {
+    setLocalFaqData([
+      {
+        question: strings.FAQ1Question,
+        answer: strings.FAQ1Answer,
+      },
+      {
+        question: strings.FAQ2Question,
+        answer: strings.FAQ2Answer,
+      },
+      {
+        question: strings.FAQ3Question,
+        answer: strings.FAQ3Answer,
+      },
+      {
+        question: strings.FAQ4Question,
+        answer: strings.FAQ4Answer,
+      },
+      {
+        question: strings.FAQ5Question,
+        answer: strings.FAQ5Answer,
+      },
+      {
+        question: strings.FAQ6Question,
+        answer: strings.FAQ6Answer,
+      },
+      {
+        question: strings.FAQ7Question,
+        answer: strings.FAQ7Answer,
+      },
+      {
+        question: strings.FAQ8Question,
+        answer: strings.FAQ8Answer,
+      },
+      {
+        question: strings.FAQ9Question,
+        answer: strings.FAQ9Answer,
+      },
+      {
+        question: strings.FAQ10Question,
+        answer: strings.FAQ10Answer,
+      },
+    ]);
+  }, [language]);
 
   const handleToggle = index => {
     if (expandedFaq === index) {
@@ -81,7 +127,7 @@ export default function FaqScreen({navigation}) {
       />
       <ScrollView style={styles.scrollView}>
         <View style={styles.faqContainer}>
-          {faqData.map((faq, index) => (
+          {localFaqData.map((faq, index) => (
             <View key={index} style={styles.faqItem}>
               <TouchableOpacity
                 style={styles.faqTitleContainer}

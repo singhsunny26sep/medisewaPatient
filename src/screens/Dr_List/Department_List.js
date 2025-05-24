@@ -17,7 +17,7 @@ import {Fonts} from '../../Theme/Fonts';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {Instance} from '../../api/Instance';
 
-export default function Department_List({route,navigation}) {
+export default function Department_List({route, navigation}) {
   const {departmentId} = route.params;
 
   const [doctors, setDoctors] = useState([]);
@@ -117,7 +117,9 @@ export default function Department_List({route,navigation}) {
                 <Image source={{uri: item.image}} style={styles.cardImage} />
                 <View style={styles.cardText}>
                   <Text style={styles.drName}>{item.name}</Text>
-                  <Text style={styles.drType}>{item.department?.name || 'Not Available'}</Text>
+                  <Text style={styles.drType}>
+                    {item.department?.name || 'Not Available'}
+                  </Text>
                   <Text style={styles.experience}>
                     {item.doctorId?.experience || '0'} years experience
                   </Text>

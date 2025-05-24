@@ -18,6 +18,7 @@ import CustomHeader from '../../component/header/CustomHeader';
 import {moderateScale, scale, verticalScale} from '../../utils/Scaling';
 import {Instance} from '../../api/Instance';
 import {Fonts} from '../../Theme/Fonts';
+import ShimmerCard from '../../component/Shimmer/ShimmerCard';
 
 const {width} = Dimensions.get('window');
 
@@ -95,6 +96,29 @@ export default function FindDoctor({navigation}) {
     </TouchableOpacity>
   );
 
+  const renderShimmerCategories = () => (
+    <FlatList
+      data={[1, 2, 3, 4]}
+      renderItem={() => <ShimmerCard type="category" />}
+      keyExtractor={(_, index) => index.toString()}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.categoriesList}
+    />
+  );
+
+  const renderShimmerSpecialists = () => (
+    <FlatList
+      data={[1, 2, 3, 4]}
+      renderItem={() => <ShimmerCard type="doctor" />}
+      keyExtractor={(_, index) => index.toString()}
+      numColumns={2}
+      columnWrapperStyle={styles.specialistsRow}
+      contentContainerStyle={styles.specialistsList}
+      scrollEnabled={false}
+    />
+  );
+
   return (
     <Container
       statusBarStyle={'dark-content'}
@@ -121,13 +145,8 @@ export default function FindDoctor({navigation}) {
      
         <View style={styles.categoriesSection}>
           <Text style={styles.sectionTitle}>Categories</Text>
-
           {loading ? (
-            <ActivityIndicator
-              size="large"
-              color={COLORS.primary}
-              style={styles.loader}
-            />
+            renderShimmerCategories()
           ) : (
             <FlatList
               data={departments}
@@ -142,13 +161,8 @@ export default function FindDoctor({navigation}) {
 
         <View style={styles.specialistsSection}>
           <Text style={styles.sectionTitle}>Specialists</Text>
-
           {loading ? (
-            <ActivityIndicator
-              size="large"
-              color={COLORS.primary}
-              style={styles.loader}
-            />
+            renderShimmerSpecialists()
           ) : (
             <FlatList
               data={filteredSpecialists}

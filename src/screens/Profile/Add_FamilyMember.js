@@ -12,18 +12,17 @@ import {COLORS} from '../../Theme/Colors';
 import CustomHeader from '../../component/header/CustomHeader';
 import {scale} from '../../utils/Scaling';
 import CustomTextInput from '../../component/texinput/CustomTextInput';
+import strings from '../../../localization';
 
 export default function Add_FamilyMember({navigation}) {
-  const handleSubmit = () => {
-    console.log('Submit button pressed');
-  };
+  const handleSubmit = () => {};
 
   return (
     <Container
       statusBarStyle={'dark-content'}
       statusBarBackgroundColor={COLORS.white}
       backgroundColor={COLORS.white}>
-      <CustomHeader title="Add Member" navigation={navigation} />
+      <CustomHeader title={strings.AddMember} navigation={navigation} />
 
       <ScrollView>
         <Image
@@ -35,14 +34,14 @@ export default function Add_FamilyMember({navigation}) {
 
         <View style={styles.inputContainer}>
           <CustomTextInput
-            label="Add More Member"
-            placeholder={'Add More Member'}
+            label={strings.AddMoreMember}
+            placeholder={strings.AddMoreMember}
             leftIcon="person-add-outline"
           />
         </View>
 
         <TouchableOpacity onPress={handleSubmit} style={styles.submitButton}>
-          <Text style={styles.submitText}>Submit</Text>
+          <Text style={styles.submitText}>{strings.Submit}</Text>
         </TouchableOpacity>
       </ScrollView>
     </Container>

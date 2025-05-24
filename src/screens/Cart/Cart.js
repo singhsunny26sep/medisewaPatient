@@ -103,11 +103,11 @@ export default function Cart({navigation}) {
             }}
             style={{height: scale(155), width: scale(155)}}
           />
-          <Text style={styles.emptyText}>Your cart is empty</Text>
+          <Text style={styles.emptyText}>{strings.CartEmptyMessage}</Text>
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => navigation.navigate('MedicineScreen')}>
-            <Text style={styles.addButtonText}>Add Medicines</Text>
+            <Text style={styles.addButtonText}>{strings.AddMedicines}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -178,7 +178,7 @@ export default function Cart({navigation}) {
 
           <View style={styles.checkoutContainer}>
             <View style={styles.totalPriceContainer}>
-              <Text style={styles.totalPriceLabel}>Total Price</Text>
+              <Text style={styles.totalPriceLabel}>{strings.TotalPrice}</Text>
               <Text style={styles.totalPriceValue}>
                 ₹{calculateTotalPrice()}
               </Text>
@@ -187,15 +187,15 @@ export default function Cart({navigation}) {
               style={styles.checkoutButton}
               onPress={() => {
                 const userData = cartData[0]?.userId;
-                const totalPrice = calculateTotalPrice(); 
-                console.log('Calculated Total Price:', totalPrice); 
+                const totalPrice = calculateTotalPrice();
+                console.log('Calculated Total Price:', totalPrice);
                 navigation.navigate('Pre_View_Order', {
                   cartData,
                   userData,
                   totalPrice,
                 });
               }}>
-              <Text style={styles.checkoutButtonText}>CheckOut</Text>
+              <Text style={styles.checkoutButtonText}>{strings.CheckOut}</Text>
             </TouchableOpacity>
           </View>
         </>

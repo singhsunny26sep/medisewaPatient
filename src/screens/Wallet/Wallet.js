@@ -32,7 +32,7 @@ export default function Wallet({navigation}) {
           style={styles.card}>
           <View style={styles.cardContent}>
             <View style={styles.earningsInfo}>
-              <Text style={styles.earningsText}>Balance</Text>
+              <Text style={styles.earningsText}>{strings.Balance}</Text>
               <Text style={styles.amount}>₹ 50</Text>
             </View>
             <View style={styles.iconContainer}>
@@ -42,12 +42,12 @@ export default function Wallet({navigation}) {
                 }}
                 style={styles.icon}
               />
-              <Text style={styles.walletLabel}>Mediseva Wallet</Text>
+              <Text style={styles.walletLabel}>{strings.MedisevaWallet}</Text>
             </View>
           </View>
         </LinearGradient>
 
-      <Text style={styles.label}>Mediseva Services</Text>
+      <Text style={styles.label}>{strings.MedisevaServices}</Text>
       <ServiceList />
       <TouchableOpacity
         style={styles.faqButton}

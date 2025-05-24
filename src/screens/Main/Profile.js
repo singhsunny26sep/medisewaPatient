@@ -117,8 +117,7 @@ export default function ProfileScreen({}) {
         )}
 
         <View>
-          <Text style={styles.FAMILYFONT}>Family Information</Text>
-
+          <Text style={styles.FAMILYFONT}>{strings.FamilyInformation}</Text>
           <View style={styles.familyCard}>
             <View style={styles.familyRow}>
               <Image
@@ -138,7 +137,7 @@ export default function ProfileScreen({}) {
           <TouchableOpacity
             style={styles.addFamilyBtn}
             onPress={() => navigation.navigate('Add_FamilyMember')}>
-            <Text style={styles.addFamilyBtnText}>+ Add Family Member</Text>
+            <Text style={styles.addFamilyBtnText}>+ {strings.AddFamilyMember}</Text>
           </TouchableOpacity>
         </View>
 

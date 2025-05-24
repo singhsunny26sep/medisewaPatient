@@ -35,6 +35,11 @@ export default function SubCategory({navigation, route}) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Add filtered data based on search query
+  const filteredMedicines = brandMedicines.filter(medicine => 
+    medicine.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   useEffect(() => {
     const fetchBrandMedicines = async () => {
       try {
@@ -123,9 +128,15 @@ export default function SubCategory({navigation, route}) {
             No medicines found for this brand.
           </Text>
         </View>
+      ) : filteredMedicines.length === 0 && searchQuery ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>
+            No medicines found matching "{searchQuery}"
+          </Text>
+        </View>
       ) : (
         <FlatList
-          data={brandMedicines}
+          data={filteredMedicines}
           keyExtractor={item => item._id.toString()}
           renderItem={({item}) => (
             <CustomBrandCard

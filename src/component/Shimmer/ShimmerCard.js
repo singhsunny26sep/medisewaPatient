@@ -99,6 +99,91 @@ const ShimmerCard = ({type = 'medicine'}) => {
     );
   }
 
+  if (type === 'order') {
+    return (
+      <View style={styles.orderCard}>
+        <View style={styles.orderHeader}>
+          <ShimmerPlaceholder
+            style={styles.orderIcon}
+            shimmerColors={shimmerColors}
+          />
+          <ShimmerPlaceholder
+            style={styles.orderTitle}
+            shimmerColors={shimmerColors}
+          />
+        </View>
+        <View style={styles.orderInfo}>
+          <ShimmerPlaceholder
+            style={styles.orderInfoLine}
+            shimmerColors={shimmerColors}
+          />
+          <ShimmerPlaceholder
+            style={styles.orderInfoLine}
+            shimmerColors={shimmerColors}
+          />
+          <ShimmerPlaceholder
+            style={styles.orderInfoLine}
+            shimmerColors={shimmerColors}
+          />
+        </View>
+        <View style={styles.orderDate}>
+          <ShimmerPlaceholder
+            style={styles.orderDateLine}
+            shimmerColors={shimmerColors}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (type === 'appointment') {
+    return (
+      <View style={styles.appointmentCard}>
+        <View style={styles.appointmentHeader}>
+          <ShimmerPlaceholder
+            style={styles.appointmentImage}
+            shimmerColors={shimmerColors}
+          />
+          <View style={styles.appointmentHeaderContent}>
+            <ShimmerPlaceholder
+              style={styles.appointmentName}
+              shimmerColors={shimmerColors}
+            />
+            <ShimmerPlaceholder
+              style={styles.appointmentClinic}
+              shimmerColors={shimmerColors}
+            />
+          </View>
+        </View>
+
+        <View style={styles.appointmentDivider} />
+
+        <View style={styles.appointmentInfo}>
+          <ShimmerPlaceholder
+            style={styles.appointmentInfoLine}
+            shimmerColors={shimmerColors}
+          />
+          <ShimmerPlaceholder
+            style={styles.appointmentInfoLine}
+            shimmerColors={shimmerColors}
+          />
+          <ShimmerPlaceholder
+            style={styles.appointmentInfoLine}
+            shimmerColors={shimmerColors}
+          />
+          <ShimmerPlaceholder
+            style={styles.appointmentInfoLine}
+            shimmerColors={shimmerColors}
+          />
+          <ShimmerPlaceholder
+            style={styles.appointmentInfoLine}
+            shimmerColors={shimmerColors}
+          />
+        </View>
+      </View>
+    );
+  }
+
   return null;
 };
 
@@ -234,6 +319,101 @@ const styles = StyleSheet.create({
     marginTop: scale(5),
     borderTopWidth: 1,
     borderColor: COLORS.AshGray,
+  },
+  orderCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: moderateScale(14),
+    marginVertical: verticalScale(5),
+    padding: scale(15),
+    elevation: 5,
+    shadowColor: COLORS.black,
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+  },
+  orderHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: scale(15),
+  },
+  orderIcon: {
+    width: scale(35),
+    height: scale(35),
+    borderRadius: moderateScale(20),
+    marginRight: scale(15),
+  },
+  orderTitle: {
+    width: '85%',
+    height: scale(25),
+    borderRadius: moderateScale(6),
+  },
+  orderInfo: {
+    marginBottom: scale(15),
+  },
+  orderInfoLine: {
+    width: '100%',
+    height: scale(20),
+    borderRadius: moderateScale(6),
+    marginBottom: scale(10),
+  },
+  orderDate: {
+    marginTop: scale(15),
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+    paddingTop: scale(15),
+  },
+  orderDateLine: {
+    width: '60%',
+    height: scale(20),
+    borderRadius: moderateScale(6),
+  },
+  appointmentCard: {
+    backgroundColor: COLORS.white,
+    padding: moderateScale(15),
+    borderRadius: moderateScale(12),
+    marginBottom: scale(16),
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  appointmentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  appointmentImage: {
+    width: scale(60),
+    height: scale(60),
+    borderRadius: moderateScale(35),
+  },
+  appointmentHeaderContent: {
+    flex: 1,
+    marginLeft: scale(10),
+  },
+  appointmentName: {
+    width: '70%',
+    height: scale(20),
+    borderRadius: moderateScale(4),
+    marginBottom: scale(8),
+  },
+  appointmentClinic: {
+    width: '90%',
+    height: scale(16),
+    borderRadius: moderateScale(4),
+  },
+  appointmentDivider: {
+    height: 1,
+    backgroundColor: '#ddd',
+    marginVertical: verticalScale(10),
+  },
+  appointmentInfo: {
+    gap: scale(8),
+  },
+  appointmentInfoLine: {
+    width: '100%',
+    height: scale(16),
+    borderRadius: moderateScale(4),
   },
 });
 
