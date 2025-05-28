@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
+  Platform,
+  PermissionsAndroid,
 } from 'react-native';
 import {Container} from '../../component/Container/Container';
 import {COLORS} from '../../Theme/Colors';
@@ -22,6 +24,7 @@ import {Instance} from '../../api/Instance';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import moment from 'moment';
 import ToastMessage from '../../component/ToastMessage/ToastMessage';
+import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 
 export default function Dr_AppointmentBook({route, navigation}) {
   const {doctorId} = route.params;
@@ -38,9 +41,31 @@ export default function Dr_AppointmentBook({route, navigation}) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [appointmentTypeOpen, setAppointmentTypeOpen] = useState(false);
   const [appointmentType, setAppointmentType] = useState(null);
+  const [familyMemberName, setFamilyMemberName] = useState('');
+  const [familyMemberAge, setFamilyMemberAge] = useState('');
+  const [familyMemberGender, setFamilyMemberGender] = useState('');
+  const [familyMemberRelation, setFamilyMemberRelation] = useState('');
+  const [reports, setReports] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  
   const appointmentTypeItems = [
     {label: 'For Myself', value: 'self'},
     {label: 'For Family Member', value: 'family'},
+  ];
+
+  const genderItems = [
+    {label: 'Male', value: 'male'},
+    {label: 'Female', value: 'female'},
+    {label: 'Other', value: 'other'},
+  ];
+
+  const relationItems = [
+    {label: 'Father', value: 'father'},
+    {label: 'Mother', value: 'mother'},
+    {label: 'Spouse', value: 'spouse'},
+    {label: 'Child', value: 'child'},
+    {label: 'Sibling', value: 'sibling'},
+    {label: 'Other', value: 'other'},
   ];
 
   const availableSlots = [
@@ -126,13 +151,12 @@ export default function Dr_AppointmentBook({route, navigation}) {
         <View style={styles.detailsContainer}>
           <Text style={styles.doctorName}>Dr. {name}</Text>
           <Text style={styles.doctorSpecialization}>
-            Specialization: {specialization?.name}
+            {specialization?.name}
           </Text>
-
           <View style={styles.doctorInfoContainer}>
             <View style={styles.doctorInfoRow}>
               <Icon name="phone" size={scale(20)} color={COLORS.DODGERBLUE} />
-              <Text style={styles.doctorInfoText}>Mo. {contactNumber}</Text>
+              <Text style={styles.doctorInfoText}>{contactNumber}</Text>
             </View>
             <View style={styles.doctorInfoRow}>
               <Icon name="work" size={scale(20)} color={COLORS.DODGERBLUE} />
@@ -141,49 +165,29 @@ export default function Dr_AppointmentBook({route, navigation}) {
               </Text>
             </View>
             <View style={styles.doctorInfoRow}>
-              <Icon
-                name="business"
-                size={scale(20)}
-                color={COLORS.DODGERBLUE}
-              />
+              <Icon name="business" size={scale(20)} color={COLORS.DODGERBLUE} />
               <Text style={styles.doctorInfoText}>
-                Department: {department?.name}
+                {department?.name}
               </Text>
             </View>
             <View style={styles.doctorInfoRow}>
-              <Icon
-                name="accessibility"
-                size={scale(20)}
-                color={COLORS.DODGERBLUE}
-              />
-              <Text style={styles.doctorInfoText}>Gender: {doctorGender}</Text>
+              <Icon name="accessibility" size={scale(20)} color={COLORS.DODGERBLUE} />
+              <Text style={styles.doctorInfoText}>{doctorGender}</Text>
             </View>
             <View style={styles.doctorInfoRow}>
-              <Icon
-                name="location-on"
-                size={scale(20)}
-                color={COLORS.DODGERBLUE}
-              />
-              <Text style={styles.doctorInfoText}>Clinic: {clinicAddress}</Text>
+              <Icon name="location-on" size={scale(20)} color={COLORS.DODGERBLUE} />
+              <Text style={styles.doctorInfoText}>{clinicAddress}</Text>
             </View>
             <View style={styles.doctorInfoRow}>
-              <Icon
-                name="attach-money"
-                size={scale(20)}
-                color={COLORS.DODGERBLUE}
-              />
+              <Icon name="attach-money" size={scale(20)} color={COLORS.DODGERBLUE} />
               <Text style={styles.doctorInfoText}>
-                Fee: ₹{fee} (Old Fee: ₹{oldFee})
+                ₹{fee} <Text style={{textDecorationLine: 'line-through', color: COLORS.gray}}>₹{oldFee}</Text>
               </Text>
             </View>
             <View style={styles.doctorInfoRow}>
-              <Icon
-                name="access-time"
-                size={scale(20)}
-                color={COLORS.DODGERBLUE}
-              />
+              <Icon name="access-time" size={scale(20)} color={COLORS.DODGERBLUE} />
               <Text style={styles.doctorInfoText}>
-                Availability: {startTime} to {endTime}
+                {startTime} - {endTime}
               </Text>
             </View>
           </View>
@@ -208,6 +212,15 @@ export default function Dr_AppointmentBook({route, navigation}) {
         return;
       }
 
+      if (appointmentType === 'family') {
+        if (!familyMemberName || !familyMemberAge || !familyMemberGender || !familyMemberRelation) {
+          setToastMessage('Please fill all family member details');
+          setToastType('danger');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       const date = selectedDate || new Date();
       const formattedDate = moment(date).format(
         'YYYY-MM-DDT00:00:00.000+00:00',
@@ -221,6 +234,12 @@ export default function Dr_AppointmentBook({route, navigation}) {
         consultationFee: doctorDetails?.doctorId?.fee?.toString() || '500',
         serviceCharge: '0',
         appointmentType: appointmentType,
+        familyMemberDetails: appointmentType === 'family' ? {
+          name: familyMemberName,
+          age: familyMemberAge,
+          gender: familyMemberGender,
+          relation: familyMemberRelation
+        } : null
       };
 
       console.log('Booking payload:', payload);
@@ -238,17 +257,116 @@ export default function Dr_AppointmentBook({route, navigation}) {
       if (response.data.success) {
         setToastMessage('Appointment booked successfully!');
         setToastType('success');
-        navigation.goBack();
+        setTimeout(() => {
+          navigation.goBack();
+        }, 2000);
       } else {
         setToastMessage('Failed to book appointment');
         setToastType('danger');
       }
     } catch (error) {
       console.error('Booking error:', error.response?.data || error.message);
+      setToastMessage('Failed to book appointment. Please try again.');
+      setToastType('danger');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const requestCameraPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          {
+            title: "Camera Permission",
+            message: "App needs access to your camera to take photos",
+            buttonNeutral: "Ask Me Later",
+            buttonNegative: "Cancel",
+            buttonPositive: "OK"
+          }
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn(err);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleImagePick = async (type) => {
+    try {
+      if (type === 'camera') {
+        const hasPermission = await requestCameraPermission();
+        if (!hasPermission) {
+          setToastMessage('Camera permission is required');
+          setToastType('danger');
+          return;
+        }
+      }
+
+      const options = {
+        mediaType: 'photo',
+        quality: 0.8,
+        includeBase64: false,
+        saveToPhotos: true,
+        cameraType: 'back',
+      };
+
+      const result = type === 'camera' 
+        ? await launchCamera(options)
+        : await launchImageLibrary(options);
+
+      if (result.didCancel) {
+        console.log('User cancelled image picker');
+        return;
+      }
+
+      if (result.errorCode) {
+        console.log('ImagePicker Error: ', result.errorMessage);
+        setToastMessage('Error capturing image');
+        setToastType('danger');
+        return;
+      }
+
+      if (result.assets && result.assets[0]) {
+        const newReport = {
+          type: 'image',
+          name: result.assets[0].fileName || 'image.jpg',
+          uri: result.assets[0].uri,
+          size: result.assets[0].fileSize,
+        };
+        
+        setReports([...reports, newReport]);
+      }
+    } catch (err) {
+      console.error('Image picker error:', err);
+      setToastMessage('Error capturing image');
+      setToastType('danger');
+    }
+  };
+
+  const removeReport = (index) => {
+    const newReports = [...reports];
+    newReports.splice(index, 1);
+    setReports(newReports);
+  };
+
+  const renderReportItem = ({item, index}) => (
+    <View style={styles.reportItem}>
+      <Image 
+        source={{ uri: item.uri }} 
+        style={styles.reportThumbnail}
+      />
+      <Text style={styles.reportName} numberOfLines={1}>
+        {item.name}
+      </Text>
+      <TouchableOpacity onPress={() => removeReport(index)}>
+        <Icon name="close" size={scale(20)} color={COLORS.red} />
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <Container
@@ -284,6 +402,41 @@ export default function Dr_AppointmentBook({route, navigation}) {
             containerStyle={styles.dropdownContainerStyle}
           />
         </View>
+
+        {appointmentType === 'family' && (
+          <View style={styles.familyMemberContainer}>
+            <Text style={styles.sectionTitle}>Family Member Details</Text>
+            <CustomTextInput
+              placeholder="Enter Name"
+              value={familyMemberName}
+              onChangeText={setFamilyMemberName}
+              style={styles.input}
+            />
+            <CustomTextInput
+              placeholder="Enter Age"
+              value={familyMemberAge}
+              onChangeText={setFamilyMemberAge}
+              keyboardType="numeric"
+              style={styles.input}
+            />
+            <CustomDropdown
+              data={genderItems}
+              value={familyMemberGender}
+              onChange={setFamilyMemberGender}
+              placeholder="Select Gender"
+              style={styles.dropdown}
+              containerStyle={styles.dropdownContainerStyle}
+            />
+            <CustomDropdown
+              data={relationItems}
+              value={familyMemberRelation}
+              onChange={setFamilyMemberRelation}
+              placeholder="Select Relation"
+              style={[styles.dropdown,{marginTop:scale(12)}]}
+              containerStyle={styles.dropdownContainerStyle}
+            />
+          </View>
+        )}
 
         <View>
           <Text style={styles.selectDateText}>Select Date</Text>
@@ -332,6 +485,39 @@ export default function Dr_AppointmentBook({route, navigation}) {
           />
         </View>
 
+        <View style={styles.reportsContainer}>
+          <Text style={styles.sectionTitle}>Past Reports</Text>
+          <View style={styles.uploadButtonsContainer}>
+            <TouchableOpacity 
+              style={styles.uploadButton} 
+              onPress={() => handleImagePick('gallery')}
+            >
+              <Icon name="photo-library" size={scale(24)} color={COLORS.DODGERBLUE} />
+              <Text style={styles.uploadButtonText}>Gallery</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.uploadButton} 
+              onPress={() => handleImagePick('camera')}
+            >
+              <Icon name="camera-alt" size={scale(24)} color={COLORS.DODGERBLUE} />
+              <Text style={styles.uploadButtonText}>Camera</Text>
+            </TouchableOpacity>
+          </View>
+
+          {reports.length > 0 && (
+            <View style={styles.reportsList}>
+              <Text style={styles.reportsListTitle}>Uploaded Reports</Text>
+              <FlatList
+                data={reports}
+                renderItem={renderReportItem}
+                keyExtractor={(item, index) => index.toString()}
+                scrollEnabled={false}
+              />
+            </View>
+          )}
+        </View>
+
         <TouchableOpacity onPress={handleSubmitAppointment} disabled={isSubmitting}>
           <View style={styles.submitButton}>
             {isSubmitting ? (
@@ -357,6 +543,7 @@ export default function Dr_AppointmentBook({route, navigation}) {
 const styles = StyleSheet.create({
   scrollView: {
     paddingBottom: scale(20),
+    backgroundColor: COLORS.white,
   },
   loader: {
     flex: 1,
@@ -375,36 +562,30 @@ const styles = StyleSheet.create({
     marginTop: scale(20),
   },
   doctorImage: {
-    height: scale(175),
-    width: scale(175),
+    height: scale(120),
+    width: scale(120),
     alignSelf: 'center',
-    borderRadius: scale(90),
-    borderWidth: 1,
+    borderRadius: scale(60),
+    borderWidth: 2,
+    borderColor: COLORS.DODGERBLUE,
+    marginBottom: scale(15),
   },
   detailsContainer: {
     marginTop: scale(5),
     padding: scale(15),
     backgroundColor: COLORS.white,
-    borderRadius: scale(10),
+    borderRadius: scale(15),
     shadowColor: COLORS.black,
     shadowOpacity: 0.1,
-    shadowOffset: {width: 0, height: 2},
-    shadowRadius: scale(5),
+    shadowOffset: {width: 0, height: 4},
+    shadowRadius: scale(8),
     elevation: 5,
-    marginBottom: 10,
-  },
-  doctorImage: {
-    height: scale(180),
-    width: scale(180),
-    alignSelf: 'center',
-    borderRadius: scale(90),
-    borderWidth: 1,
     marginBottom: scale(15),
   },
   doctorName: {
     fontFamily: Fonts.Bold,
     color: COLORS.black,
-    fontSize: moderateScale(20),
+    fontSize: moderateScale(22),
     textAlign: 'center',
     marginBottom: scale(5),
   },
@@ -413,21 +594,23 @@ const styles = StyleSheet.create({
     color: COLORS.DODGERBLUE,
     fontSize: moderateScale(16),
     textAlign: 'center',
-    marginBottom: scale(10),
+    marginBottom: scale(5),
   },
   doctorInfoContainer: {
-    marginTop: scale(10),
+    borderRadius: scale(10),
   },
   doctorInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: scale(5),
+    marginVertical: scale(8),
+    paddingHorizontal: scale(5),
   },
   doctorInfoText: {
     fontFamily: Fonts.Medium,
     color: COLORS.black,
     fontSize: moderateScale(14),
-    marginLeft: scale(10),
+    marginLeft: scale(12),
+    flex: 1,
   },
   inputContainer: {
     paddingHorizontal: scale(15),
@@ -437,44 +620,55 @@ const styles = StyleSheet.create({
     marginTop: scale(5),
   },
   selectDateText: {
-    fontFamily: Fonts.Medium,
+    fontFamily: Fonts.Light,
     color: COLORS.black,
     marginHorizontal: scale(15),
     fontSize: moderateScale(16),
-    marginBottom: scale(8),
+    marginBottom: scale(10),
+    marginTop: scale(15),
   },
   availableSlotsText: {
     marginTop: scale(15),
   },
   dateContainer: {
-    padding: scale(10),
+    padding: scale(12),
     borderWidth: 1,
     borderColor: COLORS.AshGray,
-    borderRadius: scale(8),
+    borderRadius: scale(12),
     backgroundColor: COLORS.white,
     marginHorizontal: scale(15),
     flexDirection: 'row',
     alignItems: 'center',
+    shadowColor: COLORS.black,
+    shadowOpacity: 0.05,
+    shadowOffset: {width: 0, height: 2},
+    shadowRadius: scale(4),
+    elevation: 2,
   },
   icon: {
     marginRight: scale(10),
   },
   selectedDate: {
     fontFamily: Fonts.Medium,
-    color: 'grey',
+    color: COLORS.black,
     fontSize: moderateScale(15),
-    top: 2,
   },
   timeSlotsContainer: {
     paddingHorizontal: scale(15),
+    marginTop: scale(5),
   },
   timeSlotBox: {
-    padding: scale(10),
+    padding: scale(12),
     marginRight: scale(10),
     borderWidth: 1,
     borderColor: COLORS.AshGray,
-    borderRadius: scale(8),
+    borderRadius: scale(12),
     backgroundColor: COLORS.white,
+    shadowColor: COLORS.black,
+    shadowOpacity: 0.05,
+    shadowOffset: {width: 0, height: 2},
+    shadowRadius: scale(4),
+    elevation: 2,
   },
   selectedTimeSlot: {
     backgroundColor: COLORS.DODGERBLUE,
@@ -492,28 +686,140 @@ const styles = StyleSheet.create({
     marginTop: scale(30),
     marginHorizontal: scale(15),
     backgroundColor: COLORS.DODGERBLUE,
-    paddingVertical: scale(9),
-    borderRadius: scale(8),
+    paddingVertical: scale(15),
+    borderRadius: scale(12),
     alignItems: 'center',
+    shadowColor: COLORS.DODGERBLUE,
+    shadowOpacity: 0.3,
+    shadowOffset: {width: 0, height: 4},
+    shadowRadius: scale(8),
+    elevation: 5,
   },
   submitButtonText: {
     color: COLORS.white,
-    fontFamily: Fonts.Medium,
+    fontFamily: Fonts.SemiBold,
     fontSize: moderateScale(16),
   },
   dropdownContainer: {
     marginHorizontal: scale(15),
     marginTop: scale(10),
     zIndex: 3000,
-    marginBottom:scale(10)
+    marginBottom: scale(10),
   },
   dropdown: {
     borderColor: COLORS.AshGray,
-    borderRadius: scale(8),
-    height: scale(45),
+    borderRadius: scale(12),
+    height: scale(50),
+    backgroundColor: COLORS.white,
+    shadowColor: COLORS.black,
+    shadowOpacity: 0.05,
+    shadowOffset: {width: 0, height: 2},
+    shadowRadius: scale(4),
+    elevation: 2,
   },
   dropdownContainerStyle: {
     borderColor: COLORS.AshGray,
+    borderRadius: scale(12),
+    backgroundColor: COLORS.white,
+  },
+  familyMemberContainer: {
+    marginHorizontal: scale(15),
+    marginTop: scale(10),
+    backgroundColor: COLORS.white,
+    padding: scale(15),
+    borderRadius: scale(15),
+    shadowColor: COLORS.black,
+    shadowOpacity: 0.1,
+    shadowOffset: {width: 0, height: 4},
+    shadowRadius: scale(8),
+    elevation: 5,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: COLORS.AshGray,
+    borderRadius: scale(12),
+    paddingHorizontal: scale(15),
+    height: scale(50),
+    marginBottom: scale(12),
+    fontFamily: Fonts.Medium,
+    backgroundColor: COLORS.white,
+    shadowColor: COLORS.black,
+    shadowOpacity: 0.05,
+    shadowOffset: {width: 0, height: 2},
+    shadowRadius: scale(4),
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontFamily: Fonts.Light,
+    color: COLORS.black,
+    fontSize: moderateScale(16),
+    marginBottom: scale(10),
+  },
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.AshGray,
+    marginVertical: scale(15),
+    opacity: 0.5,
+  },
+  reportsContainer: {
+    marginHorizontal: scale(15),
+    marginTop: scale(20),
+    backgroundColor: COLORS.white,
+    padding: scale(15),
+    borderRadius: scale(15),
+    shadowColor: COLORS.black,
+    shadowOpacity: 0.1,
+    shadowOffset: {width: 0, height: 4},
+    shadowRadius: scale(8),
+    elevation: 5,
+  },
+  uploadButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: scale(10),
+  },
+  uploadButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.lightGray,
+    padding: scale(12),
+    borderRadius: scale(12),
+    marginHorizontal: scale(10),
+  },
+  uploadButtonText: {
+    fontFamily: Fonts.Medium,
+    color: COLORS.black,
+    fontSize: moderateScale(12),
+    marginTop: scale(5),
+  },
+  reportsList: {
+    marginTop: scale(15),
+  },
+  reportsListTitle: {
+   fontFamily: Fonts.Light,
+    color: COLORS.black,
+    fontSize: moderateScale(16),
+    marginBottom: scale(10),
+  },
+  reportItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.lightGray,
+    padding: scale(12),
     borderRadius: scale(8),
+    marginBottom: scale(8),
+  },
+  reportThumbnail: {
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(4),
+  },
+  reportName: {
+    flex: 1,
+    fontFamily: Fonts.Medium,
+    fontSize: moderateScale(14),
+    color: COLORS.black,
+    marginLeft: scale(10),
   },
 });

@@ -23,7 +23,7 @@ import strings from '../../../localization';
 
 export default function EditProfile({navigation}) {
   const [profileImage, setProfileImage] = useState(
-    'https://png.pngtree.com/png-vector/20231019/ourmid/pngtree-user-profile-avatar-png-image_10211467.png',
+    'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
   );
 
   const [toastMessage, setToastMessage] = useState('');
@@ -150,7 +150,7 @@ export default function EditProfile({navigation}) {
       console.error('Error during profile update:', error);
       const errorMessage = error.response?.data?.msg || 'Something went wrong';
       setToastMessage(errorMessage);
-      setToastType('danger')
+      setToastType('danger');
     } finally {
       setLoading(false);
     }

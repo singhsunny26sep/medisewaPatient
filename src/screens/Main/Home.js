@@ -98,14 +98,14 @@ export default function Home({navigation}) {
                 <Text style={styles.userName}>{profileData?.name || "Loading.."}</Text>
               </View>
             </View>
-            <TouchableOpacity style={styles.notificationButton}>
+            {/* <TouchableOpacity style={styles.notificationButton}>
               <LinearGradient
                 colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.15)']}
                 style={styles.notificationIconContainer}>
                 <Ionicons name="notifications" size={24} color={COLORS.white} />
                 <View style={styles.notificationBadge} />
               </LinearGradient>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
         </LinearGradient>
 

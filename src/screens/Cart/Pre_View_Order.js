@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   Image,
   StyleSheet,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import {Container} from '../../component/Container/Container';
 import {COLORS} from '../../Theme/Colors';
@@ -16,97 +17,87 @@ import {Fonts} from '../../Theme/Fonts';
 import {useRoute} from '@react-navigation/native';
 import {Instance} from '../../api/Instance';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import usePhonePePayment from '../../component/PhonePay/usePhonePePayment';
 import ToastMessage from '../../component/ToastMessage/ToastMessage';
+import usePhonePePayment from '../../component/PhonePay/usePhonePePayment';
 
 export default function Pre_View_Order({navigation}) {
-  const {submitHandler} = usePhonePePayment();
-
   const route = useRoute('');
   const {cartData, totalPrice} = route.params;
 
-  // const ConfirmOrderHandler = async () => {
-  //   try {
-  //     const token = await AsyncStorage.getItem('userToken');
+  const [isLoading, setIsLoading] = useState(false);
+  const {submitHandler} = usePhonePePayment();
 
-  //     for (const item of cartData) {
-  //       const medicine = item.medicineId;
-  //       const sizeId = Array.isArray(item?.sizeId)
-  //         ? item?.sizeId[0]?._id
-  //         : item?.sizeId;
-  //       const quantity = item.quantity;
-  //       const price = medicine.price;
-  //       const discount = medicine?.discount || 0;
-  //       const discountType = medicine?.discountType || 'percentage';
-
-  //       let priceAtSale = 0;
-
-  //       if (discount > 0) {
-  //         if (discountType === 'percentage') {
-  //           priceAtSale =
-  //             quantity * price - (quantity * price * discount) / 100;
-  //         } else {
-  //           priceAtSale = quantity * (price - discount);
-  //         }
-  //       } else {
-  //         priceAtSale = quantity * price;
-  //       }
-
-  //       const payload = {
-  //         sizeId: '680f3707b34b5e41f7f542e8',
-  //         quntity: '1',
-  //         priceAtSale: priceAtSale.toFixed(2),
-  //       };
-
-  //       console.log('Sending order item:', payload);
-
-  //       const response = await Instance.post(
-  //         'api/v1/selles/sellSingle',
-  //         payload,
-  //         {
-  //           headers: {
-  //             Authorization: `Bearer ${token}`,
-  //           },
-  //         },
-  //       );
-
-  //       console.log('Order response:', response.data);
-  //     }
-
-  //     const paymentResponse = await submitHandler(totalPrice);
-
-  //     if (paymentResponse.status === 'SUCCESS') {
-  //       alert('Payment successful via ' + paymentResponse.paymentMethod);
-  //       navigation.goBack();
-  //     } else {
-  //       alert('Order placed but payment failed. You can retry from Orders.');
-  //     }
-  //   } catch (error) {
-  //     console.error(
-  //       'Error confirming order:',
-  //       error?.response?.data || error.message,
-  //     );
-  //     alert('Failed to confirm order.');
-  //   }
-  // };
-
-const ConfirmOrderHandler = async () => {
+  const ConfirmOrderHandler = async () => {
   try {
-    const staticAmount = 100; // ₹100 static amount
+    setIsLoading(true);
 
-    const paymentResponse = await submitHandler(staticAmount);
+    const paymentResult = await submitHandler(totalPrice);
 
-    if (paymentResponse.status === 'SUCCESS') {
-      alert('Payment successful via ' + paymentResponse.paymentMethod);
+    if (paymentResult.status === 'SUCCESS') {
+      const token = await AsyncStorage.getItem('userToken');
+
+      for (const item of cartData) {
+        const medicine = item.medicineId;
+        const quantity = item.quantity;
+
+        const selectedSize =
+          medicine.size.find(s => s.size === '400' && s.unit === 'ml') ||
+          medicine.size[0];
+
+        if (!selectedSize) {
+          console.warn('No valid size found for medicine:', medicine.title);
+          ToastMessage(`No size found for ${medicine.title}`);
+          continue;
+        }
+
+        const sizeId = '680f3707b34b5e41f7f542e6';
+        const price = selectedSize.price;
+        const discount = selectedSize.discount || 0;
+        const discountType = selectedSize.discountType || 'percentage';
+
+        let priceAtSale = 0;
+
+        if (discount > 0) {
+          if (discountType === 'percentage') {
+            priceAtSale = quantity * price - (quantity * price * discount) / 100;
+          } else {
+            priceAtSale = quantity * (price - discount);
+          }
+        } else {
+          priceAtSale = quantity * price;
+        }
+
+        const payload = {
+          sizeId: sizeId,
+          quntity: quantity.toString(),
+          priceAtSale: priceAtSale.toFixed(2),
+          paymentId: paymentResult.transactionId,
+          paymentMethod: paymentResult.paymentMethod,
+        };
+
+        console.log('Sending order item:', payload);
+
+        const response = await Instance.post('api/v1/selles/sellSingle', payload, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        console.log('Order response:', response.data);
+      }
+
+      ToastMessage('Order placed successfully!');
       navigation.goBack();
     } else {
-      alert('Payment failed. Please try again.');
+      ToastMessage('Payment failed. Please try again.');
     }
   } catch (error) {
-    console.error('Payment Error:', error);
-    alert('Something went wrong while processing payment.');
+    console.error('Error confirming order:', error?.response?.data || error.message);
+    ToastMessage('Failed to confirm order.');
+  } finally {
+    setIsLoading(false);
   }
 };
+
   return (
     <Container
       statusBarStyle={'dark-content'}
@@ -164,14 +155,21 @@ const ConfirmOrderHandler = async () => {
       />
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={[styles.button, styles.cancelButton]}>
+        <TouchableOpacity 
+          style={[styles.button, styles.cancelButton]}
+          onPress={() => navigation.goBack()}>
           <Text style={styles.buttonText}>Cancel Order</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.button, styles.confirmButton]}
-          onPress={ConfirmOrderHandler}>
-          <Text style={styles.buttonText}>Confirm Order</Text>
+          onPress={ConfirmOrderHandler}
+          disabled={isLoading}>
+          {isLoading ? (
+            <ActivityIndicator color={COLORS.white} />
+          ) : (
+            <Text style={styles.buttonText}>Confirm Order</Text>
+          )}
         </TouchableOpacity>
       </View>
     </Container>
