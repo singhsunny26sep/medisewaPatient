@@ -9,17 +9,20 @@ import Common from './src/redux/Common';
 import {PersistGate} from 'redux-persist/integration/react';
 import strings from './localization';
 import NavigationScreen from './src/routes/NavigationScreen';
-import { ToastProvider } from 'react-native-toast-notifications';
-
+import {ToastProvider} from 'react-native-toast-notifications';
+import {cartReducer} from './Store/Store';
 
 function App(): React.JSX.Element {
   const persistConfig = {
     key: 'root',
     storage: AsyncStorage,
-    whitelist: ['language'], 
+    whitelist: ['language', 'cart'], 
   };
 
-  const reducers = combineReducers({Common});
+  const reducers = combineReducers({
+    Common,
+    cart: cartReducer
+  });
 
   const persistedReducer = persistReducer(persistConfig, reducers);
 
@@ -41,7 +44,7 @@ function App(): React.JSX.Element {
       <PersistGate loading={null} persistor={persistor}>
         <View style={{flex: 1}}>
           <ToastProvider>
-             <NavigationScreen />
+            <NavigationScreen />
           </ToastProvider>
         </View>
       </PersistGate>

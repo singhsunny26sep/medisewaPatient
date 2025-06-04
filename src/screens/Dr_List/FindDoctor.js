@@ -10,6 +10,7 @@ import {
   ScrollView,
   SafeAreaView,
   Dimensions,
+  TextInput,
 } from 'react-native';
 import CustomDropdown from '../../component/CustomDropdown/CustomDropdown';
 import {Container} from '../../component/Container/Container';
@@ -28,6 +29,9 @@ export default function FindDoctor({navigation}) {
   const [filteredSpecialists, setFilteredSpecialists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSpecialist, setSelectedSpecialist] = useState(null);
+  const [symptomInput, setSymptomInput] = useState('');
+  const [searchedDoctors, setSearchedDoctors] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   useEffect(() => {
     const fetchDepartments = Instance.get('/api/v1/departments');
@@ -49,6 +53,61 @@ export default function FindDoctor({navigation}) {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const searchDoctorsBySymptom = async () => {
+    if (!symptomInput.trim()) {
+      // Show alert if input is empty
+      Alert.alert('Please enter symptoms', 'Enter at least one symptom to search for doctors');
+      return;
+    }
+
+    try {
+      setSearchLoading(true);
+      setFilteredSpecialists([]); 
+
+      // Clean and format symptoms
+      const symptomsArray = symptomInput
+        .split(',')
+        .map(s => s.trim())
+        .filter(s => s.length > 0); // Remove empty strings
+
+      if (symptomsArray.length === 0) {
+        Alert.alert('Invalid Input', 'Please enter valid symptoms');
+        return;
+      }
+
+      const query = symptomsArray.join(',');
+
+      const response = await Instance.get('api/v1/doctors/searchBySymptom', {
+        params: {symptom: query},
+      });
+
+      if (response.data.success) {
+        if (response.data.result.length === 0) {
+          Alert.alert(
+            'No Doctors Found',
+            'No doctors found matching your symptoms. Please try different symptoms or consult a general physician.'
+          );
+        }
+        setSearchedDoctors(response.data.result);
+      } else {
+        Alert.alert('Search Failed', response.data.message || 'Failed to search doctors. Please try again.');
+        setSearchedDoctors([]);
+      }
+    } catch (error) {
+      console.error(
+        'Error fetching doctors by symptom:',
+        error.response?.data || error.message,
+      );
+      Alert.alert(
+        'Error',
+        'Failed to search doctors. Please check your internet connection and try again.'
+      );
+      setSearchedDoctors([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
   const handleSpecialistChange = value => {
     setSelectedSpecialist(value);
@@ -125,24 +184,39 @@ export default function FindDoctor({navigation}) {
       statusBarBackgroundColor={COLORS.white}
       backgroundColor={COLORS.white}>
       <CustomHeader title="Find Doctors" navigation={navigation} />
-       <ScrollView
+      <ScrollView
         showsVerticalScrollIndicator={false}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}>
-      <View style={styles.searchSection}>
-        <View style={styles.searchContainer}>
-          <CustomDropdown
-            data={dropdownData}
-            value={selectedSpecialist}
-            onChange={handleSpecialistChange}
-            placeholder="Search by Specialist"
-            style={styles.dropdown}
-            containerStyle={styles.dropdownContainer}
-          />
+        <View style={styles.searchSection}>
+          <View style={styles.searchContainer}>
+            <CustomDropdown
+              data={dropdownData}
+              value={selectedSpecialist}
+              onChange={handleSpecialistChange}
+              placeholder="Search by Specialist"
+              style={styles.dropdown}
+              containerStyle={styles.dropdownContainer}
+            />
+          </View>
         </View>
-      </View>
 
-     
+        <View style={styles.symptomSearchSection}>
+          <TextInput
+            style={styles.symptomInput}
+            placeholder="Search symptom (e.g. fever, cough)"
+            value={symptomInput}
+            onChangeText={setSymptomInput}
+            returnKeyType="search"
+            onSubmitEditing={searchDoctorsBySymptom}
+          />
+          <TouchableOpacity
+            style={styles.searchBtn}
+            onPress={searchDoctorsBySymptom}>
+            <Text style={styles.searchBtnText}>Search</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.categoriesSection}>
           <Text style={styles.sectionTitle}>Categories</Text>
           {loading ? (
@@ -175,6 +249,20 @@ export default function FindDoctor({navigation}) {
             />
           )}
         </View>
+        {searchedDoctors.length > 0 && (
+          <View style={styles.specialistsSection}>
+            <Text style={styles.sectionTitle}>Doctors Matching Symptoms</Text>
+            <FlatList
+              data={searchedDoctors}
+              renderItem={renderSpecialist}
+              keyExtractor={item => item._id}
+              numColumns={2}
+              columnWrapperStyle={styles.specialistsRow}
+              contentContainerStyle={styles.specialistsList}
+              scrollEnabled={false}
+            />
+          </View>
+        )}
       </ScrollView>
     </Container>
   );
@@ -242,7 +330,7 @@ const styles = StyleSheet.create({
   categoryImageContainer: {
     width: scale(100),
     height: scale(100),
-    borderRadius: moderateScale(18),
+    borderRadius: moderateScale(5),
     backgroundColor: '#F5F6FA',
     justifyContent: 'center',
     alignItems: 'center',
@@ -259,7 +347,8 @@ const styles = StyleSheet.create({
   categoryImage: {
     width: scale(60),
     height: scale(60),
-    borderRadius: 30,
+    borderRadius: 5,
+    resizeMode: 'cover',
   },
   categoryTitle: {
     fontSize: moderateScale(14),
@@ -277,7 +366,7 @@ const styles = StyleSheet.create({
   specialistCard: {
     width: (width - scale(40)) / 2,
     backgroundColor: '#F5F6FA',
-    borderRadius: 20,
+    borderRadius: 15,
     padding: scale(15),
     marginHorizontal: scale(5),
     shadowColor: '#000',
@@ -286,13 +375,13 @@ const styles = StyleSheet.create({
       height: 2,
     },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowRadius: 1,
     elevation: 3,
   },
   specialistImage: {
     width: scale(80),
     height: scale(80),
-    borderRadius: 40,
+    borderRadius: 5,
     alignSelf: 'center',
     marginBottom: scale(10),
   },
@@ -313,36 +402,32 @@ const styles = StyleSheet.create({
   loader: {
     marginVertical: verticalScale(20),
   },
+  symptomSearchSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: scale(15),
+    marginBottom: verticalScale(10),
+  },
+  symptomInput: {
+    height: 48,
+    width:360,
+    borderRadius: 25,
+    backgroundColor: '#F5F6FA',
+    paddingHorizontal: scale(15),
+    fontSize: moderateScale(14),
+    borderColor: '#E0E0E0',
+  },
+  searchBtn: {
+    marginLeft: scale(10),
+    backgroundColor: COLORS.primary,
+    paddingVertical: scale(10),
+    paddingHorizontal: scale(15),
+    borderRadius: 25,
+  },
+  searchBtnText: {
+    color: COLORS.white,
+    fontFamily: Fonts.Medium,
+    fontSize: moderateScale(14),
+  },
+  
 });
-// import { ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native'
-// import React from 'react'
-// import { colors } from '../../utils/colors'
-// import HealthCategory from '../../component/HealthCategory'
-// // import Search from '../components/Search'
-
-// const FindDoctor = (): React.JSX.Element => {
-//     return (
-//         <ScrollView>
-//             <View style={{ flex: 1 }}>
-//                 <StatusBar backgroundColor={colors.greenCustom} barStyle="light-content" />
-
-//                 {/* <Search /> */}
-
-//                 <HealthCategory title="Category" limit={null} type={"department"} />
-
-//                 <HealthCategory title="Specialist" limit={null} type={"Specialist"} />
-//             </View>
-
-//             {/* pateint review */}
-//         </ScrollView>
-//     )
-// }
-
-// export default FindDoctor
-
-// const styles = StyleSheet.create({
-//     serachView: {
-//         width: '90%',
-//         alignSelf: 'center'
-//     }
-// })

@@ -10,6 +10,7 @@ const usePhonePePayment = () => {
   const [appId] = useState('');
   const [enableLogging] = useState(true);
   const SALT_KEY = '96434309-7796-489d-8924-ab56988a6076';
+    // const SALT_KEY = '96434309-7796-489d-8924';
   const SALT_INDEX = 1;
 
   const generateTransactionId = () => {

@@ -21,11 +21,12 @@ import {Container} from '../../component/Container/Container';
 import {Instance} from '../../api/Instance';
 import {GET_CART_DATA, DELETE_CART_ITEM} from '../../api/Api_Controller';
 import strings from '../../../localization';
+import {useDispatch, useSelector} from 'react-redux';
 
 export default function Cart({navigation}) {
-  const [cartData, setCartData] = useState([]);
+  const dispatch = useDispatch();
+  const cartItems = useSelector(state => state.cart.cartItems);
   const [loading, setLoading] = useState(true);
-
   const [quantities, setQuantities] = useState({});
 
   useEffect(() => {
@@ -35,7 +36,13 @@ export default function Cart({navigation}) {
         const data = await GET_CART_DATA(token);
 
         if (data.success) {
-          setCartData(data.result);
+          dispatch({
+            type: 'SET_CART_COUNT',
+            payload: {
+              count: data.result.length,
+              items: data.result
+            }
+          });
           const initialQuantities = data.result.reduce((acc, item) => {
             acc[item._id] = 1;
             return acc;
@@ -57,9 +64,7 @@ export default function Cart({navigation}) {
       const token = await AsyncStorage.getItem('userToken');
       const data = await DELETE_CART_ITEM(medicineId, token);
       if (data.success) {
-        setCartData(prev =>
-          prev.filter(cartItem => cartItem.id !== medicineId),
-        );
+        dispatch({type: 'REMOVE_FROM_CART', payload: medicineId});
       } else {
         console.warn('Failed to delete item:', data.message);
       }
@@ -79,7 +84,7 @@ export default function Cart({navigation}) {
   };
 
   const calculateTotalPrice = () => {
-    return cartData.reduce((total, item) => {
+    return cartItems.reduce((total, item) => {
       const quantity = quantities[item._id] || 1;
       return total + item.medicineId.price * quantity;
     }, 0);
@@ -95,7 +100,7 @@ export default function Cart({navigation}) {
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color={COLORS.DODGERBLUE} />
         </View>
-      ) : cartData.length === 0 ? (
+      ) : cartItems?.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Image
             source={{
@@ -114,7 +119,7 @@ export default function Cart({navigation}) {
         <>
           <ScrollView style={{flex: 1}} showsVerticalScrollIndicator={false}>
             <FlatList
-              data={cartData}
+              data={cartItems}
               keyExtractor={item => item._id.toString()}
               renderItem={({item}) => {
                 const medicine = item.medicineId;
@@ -137,10 +142,7 @@ export default function Cart({navigation}) {
                           />
                         </TouchableOpacity>
                       </View>
-                      <Text
-                        style={{
-                          color: COLORS.black,
-                        }}>
+                      <Text style={{color: COLORS.black}}>
                         Qty:{medicine?.quntity || 'N/A'} ML
                       </Text>
                       <Text style={styles.price}>₹{medicine?.price}</Text>
@@ -175,7 +177,6 @@ export default function Cart({navigation}) {
               }}
             />
           </ScrollView>
-
           <View style={styles.checkoutContainer}>
             <View style={styles.totalPriceContainer}>
               <Text style={styles.totalPriceLabel}>{strings.TotalPrice}</Text>
@@ -186,13 +187,9 @@ export default function Cart({navigation}) {
             <TouchableOpacity
               style={styles.checkoutButton}
               onPress={() => {
-                const userData = cartData[0]?.userId;
-                const totalPrice = calculateTotalPrice();
-                console.log('Calculated Total Price:', totalPrice);
                 navigation.navigate('Pre_View_Order', {
-                  cartData,
-                  userData,
-                  totalPrice,
+                  cartData: cartItems,
+                  totalPrice: calculateTotalPrice(),
                 });
               }}>
               <Text style={styles.checkoutButtonText}>{strings.CheckOut}</Text>

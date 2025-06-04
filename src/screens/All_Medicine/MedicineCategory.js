@@ -18,13 +18,13 @@ import {Fonts} from '../../Theme/Fonts';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import Entypo from 'react-native-vector-icons/Entypo';
-import CategoryCard from '../../components/CategoryCard';
+import CategoryCard from '../../component/Category/CategoryCard';
 import {GET_BRANDS} from '../../api/Api_Controller';
 import ImageSlider from '../../component/ImageSlider/ImageSlider';
 import LocationModal from '../../component/LocationModal';
 import {useUserLocation} from '../../utils/useUserLocation';
 import ShimmerCard from '../../component/Shimmer/ShimmerCard';
-import MedicineHeader from '../../components/MedicineHeader/MedicineHeader';
+import MedicineHeader from '../../component/header/MedicineHeader';
 
 const CardColor = [
   '#E3F1FA',
@@ -94,10 +94,9 @@ const MedicineCategory = ({navigation}) => {
       backgroundColor={COLORS.white}>
       <MedicineHeader
         onLocationPress={() => setModalVisible(true)}
-        onCartPress={() => navigation.navigate('Cart')}
+        onCartPress={() => navigation.navigate('MainStack', { screen: 'Cart' })}
         onBackPress={() => navigation.goBack()}
         location={selectedLocation || defaultLocation}
-        cartItemsCount={0}
         showBackButton={true}
         onSearch={setSearchQuery}
       />
@@ -118,7 +117,7 @@ const MedicineCategory = ({navigation}) => {
         ) : (
           <FlatList
             data={categories}
-            renderItem={({item, index}) => (
+            renderItem={({item,  index}) => (
               <CategoryCard
                 title={item.title}
                 image={{uri: item.image}}

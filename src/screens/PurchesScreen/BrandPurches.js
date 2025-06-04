@@ -18,9 +18,11 @@ import {useRoute} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {ADD_TO_CART} from '../../api/Api_Controller';
 import ToastMessage from '../../component/ToastMessage/ToastMessage';
+import {useDispatch} from 'react-redux';
 
 export default function BrandPurches({navigation}) {
   const route = useRoute();
+  const dispatch = useDispatch();
   const {item} = route.params || {};
 
   if (!item) {
@@ -99,6 +101,7 @@ export default function BrandPurches({navigation}) {
       if (data.success) {
         setToastType('success');
         setToastMessage('Item added to cart!');
+        dispatch({type: 'ADD_TO_CART', payload: item});
       } else {
         setToastType('error');
         setToastMessage('Failed to add item to cart');

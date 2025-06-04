@@ -15,16 +15,31 @@ import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import Entypo from 'react-native-vector-icons/Entypo';
 import LinearGradient from 'react-native-linear-gradient';
+import {useSelector} from 'react-redux';
+import {useNavigation} from '@react-navigation/native';
 
 const MedicineHeader = ({
   onLocationPress,
   onCartPress,
   onBackPress,
   location,
-  cartItemsCount = 0,
   showBackButton = true,
   onSearch,
 }) => {
+  const cartCount = useSelector(state => state.cart.cartCount);
+  const navigation = useNavigation();
+
+  const handleCartPress = () => {
+    if (onCartPress) {
+      onCartPress();
+    } else {
+      // Default navigation to Cart through MainStack
+      navigation.navigate('MainStack', {
+        screen: 'Cart'
+      });
+    }
+  };
+
   return (
     <View style={styles.mainContainer}>
       <StatusBar backgroundColor="#E3F2FD" barStyle="dark-content" />
@@ -64,15 +79,15 @@ const MedicineHeader = ({
                 </View>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.cartIcon} onPress={onCartPress}>
+            <TouchableOpacity style={styles.cartIcon} onPress={handleCartPress}>
               <FontAwesome
                 name="shopping-cart"
                 size={20}
                 color={COLORS.airForceBlue}
               />
-              {cartItemsCount > 0 && (
+              {cartCount > 0 && (
                 <View style={styles.cartBadge}>
-                  <Text style={styles.badgeText}>{cartItemsCount}</Text>
+                  <Text style={styles.badgeText}>{cartCount}</Text>
                 </View>
               )}
             </TouchableOpacity>

@@ -25,6 +25,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import moment from 'moment';
 import ToastMessage from '../../component/ToastMessage/ToastMessage';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
+import usePhonePePayment from '../../component/PhonePay/usePhonePePayment';
 
 export default function Dr_AppointmentBook({route, navigation}) {
   const {doctorId} = route.params;
@@ -41,13 +42,15 @@ export default function Dr_AppointmentBook({route, navigation}) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [appointmentTypeOpen, setAppointmentTypeOpen] = useState(false);
   const [appointmentType, setAppointmentType] = useState(null);
+  const [consultationType, setConsultationType] = useState('offline');
   const [familyMemberName, setFamilyMemberName] = useState('');
   const [familyMemberAge, setFamilyMemberAge] = useState('');
   const [familyMemberGender, setFamilyMemberGender] = useState('');
   const [familyMemberRelation, setFamilyMemberRelation] = useState('');
   const [reports, setReports] = useState([]);
   const [uploading, setUploading] = useState(false);
-  
+  const {submitHandler} = usePhonePePayment();
+
   const appointmentTypeItems = [
     {label: 'For Myself', value: 'self'},
     {label: 'For Family Member', value: 'family'},
@@ -75,7 +78,46 @@ export default function Dr_AppointmentBook({route, navigation}) {
     '10:30 AM',
     '11:00 AM',
     '11:30 AM',
+    '12:00 PM',
+    '12:30 PM',
+    '1:00 PM',
+    '1:30 PM',
+    '2:00 PM',
+    '2:30 PM',
+    '3:00 PM',
+    '3:30 PM',
+    '4:00 PM',
+    '4:30 PM',
+    '5:00 PM',
+    '5:30 PM',
+    '6:00 PM',
   ];
+
+  const getFilteredSlots = () => {
+    if (!selectedDate) return availableSlots;
+
+    const today = moment().startOf('day');
+    const selected = moment(selectedDate).startOf('day');
+    const now = moment();
+
+    if (today.isSame(selected, 'day')) {
+      return availableSlots.filter(slot => {
+        const slotTime = moment(slot, 'h:mm A').set({
+          year: now.year(),
+          month: now.month(),
+          date: now.date()
+        });
+        
+        return slotTime.isAfter(now);
+      });
+    }
+
+    if (selected.isAfter(today)) {
+      return availableSlots;
+    }
+
+    return availableSlots;
+  };
 
   const handleConfirm = date => {
     setSelectedDate(date);
@@ -87,7 +129,17 @@ export default function Dr_AppointmentBook({route, navigation}) {
   };
 
   const handleTimeSelect = time => {
-    setSelectedTime(time);
+    const now = moment();
+    const slotTime = moment(time, 'h:mm A').set({
+      year: now.year(),
+      month: now.month(),
+      date: now.date()
+    });
+
+    // Only allow selection if the slot is in the future
+    if (slotTime.isAfter(now)) {
+      setSelectedTime(time);
+    }
   };
 
   const fetchDoctorDetails = async () => {
@@ -165,27 +217,52 @@ export default function Dr_AppointmentBook({route, navigation}) {
               </Text>
             </View>
             <View style={styles.doctorInfoRow}>
-              <Icon name="business" size={scale(20)} color={COLORS.DODGERBLUE} />
-              <Text style={styles.doctorInfoText}>
-                {department?.name}
-              </Text>
+              <Icon
+                name="business"
+                size={scale(20)}
+                color={COLORS.DODGERBLUE}
+              />
+              <Text style={styles.doctorInfoText}>{department?.name}</Text>
             </View>
             <View style={styles.doctorInfoRow}>
-              <Icon name="accessibility" size={scale(20)} color={COLORS.DODGERBLUE} />
+              <Icon
+                name="accessibility"
+                size={scale(20)}
+                color={COLORS.DODGERBLUE}
+              />
               <Text style={styles.doctorInfoText}>{doctorGender}</Text>
             </View>
             <View style={styles.doctorInfoRow}>
-              <Icon name="location-on" size={scale(20)} color={COLORS.DODGERBLUE} />
+              <Icon
+                name="location-on"
+                size={scale(20)}
+                color={COLORS.DODGERBLUE}
+              />
               <Text style={styles.doctorInfoText}>{clinicAddress}</Text>
             </View>
             <View style={styles.doctorInfoRow}>
-              <Icon name="attach-money" size={scale(20)} color={COLORS.DODGERBLUE} />
+              <Icon
+                name="attach-money"
+                size={scale(20)}
+                color={COLORS.DODGERBLUE}
+              />
               <Text style={styles.doctorInfoText}>
-                ₹{fee} <Text style={{textDecorationLine: 'line-through', color: COLORS.gray}}>₹{oldFee}</Text>
+                ₹{fee}{' '}
+                <Text
+                  style={{
+                    textDecorationLine: 'line-through',
+                    color: COLORS.gray,
+                  }}>
+                  ₹{oldFee}
+                </Text>
               </Text>
             </View>
             <View style={styles.doctorInfoRow}>
-              <Icon name="access-time" size={scale(20)} color={COLORS.DODGERBLUE} />
+              <Icon
+                name="access-time"
+                size={scale(20)}
+                color={COLORS.DODGERBLUE}
+              />
               <Text style={styles.doctorInfoText}>
                 {startTime} - {endTime}
               </Text>
@@ -213,7 +290,12 @@ export default function Dr_AppointmentBook({route, navigation}) {
       }
 
       if (appointmentType === 'family') {
-        if (!familyMemberName || !familyMemberAge || !familyMemberGender || !familyMemberRelation) {
+        if (
+          !familyMemberName ||
+          !familyMemberAge ||
+          !familyMemberGender ||
+          !familyMemberRelation
+        ) {
           setToastMessage('Please fill all family member details');
           setToastType('danger');
           setIsSubmitting(false);
@@ -234,12 +316,16 @@ export default function Dr_AppointmentBook({route, navigation}) {
         consultationFee: doctorDetails?.doctorId?.fee?.toString() || '500',
         serviceCharge: '0',
         appointmentType: appointmentType,
-        familyMemberDetails: appointmentType === 'family' ? {
-          name: familyMemberName,
-          age: familyMemberAge,
-          gender: familyMemberGender,
-          relation: familyMemberRelation
-        } : null
+        consultationType: consultationType,
+        familyMemberDetails:
+          appointmentType === 'family'
+            ? {
+                name: familyMemberName,
+                age: familyMemberAge,
+                gender: familyMemberGender,
+                relation: familyMemberRelation,
+              }
+            : null,
       };
 
       console.log('Booking payload:', payload);
@@ -279,12 +365,12 @@ export default function Dr_AppointmentBook({route, navigation}) {
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.CAMERA,
           {
-            title: "Camera Permission",
-            message: "App needs access to your camera to take photos",
-            buttonNeutral: "Ask Me Later",
-            buttonNegative: "Cancel",
-            buttonPositive: "OK"
-          }
+            title: 'Camera Permission',
+            message: 'App needs access to your camera to take photos',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
         );
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
@@ -295,7 +381,7 @@ export default function Dr_AppointmentBook({route, navigation}) {
     return true;
   };
 
-  const handleImagePick = async (type) => {
+  const handleImagePick = async type => {
     try {
       if (type === 'camera') {
         const hasPermission = await requestCameraPermission();
@@ -314,9 +400,10 @@ export default function Dr_AppointmentBook({route, navigation}) {
         cameraType: 'back',
       };
 
-      const result = type === 'camera' 
-        ? await launchCamera(options)
-        : await launchImageLibrary(options);
+      const result =
+        type === 'camera'
+          ? await launchCamera(options)
+          : await launchImageLibrary(options);
 
       if (result.didCancel) {
         console.log('User cancelled image picker');
@@ -337,7 +424,7 @@ export default function Dr_AppointmentBook({route, navigation}) {
           uri: result.assets[0].uri,
           size: result.assets[0].fileSize,
         };
-        
+
         setReports([...reports, newReport]);
       }
     } catch (err) {
@@ -347,7 +434,7 @@ export default function Dr_AppointmentBook({route, navigation}) {
     }
   };
 
-  const removeReport = (index) => {
+  const removeReport = index => {
     const newReports = [...reports];
     newReports.splice(index, 1);
     setReports(newReports);
@@ -355,10 +442,7 @@ export default function Dr_AppointmentBook({route, navigation}) {
 
   const renderReportItem = ({item, index}) => (
     <View style={styles.reportItem}>
-      <Image 
-        source={{ uri: item.uri }} 
-        style={styles.reportThumbnail}
-      />
+      <Image source={{uri: item.uri}} style={styles.reportThumbnail} />
       <Text style={styles.reportName} numberOfLines={1}>
         {item.name}
       </Text>
@@ -367,6 +451,32 @@ export default function Dr_AppointmentBook({route, navigation}) {
       </TouchableOpacity>
     </View>
   );
+
+  const handleConsultationTypeChange = async (type) => {
+    setConsultationType(type);
+    if (type === 'online') {
+      try {
+        // Get doctor's fee or use a default amount
+        const paymentAmount = doctorDetails?.doctorId?.fee || 500;
+        
+        const paymentResult = await submitHandler(paymentAmount);
+        
+        if (paymentResult.status === 'SUCCESS') {
+          setToastMessage('Payment successful! Proceeding with online consultation.');
+          setToastType('success');
+        } else {
+          setToastMessage('Payment failed. Please try again or select offline consultation.');
+          setToastType('danger');
+          setConsultationType('offline'); // Revert to offline if payment fails
+        }
+      } catch (error) {
+        console.error('Payment error:', error);
+        setToastMessage('Payment failed. Please try again or select offline consultation.');
+        setToastType('danger');
+        setConsultationType('offline'); // Revert to offline if payment fails
+      }
+    }
+  };
 
   return (
     <Container
@@ -392,7 +502,9 @@ export default function Dr_AppointmentBook({route, navigation}) {
         )}
 
         <View style={styles.dropdownContainer}>
-          <Text style={[styles.selectDateText,{marginHorizontal:scale(0)}]}>Appointment For</Text>
+          <Text style={[styles.selectDateText, {marginHorizontal: scale(0)}]}>
+            Appointment For
+          </Text>
           <CustomDropdown
             data={appointmentTypeItems}
             value={appointmentType}
@@ -401,6 +513,35 @@ export default function Dr_AppointmentBook({route, navigation}) {
             style={styles.dropdown}
             containerStyle={styles.dropdownContainerStyle}
           />
+        </View>
+
+        <View style={styles.consultationTypeContainer}>
+          <Text style={[styles.selectDateText, {marginHorizontal: scale(0)}]}>
+            Consultation Type
+          </Text>
+          <View style={styles.radioContainer}>
+            <TouchableOpacity
+              style={styles.radioButton}
+              onPress={() => handleConsultationTypeChange('offline')}>
+              <View style={styles.radioOuter}>
+                {consultationType === 'offline' && (
+                  <View style={styles.radioInner} />
+                )}
+              </View>
+              <Text style={styles.radioText}>Offline</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.radioButton}
+              onPress={() => handleConsultationTypeChange('online')}>
+              <View style={styles.radioOuter}>
+                {consultationType === 'online' && (
+                  <View style={styles.radioInner} />
+                )}
+              </View>
+              <Text style={styles.radioText}>Online</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {appointmentType === 'family' && (
@@ -432,7 +573,7 @@ export default function Dr_AppointmentBook({route, navigation}) {
               value={familyMemberRelation}
               onChange={setFamilyMemberRelation}
               placeholder="Select Relation"
-              style={[styles.dropdown,{marginTop:scale(12)}]}
+              style={[styles.dropdown, {marginTop: scale(12)}]}
               containerStyle={styles.dropdownContainerStyle}
             />
           </View>
@@ -462,23 +603,25 @@ export default function Dr_AppointmentBook({route, navigation}) {
         </Text>
         <View style={styles.timeSlotsContainer}>
           <FlatList
-            data={availableSlots}
-            renderItem={({item}) => (
-              <TouchableOpacity
-                style={[
-                  styles.timeSlotBox,
-                  selectedTime === item && styles.selectedTimeSlot,
-                ]}
-                onPress={() => handleTimeSelect(item)}>
-                <Text
+            data={getFilteredSlots()}
+            renderItem={({item}) => {
+              return (
+                <TouchableOpacity
                   style={[
-                    styles.timeSlotText,
-                    selectedTime === item && styles.selectedTimeText,
-                  ]}>
-                  {item}
-                </Text>
-              </TouchableOpacity>
-            )}
+                    styles.timeSlotBox,
+                    selectedTime === item && styles.selectedTimeSlot,
+                  ]}
+                  onPress={() => handleTimeSelect(item)}>
+                  <Text
+                    style={[
+                      styles.timeSlotText,
+                      selectedTime === item && styles.selectedTimeText,
+                    ]}>
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
             keyExtractor={item => item}
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -488,19 +631,25 @@ export default function Dr_AppointmentBook({route, navigation}) {
         <View style={styles.reportsContainer}>
           <Text style={styles.sectionTitle}>Past Reports</Text>
           <View style={styles.uploadButtonsContainer}>
-            <TouchableOpacity 
-              style={styles.uploadButton} 
-              onPress={() => handleImagePick('gallery')}
-            >
-              <Icon name="photo-library" size={scale(24)} color={COLORS.DODGERBLUE} />
+            <TouchableOpacity
+              style={styles.uploadButton}
+              onPress={() => handleImagePick('gallery')}>
+              <Icon
+                name="photo-library"
+                size={scale(24)}
+                color={COLORS.DODGERBLUE}
+              />
               <Text style={styles.uploadButtonText}>Gallery</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.uploadButton} 
-              onPress={() => handleImagePick('camera')}
-            >
-              <Icon name="camera-alt" size={scale(24)} color={COLORS.DODGERBLUE} />
+
+            <TouchableOpacity
+              style={styles.uploadButton}
+              onPress={() => handleImagePick('camera')}>
+              <Icon
+                name="camera-alt"
+                size={scale(24)}
+                color={COLORS.DODGERBLUE}
+              />
               <Text style={styles.uploadButtonText}>Camera</Text>
             </TouchableOpacity>
           </View>
@@ -518,7 +667,9 @@ export default function Dr_AppointmentBook({route, navigation}) {
           )}
         </View>
 
-        <TouchableOpacity onPress={handleSubmitAppointment} disabled={isSubmitting}>
+        <TouchableOpacity
+          onPress={handleSubmitAppointment}
+          disabled={isSubmitting}>
           <View style={styles.submitButton}>
             {isSubmitting ? (
               <ActivityIndicator size="small" color={COLORS.white} />
@@ -797,7 +948,7 @@ const styles = StyleSheet.create({
     marginTop: scale(15),
   },
   reportsListTitle: {
-   fontFamily: Fonts.Light,
+    fontFamily: Fonts.Light,
     color: COLORS.black,
     fontSize: moderateScale(16),
     marginBottom: scale(10),
@@ -821,5 +972,46 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(14),
     color: COLORS.black,
     marginLeft: scale(10),
+  },
+  consultationTypeContainer: {
+    marginHorizontal: scale(15),
+    marginBottom: scale(10),
+  },
+  radioContainer: {
+    flexDirection: 'row',
+    marginTop: scale(5),
+  },
+  radioButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: scale(20),
+  },
+  radioOuter: {
+    height: scale(20),
+    width: scale(20),
+    borderRadius: scale(10),
+    borderWidth: 2,
+    borderColor: COLORS.DODGERBLUE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioInner: {
+    height: scale(10),
+    width: scale(10),
+    borderRadius: scale(5),
+    backgroundColor: COLORS.DODGERBLUE,
+  },
+  radioText: {
+    marginLeft: scale(8),
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Medium,
+    color: COLORS.black,
+  },
+  hiddenSlotNote: {
+    marginHorizontal: scale(15),
+    marginBottom: scale(10),
+    fontSize: moderateScale(13),
+    fontFamily: Fonts.Medium,
+    color: COLORS.red,
   },
 });

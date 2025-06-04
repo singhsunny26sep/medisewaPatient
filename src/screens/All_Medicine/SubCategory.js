@@ -23,15 +23,15 @@ import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import Entypo from 'react-native-vector-icons/Entypo';
 import ShimmerCard from '../../component/Shimmer/ShimmerCard';
-import MedicineHeader from '../../components/MedicineHeader/MedicineHeader';
+import MedicineHeader from '../../component/header/MedicineHeader';
+import {useDispatch} from 'react-redux';
 
 export default function SubCategory({navigation, route}) {
   const {brandId} = route.params;
+  const dispatch = useDispatch();
   const [brandMedicines, setBrandMedicines] = useState([]);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('');
-  const [cartItems, setCartItems] = useState([]);
-  const [totalPrice, setTotalPrice] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -78,8 +78,7 @@ export default function SubCategory({navigation, route}) {
       if (data.success) {
         setToastType('success');
         setToastMessage('Item added to cart!');
-        setCartItems(prevItems => [...prevItems, item]);
-        setTotalPrice(prevPrice => prevPrice + item.price);
+        dispatch({type: 'ADD_TO_CART', payload: item});
       } else {
         setToastType('error');
         setToastMessage('Failed to add item to cart');
@@ -95,8 +94,8 @@ export default function SubCategory({navigation, route}) {
     navigation.navigate('MainStack', {
       screen: 'Cart',
       params: {
-        items: cartItems,
-        totalPrice
+        items: brandMedicines,
+        totalPrice: brandMedicines.reduce((total, item) => total + item.price, 0)
       }
     });
   };
@@ -108,10 +107,9 @@ export default function SubCategory({navigation, route}) {
       backgroundColor={COLORS.white}>
       <MedicineHeader
         onLocationPress={() => {}}
-        onCartPress={() => navigation.navigate('Cart', {items: cartItems, totalPrice})}
+        onCartPress={() => navigation.navigate('MainStack', { screen: 'Cart' })}
         onBackPress={() => navigation.goBack()}
         location="Junagadh"
-        cartItemsCount={cartItems.length}
         showBackButton={true}
         onSearch={setSearchQuery}
       />
@@ -156,11 +154,11 @@ export default function SubCategory({navigation, route}) {
           contentContainerStyle={{paddingVertical: 10, paddingBottom: 80}}
         />
       )}
-      {cartItems.length > 0 && (
+      {brandMedicines.length > 0 && (
         <View style={styles.bottomBar}>
           <View style={styles.cartSummary}>
-            <Text style={styles.cartItemsText}>{cartItems.length} Items</Text>
-            <Text style={styles.totalPriceText}>₹{totalPrice.toFixed(2)}</Text>
+            <Text style={styles.cartItemsText}>{brandMedicines.length} Items</Text>
+            <Text style={styles.totalPriceText}>₹{brandMedicines.reduce((total, item) => total + item.price, 0).toFixed(2)}</Text>
           </View>
           <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
             <Text style={styles.nextButtonText}>Next</Text>

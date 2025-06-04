@@ -7,9 +7,9 @@ import {
   Dimensions,
   TouchableOpacity,
 } from 'react-native';
-import {scale, moderateScale} from '../utils/Scaling';
-import {COLORS} from '../Theme/Colors';
-import {Fonts} from '../Theme/Fonts';
+import {scale, moderateScale} from '../../utils/Scaling';
+import {COLORS} from '../../Theme/Colors';
+import {Fonts} from '../../Theme/Fonts';
 
 const CARD_MARGIN = 18;
 const CARD_WIDTH = (Dimensions.get('window').width - CARD_MARGIN * 3) / 2;
