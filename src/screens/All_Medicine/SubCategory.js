@@ -25,9 +25,12 @@ import Entypo from 'react-native-vector-icons/Entypo';
 import ShimmerCard from '../../component/Shimmer/ShimmerCard';
 import MedicineHeader from '../../component/header/MedicineHeader';
 import {useDispatch} from 'react-redux';
+import { useUserLocation } from '../../utils/useUserLocation';
 
 export default function SubCategory({navigation, route}) {
   const {brandId} = route.params;
+   const defaultLocation = useUserLocation();
+  const [selectedLocation, setSelectedLocation] = useState(null);
   const dispatch = useDispatch();
   const [brandMedicines, setBrandMedicines] = useState([]);
   const [toastMessage, setToastMessage] = useState('');
@@ -35,7 +38,6 @@ export default function SubCategory({navigation, route}) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Add filtered data based on search query
   const filteredMedicines = brandMedicines.filter(medicine => 
     medicine.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -109,7 +111,7 @@ export default function SubCategory({navigation, route}) {
         onLocationPress={() => {}}
         onCartPress={() => navigation.navigate('MainStack', { screen: 'Cart' })}
         onBackPress={() => navigation.goBack()}
-        location="Junagadh"
+        location={selectedLocation || defaultLocation}
         showBackButton={true}
         onSearch={setSearchQuery}
       />

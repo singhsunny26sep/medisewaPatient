@@ -32,22 +32,13 @@ import ForgotPassword from '../screens/Profile/ForgotPassword';
 import MainStack from './BottomTab';
 import Dr_List from '../screens/Dr_List/Dr_List';
 import Dr_AppointmentBook from '../screens/Dr_List/Dr_AppointmentBook';
-import All_Medicine_Category from '../screens/All_Medicine/AllMedicineCategory';
-import AllMedicineCategory from '../screens/All_Medicine/AllMedicineCategory';
-import CommanCategoryDetails from '../screens/All_Medicine/CommanCategoryDetails';
-import CommanSubCategory from '../screens/All_Medicine/CommanSubCategory';
-import PurchesScreen from '../screens/PurchesScreen/PurchesScreen';
 import Signup from '../screens/LoginScreen/Signup';
 import Pre_View_Order from '../screens/Cart/Pre_View_Order';
 import OrderHistory from '../screens/OrderHistory/OrderHistory';
 import Add_FamilyMember from '../screens/Profile/Add_FamilyMember';
-import MedicineScreen from '../screens/All_Medicine/MedicineScreen';
-import MainPurchesScreen from '../screens/PurchesScreen/MainPurchesScreen';
-import BrandCardDetails from '../screens/All_Medicine/BrandCardDetails';
 import BrandPurches from '../screens/PurchesScreen/BrandPurches';
 import MobileVerify from '../screens/LoginScreen/MobileVerify';
 import FAQ from '../screens/Profile/FAQ';
-import OfferPurches from '../screens/PurchesScreen/OfferPurches';
 import AudioCall from '../screens/Calling/AudioCall';
 import VideoCall from '../screens/Calling/VideoCall';
 import CallHistory from '../screens/Calling/CallHistory';
@@ -90,26 +81,12 @@ export default function NavigationScreen() {
           name="Dr_AppointmentBook"
           component={Dr_AppointmentBook}
         />
-        <Stack.Screen
-          name="AllMedicineCategory"
-          component={AllMedicineCategory}
-        />
-        <Stack.Screen
-          name="CommanCategoryDetails"
-          component={CommanCategoryDetails}
-        />
-        <Stack.Screen name="CommanSubCategory" component={CommanSubCategory} />
-        <Stack.Screen name="PurchesScreen" component={PurchesScreen} />
         <Stack.Screen name="Pre_View_Order" component={Pre_View_Order} />
         <Stack.Screen name="OrderHistory" component={OrderHistory} />
         <Stack.Screen name="Add_FamilyMember" component={Add_FamilyMember} />
-        <Stack.Screen name="MedicineScreen" component={MedicineScreen} />
-        <Stack.Screen name="MainPurchesScreen" component={MainPurchesScreen} />
-        <Stack.Screen name="BrandCardDetails" component={BrandCardDetails} />
         <Stack.Screen name="BrandPurches" component={BrandPurches} />
         <Stack.Screen name="MobileVerify" component={MobileVerify} />
         <Stack.Screen name="FAQ" component={FAQ} />
-        <Stack.Screen name="OfferPurches" component={OfferPurches} />
         <Stack.Screen name="AudioCall" component={AudioCall} />
         <Stack.Screen name="VideoCall" component={VideoCall} />
         <Stack.Screen name="CallHistory" component={CallHistory} />

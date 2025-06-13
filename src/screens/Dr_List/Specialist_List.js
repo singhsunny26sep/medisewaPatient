@@ -19,7 +19,7 @@ import {Instance} from '../../api/Instance';
 
 export default function Specialist_List({route,navigation}) {
   const {specialistId} = route.params;
-
+  console.log('Specialist ID:', specialistId);
   const [doctors, setDoctors] = useState([]);
   const [filteredDoctors, setFilteredDoctors] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

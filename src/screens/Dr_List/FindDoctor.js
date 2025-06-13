@@ -56,7 +56,6 @@ export default function FindDoctor({navigation}) {
 
   const searchDoctorsBySymptom = async () => {
     if (!symptomInput.trim()) {
-      // Show alert if input is empty
       Alert.alert('Please enter symptoms', 'Enter at least one symptom to search for doctors');
       return;
     }
@@ -65,11 +64,10 @@ export default function FindDoctor({navigation}) {
       setSearchLoading(true);
       setFilteredSpecialists([]); 
 
-      // Clean and format symptoms
       const symptomsArray = symptomInput
         .split(',')
         .map(s => s.trim())
-        .filter(s => s.length > 0); // Remove empty strings
+        .filter(s => s.length > 0); 
 
       if (symptomsArray.length === 0) {
         Alert.alert('Invalid Input', 'Please enter valid symptoms');
@@ -229,10 +227,9 @@ export default function FindDoctor({navigation}) {
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.categoriesList}
-            />
+            />  
           )}
         </View>
-
         <View style={styles.specialistsSection}>
           <Text style={styles.sectionTitle}>Specialists</Text>
           {loading ? (
