@@ -86,7 +86,7 @@ export default function Cart({navigation}) {
   const calculateTotalPrice = () => {
     return cartItems.reduce((total, item) => {
       const quantity = quantities[item._id] || 1;
-      return total + item.medicineId.price * quantity;
+      return total + item?.medicineId?.price * quantity;
     }, 0);
   };
 

@@ -39,7 +39,6 @@ export default function MainStack() {
           ),
         }}
       />
-
       <Tab.Screen
         name={strings.Cart}
         component={Cart}

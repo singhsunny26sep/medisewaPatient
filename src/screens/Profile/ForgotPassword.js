@@ -15,6 +15,7 @@ import {OtpInput} from 'react-native-otp-entry';
 import CustomHeader from '../../component/header/CustomHeader';
 import {Fonts} from '../../Theme/Fonts';
 import CustomTextInput from '../../component/texinput/CustomTextInput';
+import { Instance } from '../../api/Instance';
 
 export default function ForgotPassword({navigation}) {
   const [mobile, setMobile] = useState('');
@@ -28,8 +29,8 @@ export default function ForgotPassword({navigation}) {
     if (step === 1) {
       if (mobile) {
         try {
-          const response = await axios.post(
-            'http://192.168.115.164:5000/api/v1/users/request/otp',
+          const response = await Instance.post(
+            'api/v1/users/request/otp',
             {
               mobile: mobile,
             },
@@ -56,8 +57,8 @@ export default function ForgotPassword({navigation}) {
       if (newPassword && confirmPassword) {
         if (newPassword === confirmPassword) {
           try {
-            await axios.post(
-              'http://192.168.115.164:5000/api/v1/users/forgot/password',
+            await Instance.post(
+              'api/v1/users/forgot/password',
               {
                 sessionId: sessionId,
                 otp: otp,

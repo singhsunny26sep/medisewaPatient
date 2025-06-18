@@ -528,7 +528,7 @@ export default function Dr_AppointmentBook({route, navigation}) {
                   <View style={styles.radioInner} />
                 )}
               </View>
-              <Text style={styles.radioText}>Offline</Text>
+              <Text style={styles.radioText}>Clinic visit</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -539,7 +539,7 @@ export default function Dr_AppointmentBook({route, navigation}) {
                   <View style={styles.radioInner} />
                 )}
               </View>
-              <Text style={styles.radioText}>Online</Text>
+              <Text style={styles.radioText}>Online Consultation</Text>
             </TouchableOpacity>
           </View>
         </View>
