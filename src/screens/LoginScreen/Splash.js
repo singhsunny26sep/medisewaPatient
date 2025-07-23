@@ -135,7 +135,7 @@ export default function Splash() {
               transform: [{ translateY: textTranslateY }]
             }
           ]}>
-          <Text style={styles.appName}>New Medihub</Text>
+          <Text style={styles.appName}>The Smart Medihub</Text>
           <Text style={styles.tagline}>Your Health, Our Priority</Text>
         </Animated.View>
 
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   appName: {
     color: COLORS.white,
     fontFamily: Fonts.Bold,
-    fontSize: moderateScale(32),
+    fontSize: moderateScale(25),
     marginBottom: scale(8),
     textAlign: 'center',
     letterSpacing: 1,

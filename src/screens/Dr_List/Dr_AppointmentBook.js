@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Platform,
   PermissionsAndroid,
+  Linking,
 } from 'react-native';
 import {Container} from '../../component/Container/Container';
 import {COLORS} from '../../Theme/Colors';
@@ -50,6 +51,7 @@ export default function Dr_AppointmentBook({route, navigation}) {
   const [reports, setReports] = useState([]);
   const [uploading, setUploading] = useState(false);
   const {submitHandler} = usePhonePePayment();
+  const [isTimePickerVisible, setTimePickerVisibility] = useState(false);
 
   const appointmentTypeItems = [
     {label: 'For Myself', value: 'self'},
@@ -71,54 +73,6 @@ export default function Dr_AppointmentBook({route, navigation}) {
     {label: 'Other', value: 'other'},
   ];
 
-  const availableSlots = [
-    '9:00 AM',
-    '9:30 AM',
-    '10:00 AM',
-    '10:30 AM',
-    '11:00 AM',
-    '11:30 AM',
-    '12:00 PM',
-    '12:30 PM',
-    '1:00 PM',
-    '1:30 PM',
-    '2:00 PM',
-    '2:30 PM',
-    '3:00 PM',
-    '3:30 PM',
-    '4:00 PM',
-    '4:30 PM',
-    '5:00 PM',
-    '5:30 PM',
-    '6:00 PM',
-  ];
-
-  const getFilteredSlots = () => {
-    if (!selectedDate) return availableSlots;
-
-    const today = moment().startOf('day');
-    const selected = moment(selectedDate).startOf('day');
-    const now = moment();
-
-    if (today.isSame(selected, 'day')) {
-      return availableSlots.filter(slot => {
-        const slotTime = moment(slot, 'h:mm A').set({
-          year: now.year(),
-          month: now.month(),
-          date: now.date()
-        });
-        
-        return slotTime.isAfter(now);
-      });
-    }
-
-    if (selected.isAfter(today)) {
-      return availableSlots;
-    }
-
-    return availableSlots;
-  };
-
   const handleConfirm = date => {
     setSelectedDate(date);
     setDatePickerVisibility(false);
@@ -128,18 +82,18 @@ export default function Dr_AppointmentBook({route, navigation}) {
     setDatePickerVisibility(true);
   };
 
-  const handleTimeSelect = time => {
-    const now = moment();
-    const slotTime = moment(time, 'h:mm A').set({
-      year: now.year(),
-      month: now.month(),
-      date: now.date()
-    });
+  const showTimePicker = () => {
+    setTimePickerVisibility(true);
+  };
 
-    // Only allow selection if the slot is in the future
-    if (slotTime.isAfter(now)) {
-      setSelectedTime(time);
-    }
+  const hideTimePicker = () => {
+    setTimePickerVisibility(false);
+  };
+
+  const handleTimeConfirm = time => {
+    const formattedTime = moment(time).format('h:mm A');
+    setSelectedTime(formattedTime);
+    hideTimePicker();
   };
 
   const fetchDoctorDetails = async () => {
@@ -328,7 +282,7 @@ export default function Dr_AppointmentBook({route, navigation}) {
             : null,
       };
 
-      console.log('Booking payload:', payload);
+      console.log('Booking payload:', JSON.stringify(payload, null, 2));
 
       const response = await Instance.post(
         '/api/v1/bookings/book/appointment/null',
@@ -452,28 +406,33 @@ export default function Dr_AppointmentBook({route, navigation}) {
     </View>
   );
 
-  const handleConsultationTypeChange = async (type) => {
+  const handleConsultationTypeChange = async type => {
     setConsultationType(type);
     if (type === 'online') {
       try {
-        // Get doctor's fee or use a default amount
         const paymentAmount = doctorDetails?.doctorId?.fee || 500;
-        
+
         const paymentResult = await submitHandler(paymentAmount);
-        
+
         if (paymentResult.status === 'SUCCESS') {
-          setToastMessage('Payment successful! Proceeding with online consultation.');
+          setToastMessage(
+            'Payment successful! Proceeding with online consultation.',
+          );
           setToastType('success');
         } else {
-          setToastMessage('Payment failed. Please try again or select offline consultation.');
+          setToastMessage(
+            'Payment failed. Please try again or select offline consultation.',
+          );
           setToastType('danger');
-          setConsultationType('offline'); // Revert to offline if payment fails
+          setConsultationType('offline');
         }
       } catch (error) {
         console.error('Payment error:', error);
-        setToastMessage('Payment failed. Please try again or select offline consultation.');
+        setToastMessage(
+          'Payment failed. Please try again or select offline consultation.',
+        );
         setToastType('danger');
-        setConsultationType('offline'); // Revert to offline if payment fails
+        setConsultationType('offline');
       }
     }
   };
@@ -543,6 +502,23 @@ export default function Dr_AppointmentBook({route, navigation}) {
             </TouchableOpacity>
           </View>
         </View>
+        {consultationType === 'offline' &&
+          doctorDetails?.doctorId?.clinicAddress && (
+            <TouchableOpacity
+              style={styles.getDirectionButton}
+              onPress={() => {
+                const address = encodeURIComponent(
+                  doctorDetails.doctorId.clinicAddress,
+                );
+                const url =
+                  Platform.OS === 'ios'
+                    ? `http://maps.apple.com/?daddr=${address}`
+                    : `https://www.google.com/maps/dir/?api=1&destination=${address}`;
+                Linking.openURL(url);
+              }}>
+              <Text style={styles.getDirectionButtonText}>Get Direction</Text>
+            </TouchableOpacity>
+          )}
 
         {appointmentType === 'family' && (
           <View style={styles.familyMemberContainer}>
@@ -599,34 +575,31 @@ export default function Dr_AppointmentBook({route, navigation}) {
         </View>
 
         <Text style={[styles.selectDateText, styles.availableSlotsText]}>
-          Available Slots
+          Select Time
         </Text>
-        <View style={styles.timeSlotsContainer}>
-          <FlatList
-            data={getFilteredSlots()}
-            renderItem={({item}) => {
-              return (
-                <TouchableOpacity
-                  style={[
-                    styles.timeSlotBox,
-                    selectedTime === item && styles.selectedTimeSlot,
-                  ]}
-                  onPress={() => handleTimeSelect(item)}>
-                  <Text
-                    style={[
-                      styles.timeSlotText,
-                      selectedTime === item && styles.selectedTimeText,
-                    ]}>
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              );
-            }}
-            keyExtractor={item => item}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-          />
-        </View>
+        <TouchableOpacity onPress={showTimePicker}>
+          <View style={styles.dateContainer}>
+            <Icon
+              name="access-time"
+              size={scale(20)}
+              color={'grey'}
+              style={styles.icon}
+            />
+            <Text style={styles.selectedDate}>
+              {selectedTime ? selectedTime : 'Select a time'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <DateTimePickerModal
+          isVisible={isTimePickerVisible}
+          mode="time"
+          onConfirm={handleTimeConfirm}
+          onCancel={hideTimePicker}
+          is24Hour={false}
+        />
+
+        {/* Remove the old time slots FlatList section and replace with our new time picker UI that we added above */}
 
         <View style={styles.reportsContainer}>
           <Text style={styles.sectionTitle}>Past Reports</Text>
@@ -1006,6 +979,21 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(14),
     fontFamily: Fonts.Medium,
     color: COLORS.black,
+  },
+  getDirectionButton: {
+    marginTop: scale(8),
+    marginBottom: scale(8),
+    backgroundColor: COLORS.DODGERBLUE,
+    paddingVertical: scale(8),
+    paddingHorizontal: scale(16),
+    borderRadius: scale(8),
+    alignSelf: 'flex-start',
+    marginLeft: scale(15),
+  },
+  getDirectionButtonText: {
+    color: COLORS.white,
+    fontFamily: Fonts.Medium,
+    fontSize: moderateScale(14),
   },
   hiddenSlotNote: {
     marginHorizontal: scale(15),

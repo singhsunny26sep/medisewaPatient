@@ -29,6 +29,8 @@ import {Container} from '../../component/Container/Container';
 import strings from '../../../localization';
 import {useSelector} from 'react-redux';
 import { Instance } from '../../api/Instance';
+import LocationModal from '../../component/LocationModal';
+import {useUserLocation} from '../../utils/useUserLocation';
 
 const {width} = Dimensions.get('window');
 
@@ -37,6 +39,9 @@ export default function Home({navigation}) {
   const [modalVisible, setModalVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [profileData, setProfileData] = useState(null);
+  const [locationModalVisible, setLocationModalVisible] = useState(false);
+  const defaultLocation = useUserLocation();
+  const [selectedLocation, setSelectedLocation] = useState(null);
 
   const language = useSelector(state => state.Common.language);
 
@@ -69,6 +74,11 @@ export default function Home({navigation}) {
     setModalVisible(false);
   };
 
+  const handleLocationSelect = location => {
+    setSelectedLocation(location);
+    setLocationModalVisible(false);
+  };
+
   return (
     <Container
       statusBarStyle={'light-content'}
@@ -95,17 +105,18 @@ export default function Home({navigation}) {
               </View>
               <View style={styles.welcomeTextContainer}>
                 <Text style={styles.welcomeText}>{strings.welcome},</Text>
-                <Text style={styles.userName}>{profileData?.name || "Loading.."}</Text>
+                <Text style={styles.userName} numberOfLines={1}>{profileData?.name || "Loading.."}</Text>
               </View>
             </View>
-            {/* <TouchableOpacity style={styles.notificationButton}>
-              <LinearGradient
-                colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.15)']}
-                style={styles.notificationIconContainer}>
-                <Ionicons name="notifications" size={24} color={COLORS.white} />
-                <View style={styles.notificationBadge} />
-              </LinearGradient>
-            </TouchableOpacity> */}
+            <TouchableOpacity
+              onPress={() => setLocationModalVisible(true)}
+              style={styles.locationButton}>
+              <MaterialIcons name="location-pin" size={16} color={COLORS.white} />
+              <Text style={styles.locationText} numberOfLines={1} ellipsizeMode="tail">
+                {selectedLocation || defaultLocation || 'Select Location'}
+              </Text>
+              <MaterialIcons name="expand-more" size={20} color={COLORS.white} />
+            </TouchableOpacity>
           </View>
         </LinearGradient>
 
@@ -151,11 +162,11 @@ export default function Home({navigation}) {
                 imageStyle={styles.LabImageStyle}
               />
               <ReusableView
-                text={strings.Reports}
+                text={"Prescription & Reports"}
                 imageSource={require('../../assets/Reports.jpg')}
                 imageStyle={styles.ReportImageStyle}
-                navigation={() => navigation.navigate('Reports')}
-              />
+                navigation={() => navigation.navigate('Reports')} 
+              />                         
               <ReusableView
                 text={strings.OrderMedicines}
                 imageSource={require('../../assets/MedicinePng.png')}
@@ -204,6 +215,11 @@ export default function Home({navigation}) {
         imageSource={require('../../assets/coming-soon.jpg')}
         message="This feature will be available soon."
       />
+      <LocationModal
+        visible={locationModalVisible}
+        onClose={() => setLocationModalVisible(false)}
+        onLocationSelect={handleLocationSelect}
+      />
     </Container>
   );
 }
@@ -234,8 +250,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(20),
   },
   welcomeSection: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: scale(10),
   },
   profileSection: {
     marginRight: scale(15),
@@ -247,6 +265,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.2)',
   },
   welcomeTextContainer: {
+    flex: 1,
     justifyContent: 'center',
   },
   welcomeText: {
@@ -261,6 +280,23 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.1)',
     textShadowOffset: {width: 0, height: 1},
     textShadowRadius: 2,
+  },
+  locationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingVertical: verticalScale(5),
+    paddingHorizontal: scale(8),
+    borderRadius: moderateScale(20),
+    maxWidth: scale(150),
+    marginRight:scale(2)
+  },
+  locationText: {
+    flex: 1,
+    color: COLORS.white,
+    fontFamily: Fonts.Medium,
+    fontSize: moderateScale(12),
+    marginHorizontal: scale(5),
   },
   notificationButton: {
     padding: moderateScale(8),

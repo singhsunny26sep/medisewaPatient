@@ -34,6 +34,7 @@ export default function Cart({navigation}) {
       try {
         const token = await AsyncStorage.getItem('userToken');
         const data = await GET_CART_DATA(token);
+        console.log('API cart data:', data);
 
         if (data.success) {
           dispatch({
@@ -43,6 +44,7 @@ export default function Cart({navigation}) {
               items: data.result
             }
           });
+          console.log('Cart items to be set in Redux:', data.result);
           const initialQuantities = data.result.reduce((acc, item) => {
             acc[item._id] = 1;
             return acc;
@@ -59,9 +61,14 @@ export default function Cart({navigation}) {
     fetchCartData();
   }, []);
 
+  useEffect(() => {
+    console.log('Redux cartItems:', cartItems);
+  }, [cartItems]);
+
   const handleDeleteItem = async medicineId => {
     try {
       const token = await AsyncStorage.getItem('userToken');
+      console.log('Deleting item with ID:', medicineId, 'and token:', token);
       const data = await DELETE_CART_ITEM(medicineId, token);
       if (data.success) {
         dispatch({type: 'REMOVE_FROM_CART', payload: medicineId});

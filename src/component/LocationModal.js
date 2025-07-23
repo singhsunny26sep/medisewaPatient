@@ -7,6 +7,8 @@ import {
   Pressable,
   TextInput,
   FlatList,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
 import {COLORS} from '../Theme/Colors';
 import {Fonts} from '../Theme/Fonts';
@@ -15,11 +17,62 @@ import AntDesign from 'react-native-vector-icons/AntDesign';
 import Feather from 'react-native-vector-icons/Feather';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import axios from 'axios';
+import GetLocation from 'react-native-get-location';
+import {fetchAddress} from '../utils/locationHelper';
 
 const LocationModal = ({visible, onClose, onLocationSelect}) => {
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
+
+  const requestLocationPermission = async () => {
+    if (Platform.OS === 'ios') return true;
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: 'Location Permission',
+          message: 'This app requires access to your location.',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        },
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch (err) {
+      console.warn(err);
+      return false;
+    }
+  };
+
+  const handleCurrentLocationPress = async () => {
+    setIsFetchingLocation(true);
+    try {
+      const hasPermission = await requestLocationPermission();
+      if (!hasPermission) {
+        console.log('Location permission denied');
+        // Optionally, show an alert to the user
+        return;
+      }
+      const loc = await GetLocation.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 30000,
+      });
+      const {latitude, longitude} = loc;
+      const {city} = await fetchAddress(latitude, longitude);
+      if (city) {
+        onLocationSelect(city);
+        onClose();
+      } else {
+        console.log('Could not fetch location name');
+      }
+    } catch (error) {
+      console.log('Location error:', error);
+    } finally {
+      setIsFetchingLocation(false);
+    }
+  };
 
   const searchLocation = async text => {
     if (text.length < 2) {
@@ -107,13 +160,20 @@ const LocationModal = ({visible, onClose, onLocationSelect}) => {
               onChangeText={handleSearch}
             />
           </View>
-          <View style={styles.locationRow}>
+          <Pressable
+            style={styles.locationRow}
+            onPress={handleCurrentLocationPress}
+            disabled={isFetchingLocation}>
             <MaterialIcons name="my-location" size={25} color={COLORS.black} />
             <View style={styles.locationTextWrapper}>
               <Text style={styles.locationTitle}>Current Location</Text>
-              <Text style={styles.locationSubtitle}>Using GPS</Text>
+              {isFetchingLocation ? (
+                <Text style={styles.locationSubtitle}>Fetching...</Text>
+              ) : (
+                <Text style={styles.locationSubtitle}>Using GPS</Text>
+              )}
             </View>
-          </View>
+          </Pressable>
           {loading ? (
             <Text style={styles.loadingText}>Searching...</Text>
           ) : (

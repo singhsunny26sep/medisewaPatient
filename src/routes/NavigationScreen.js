@@ -50,6 +50,7 @@ import FindDoctor from '../screens/Dr_List/FindDoctor';
 import Specialist_List from '../screens/Dr_List/Specialist_List';
 import Department_List from '../screens/Dr_List/Department_List';
 import ChangeLanguage from '../screens/ChangeLanguge/ChangeLanguage';
+import GetDirection from '../screens/Dr_List/GetDirection';
 
 const Stack = createNativeStackNavigator();
 
@@ -97,6 +98,7 @@ export default function NavigationScreen() {
         <Stack.Screen name="Specialist_List" component={Specialist_List} />
         <Stack.Screen name="Department_List" component={Department_List} />
         <Stack.Screen name="ChangeLanguage" component={ChangeLanguage} />
+        <Stack.Screen name="GetDirection" component={GetDirection} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -74,16 +74,15 @@ export const GET_CART_DATA = async token => {
     }
   };
   
-  export const DELETE_CART_ITEM = async (medicineId, token) => {
+  export const DELETE_CART_ITEM = async (cartItemId, token) => {
     try {
-      const response = await Instance.post(
-        `api/v1/medicineCarts/removeFromCart/${medicineId}`,
-        {},
+      const response = await Instance.delete(
+        `api/v1/medicineCarts/removeFromCart/${cartItemId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
       return response.data;
     } catch (error) {

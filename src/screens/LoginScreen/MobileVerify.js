@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {
   StyleSheet,
   TouchableOpacity,
@@ -9,6 +9,9 @@ import {
   ActivityIndicator,
   Dimensions,
   Animated,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import {scale, moderateScale, verticalScale} from '../../utils/Scaling';
 import {COLORS} from '../../Theme/Colors';
@@ -30,6 +33,7 @@ export default function MobileVerify({route, navigation}) {
   const [loading, setLoading] = useState(false);
   const [canResend, setCanResend] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
+  const otpInputRef = useRef(null);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -37,6 +41,15 @@ export default function MobileVerify({route, navigation}) {
       duration: 1000,
       useNativeDriver: true,
     }).start();
+    
+    // Auto focus OTP input after animation
+    const timer = setTimeout(() => {
+      if (otpInputRef.current) {
+        otpInputRef.current.focus();
+      }
+    }, 1200);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -134,72 +147,85 @@ export default function MobileVerify({route, navigation}) {
         </View>
       </LinearGradient>
 
-      <Animated.View 
-        style={[styles.contentContainer, { opacity: fadeAnim }]}
-        showsVerticalScrollIndicator={false}>
-        <View style={styles.otpContainer}>
-          <Text style={styles.otpLabel}>Enter OTP</Text>
-          <View style={styles.otpInputContainer}>
-            <OtpInput
-              numberOfDigits={6}
-              onTextChange={text => setCode(text)}
-              value={code}
-              focusColor={COLORS.DODGERBLUE}
-              theme={{
-                containerStyle: styles.otpThemeContainer,
-                pinCodeContainerStyle: styles.pinCodeContainer,
-                pinCodeTextStyle: styles.pinCodeText,
-                focusStickStyle: styles.focusStick,
-                focusedPinCodeContainerStyle: styles.focusedPinCodeContainer,
-              }}
-            />
-          </View>
-        </View>
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled">
+          <Animated.View 
+            style={[styles.contentContainer, { opacity: fadeAnim }]}>
+            <View style={styles.otpContainer}>
+              <Text style={styles.otpLabel}>Enter OTP</Text>
+              <View style={styles.otpInputContainer}>
+                <OtpInput
+                  ref={otpInputRef}
+                  numberOfDigits={6}
+                  onTextChange={text => setCode(text)}
+                  value={code}
+                  focusColor={COLORS.DODGERBLUE}
+                  autoFocus={true}
+                  keyboardType="number-pad"
+                  clearInputs={false}
+                  theme={{
+                    containerStyle: styles.otpThemeContainer,
+                    pinCodeContainerStyle: styles.pinCodeContainer,
+                    pinCodeTextStyle: styles.pinCodeText,
+                    focusStickStyle: styles.focusStick,
+                    focusedPinCodeContainerStyle: styles.focusedPinCodeContainer,
+                  }}
+                />
+              </View>
+            </View>
 
-        <View style={styles.timerContainer}>
-          <Text style={styles.timerText}>
-            OTP expires in{' '}
-            <Text style={styles.timerValue}>{formatTime(timer)}</Text>
-          </Text>
-        </View>
+            <View style={styles.timerContainer}>
+              <Text style={styles.timerText}>
+                OTP expires in{' '}
+                <Text style={styles.timerValue}>{formatTime(timer)}</Text>
+              </Text>
+            </View>
 
-        <TouchableOpacity
-          style={[styles.verifyButton, loading && styles.verifyButtonDisabled]}
-          onPress={verifyOtp}
-          disabled={loading}>
-          <LinearGradient
-            colors={loading ? ['#ccc', '#ccc'] : [COLORS.DODGERBLUE, '#4A90E2']}
-            style={styles.buttonGradient}>
-            {loading ? (
-              <ActivityIndicator size="small" color={COLORS.white} />
-            ) : (
-              <Text style={styles.verifyButtonText}>Verify OTP</Text>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.verifyButton, loading && styles.verifyButtonDisabled]}
+              onPress={verifyOtp}
+              disabled={loading}>
+              <LinearGradient
+                colors={loading ? ['#ccc', '#ccc'] : [COLORS.DODGERBLUE, '#4A90E2']}
+                style={styles.buttonGradient}>
+                {loading ? (
+                  <ActivityIndicator size="small" color={COLORS.white} />
+                ) : (
+                  <Text style={styles.verifyButtonText}>Verify OTP</Text>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
 
-        <View style={styles.resendContainer}>
-          <Text style={styles.resendText}>
-            Didn't receive the OTP?{' '}
-          </Text>
-          <TouchableOpacity 
-            onPress={handleResendOTP}
-            disabled={!canResend}
-            style={[styles.resendButton, !canResend && styles.resendButtonDisabled]}>
-            <Text style={[styles.resendButtonText, !canResend && styles.resendButtonTextDisabled]}>
-              Resend OTP
-            </Text>
-          </TouchableOpacity>
-        </View>
+            <View style={styles.resendContainer}>
+              <Text style={styles.resendText}>
+                Didn't receive the OTP?{' '}
+              </Text>
+              <TouchableOpacity 
+                onPress={handleResendOTP}
+                disabled={!canResend}
+                style={[styles.resendButton, !canResend && styles.resendButtonDisabled]}>
+                <Text style={[styles.resendButtonText, !canResend && styles.resendButtonTextDisabled]}>
+                  Resend OTP
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}>
-          <Text style={styles.backButtonText}>
-            ← Back to Login
-          </Text>
-        </TouchableOpacity>
-      </Animated.View>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}>
+              <Text style={styles.backButtonText}>
+                ← Back to Login
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Container>
   );
 }
@@ -391,5 +417,12 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(16),
     fontFamily: Fonts.Medium,
     color: '#666',
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: verticalScale(20),
   },
 });

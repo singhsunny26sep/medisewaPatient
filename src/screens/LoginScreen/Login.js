@@ -129,6 +129,12 @@ export default function Login({navigation}) {
               </LinearGradient>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={styles.forgotPasswordButton}
+              onPress={() => navigation.navigate('ForgotPassword')}>
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity>
+
             <View style={styles.dividerContainer}>
               <View style={styles.divider} />
               <Text style={styles.dividerText}>or</Text>
@@ -268,6 +274,16 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontFamily: Fonts.Bold,
     fontSize: moderateScale(18),
+  },
+  forgotPasswordButton: {
+    alignItems: 'center',
+    marginBottom: verticalScale(15),
+  },
+  forgotPasswordText: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Medium,
+    color: COLORS.DODGERBLUE,
+    textDecorationLine: 'underline',
   },
   dividerContainer: {
     flexDirection: 'row',
