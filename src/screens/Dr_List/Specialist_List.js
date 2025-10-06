@@ -79,8 +79,22 @@ export default function Specialist_List({route,navigation}) {
   };
 
   const handleMobilePress = doctor => {
+    console.log('=== handleMobilePress START ===');
+    console.log('Doctor:', doctor?.name, doctor?._id);
+    console.log('Current modal state:', isModalVisible);
+    console.log('Setting selectedDoctor to:', doctor?.name);
+
     setSelectedDoctor(doctor);
+    console.log('Setting modal visibility to true');
     setIsModalVisible(true);
+
+    // Force update check
+    setTimeout(() => {
+      console.log('After timeout - Modal state:', isModalVisible);
+      console.log('Selected doctor:', selectedDoctor?.name);
+    }, 100);
+
+    console.log('=== handleMobilePress END ===');
   };
 
   const initiateCall = async (doctor, type) => {
@@ -135,6 +149,9 @@ export default function Specialist_List({route,navigation}) {
           />
         </View>
       </View>
+      {/* Temporary test button to force modal open */}
+
+
       <FlatList
         data={filteredDoctors}
         showsVerticalScrollIndicator={false}
@@ -162,12 +179,21 @@ export default function Specialist_List({route,navigation}) {
                   <Text style={styles.specialization}>
                     {item.specialization?.name || 'Not Available'}
                   </Text>
+
+                  {/* Simple button for calling */}
                   <TouchableOpacity
-                    style={styles.contact}
-                    onPress={() => handleMobilePress(item)}>
-                    <Ionicons name="call" size={23} color={COLORS.DODGERBLUE} />
-                    <Text style={styles.mobile}>{item.contactNumber}</Text>
+                    style={styles.callButton}
+                    onPress={() => {
+                      console.log('=== CALL BUTTON PRESSED ===');
+                      console.log('Doctor:', item.name, item._id);
+                      console.log('Current state before:', { isModalVisible, selectedDoctor: selectedDoctor?.name });
+                      handleMobilePress(item);
+                    }}
+                    activeOpacity={0.7}>
+                    <Ionicons name="call" size={20} color={COLORS.white} />
+                    <Text style={styles.callButtonText}>Call Now</Text>
                   </TouchableOpacity>
+
                   <View style={styles.statusContainer}>
                     <View
                       style={[
@@ -199,20 +225,31 @@ export default function Specialist_List({route,navigation}) {
           );
         }}
       />
+      {console.log('=== MODAL RENDER CHECK ===')}
+      {console.log('isModalVisible:', isModalVisible)}
+      {console.log('selectedDoctor:', selectedDoctor?.name)}
+      {console.log('========================')}
       <Modal
         transparent={true}
         visible={isModalVisible}
         animationType="slide"
-        onRequestClose={() => setIsModalVisible(false)}>
+        onRequestClose={() => {
+          console.log('Modal onRequestClose called');
+          setIsModalVisible(false);
+        }}
+        onShow={() => console.log('Modal onShow called - modal is now visible!')}
+        onDismiss={() => console.log('Modal onDismiss called - modal is now hidden')}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <View style={styles.modalButtonsRow}>
               <TouchableOpacity
                 style={styles.callOption}
                 onPress={async () => {
+                  console.log('Audio call button pressed for doctor:', selectedDoctor?.name);
                   setIsModalVisible(false);
                   try {
                     const callData = await initiateCall(selectedDoctor, 'audio');
+                    console.log('Audio call initiated successfully, navigating to AudioCall');
                     navigation.navigate('AudioCall', {
                       doctor: selectedDoctor,
                       callData: callData?.data
@@ -229,9 +266,11 @@ export default function Specialist_List({route,navigation}) {
               <TouchableOpacity
                 style={styles.callOption}
                 onPress={async () => {
+                  console.log('Video call button pressed for doctor:', selectedDoctor?.name);
                   setIsModalVisible(false);
                   try {
                     const callData = await initiateCall(selectedDoctor, 'video');
+                    console.log('Video call initiated successfully, navigating to VideoCall');
                     navigation.navigate('VideoCall', {
                       doctor: selectedDoctor,
                       callData: callData?.data
@@ -248,7 +287,10 @@ export default function Specialist_List({route,navigation}) {
 
             <TouchableOpacity
               style={styles.cancelButton}
-              onPress={() => setIsModalVisible(false)}>
+              onPress={() => {
+                console.log('Cancel button pressed');
+                setIsModalVisible(false);
+              }}>
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
@@ -311,6 +353,10 @@ const styles = StyleSheet.create({
     shadowRadius: moderateScale(4),
     paddingBottom: verticalScale(5),
   },
+  cardTouchable: {
+    borderRadius: moderateScale(8),
+    overflow: 'hidden',
+  },
   cardContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -350,16 +396,32 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.Regular,
     marginVertical: verticalScale(3),
   },
-  contact: {
+  callButton: {
+    backgroundColor: COLORS.DODGERBLUE,
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: verticalScale(5),
+    justifyContent: 'center',
+    marginTop: verticalScale(8),
+    paddingVertical: verticalScale(10),
+    paddingHorizontal: scale(20),
+    borderRadius: moderateScale(8),
+    elevation: 3,
+    shadowColor: COLORS.DODGERBLUE,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
   },
   mobile: {
     fontSize: moderateScale(14),
     color: COLORS.black,
     marginLeft: scale(5),
     fontFamily: Fonts.Medium,
+  },
+  callButtonText: {
+    color: COLORS.white,
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Medium,
+    marginLeft: scale(8),
   },
   bookingButton: {
     marginTop: verticalScale(3),
@@ -403,14 +465,20 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
+    zIndex: 1000,
   },
   modalContainer: {
     backgroundColor: COLORS.white,
     padding: scale(20),
     borderTopLeftRadius: scale(20),
     borderTopRightRadius: scale(20),
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   modalButtonsRow: {
     flexDirection: 'row',
@@ -421,6 +489,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: scale(15),
+    minWidth: scale(80),
+    minHeight: scale(80),
+    borderRadius: moderateScale(10),
+    backgroundColor: 'rgba(33, 150, 243, 0.1)',
   },
   callOptionText: {
     marginTop: verticalScale(8),
@@ -431,9 +503,15 @@ const styles = StyleSheet.create({
   cancelButton: {
     marginTop: verticalScale(20),
     backgroundColor: COLORS.red,
-    paddingVertical: verticalScale(8),
+    paddingVertical: verticalScale(12),
+    paddingHorizontal: scale(30),
     borderRadius: moderateScale(10),
     alignItems: 'center',
+    elevation: 3,
+    shadowColor: COLORS.red,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
   },
 
   cancelButtonText: {
