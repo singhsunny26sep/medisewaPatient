@@ -41,63 +41,63 @@ function App(): React.JSX.Element {
     loadLanguage();
   }, []);
 
-  useEffect(() => {
-    const requestNotificationPermissionAndroid = async () => {
-      if (Platform.OS !== 'android') return true;
-      // POST_NOTIFICATIONS is required for Android 13+
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (e) {
-        return false;
-      }
-    };
+  // useEffect(() => {
+  //   const requestNotificationPermissionAndroid = async () => {
+  //     if (Platform.OS !== 'android') return true;
+  //     // POST_NOTIFICATIONS is required for Android 13+
+  //     try {
+  //       const granted = await PermissionsAndroid.request(
+  //         PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+  //       );
+  //       return granted === PermissionsAndroid.RESULTS.GRANTED;
+  //     } catch (e) {
+  //       return false;
+  //     }
+  //   };
 
-    const requestPermissionIOS = async () => {
-      if (Platform.OS !== 'ios') return true;
-      const authStatus = await messaging().requestPermission();
-      return (
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL
-      );
-    };
+  //   const requestPermissionIOS = async () => {
+  //     if (Platform.OS !== 'ios') return true;
+  //     const authStatus = await messaging().requestPermission();
+  //     return (
+  //       authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+  //       authStatus === messaging.AuthorizationStatus.PROVISIONAL
+  //     );
+  //   };
 
-    const initFcm = async () => {
-      const hasPerm = Platform.OS === 'android'
-        ? await requestNotificationPermissionAndroid()
-        : await requestPermissionIOS();
-      if (!hasPerm) {
-        console.log('[FCM] Notification permission not granted');
-        return;
-      }
+  //   const initFcm = async () => {
+  //     const hasPerm = Platform.OS === 'android'
+  //       ? await requestNotificationPermissionAndroid()
+  //       : await requestPermissionIOS();
+  //     if (!hasPerm) {
+  //       console.log('[FCM] Notification permission not granted');
+  //       return;
+  //     }
 
-      try {
-        const token = await messaging().getToken();
-        console.log('[FCM] Token:', token);
-      } catch (err) {
-        console.log('[FCM] Failed to get token', err);
-      }
+  //     try {
+  //       const token = await messaging().getToken();
+  //       console.log('[FCM] Token:', token);
+  //     } catch (err) {
+  //       console.log('[FCM] Failed to get token', err);
+  //     }
 
-      const unsubscribe = messaging().onTokenRefresh(newToken => {
-        console.log('[FCM] Token refreshed:', newToken);
-      });
+  //     const unsubscribe = messaging().onTokenRefresh(newToken => {
+  //       console.log('[FCM] Token refreshed:', newToken);
+  //     });
 
-      return unsubscribe;
-    };
+  //     return unsubscribe;
+  //   };
 
-    let unsubscribeRef: undefined | (() => void);
-    initFcm().then(unsub => {
-      if (typeof unsub === 'function') {
-        unsubscribeRef = unsub;
-      }
-    });
+  //   let unsubscribeRef: undefined | (() => void);
+  //   initFcm().then(unsub => {
+  //     if (typeof unsub === 'function') {
+  //       unsubscribeRef = unsub;
+  //     }
+  //   });
 
-    return () => {
-      if (unsubscribeRef) unsubscribeRef();
-    };
-  }, []);
+  //   return () => {
+  //     if (unsubscribeRef) unsubscribeRef();
+  //   };
+  // }, []);
 
   return (
     <Provider store={store}>
