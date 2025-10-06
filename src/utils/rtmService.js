@@ -21,21 +21,39 @@ class RtmServiceSingleton {
         const { text, rawMessage, peerId } = evt || {}
         const body = typeof text === 'string' && text.trim().length ? text : rawMessage
         console.log('[RTM] messageReceived from', peerId, 'text:', body)
-        let parsed
-        try { parsed = typeof body === 'string' ? JSON.parse(body) : body } catch {}
-        if (!parsed) {
-          console.log('[RTM] Non-JSON message; ignoring')
+
+        if (!body) {
+          console.log('[RTM] Empty message received; ignoring')
           return
         }
+
+        let parsed
+        try {
+          parsed = typeof body === 'string' ? JSON.parse(body) : body
+          console.log('[RTM] Parsed message:', JSON.stringify(parsed, null, 2))
+        } catch (parseError) {
+          console.log('[RTM] Failed to parse message as JSON:', parseError.message)
+          console.log('[RTM] Raw message:', body)
+          return
+        }
+
+        if (!parsed || typeof parsed !== 'object') {
+          console.log('[RTM] Invalid message format; ignoring')
+          return
+        }
+
         const type = parsed.type || parsed.event || parsed.kind
         const payload = parsed.payload || parsed.data || parsed.body || {}
+
+        console.log('[RTM] Extracted - type:', type, 'payload keys:', Object.keys(payload))
+
         if (this.messageHandler && type) {
           this.messageHandler({ type, payload, from: peerId })
         } else {
-          console.log('[RTM] No handler or type for message; dropping')
+          console.log('[RTM] No handler or type for message; dropping. Type:', type, 'Has handler:', !!this.messageHandler)
         }
       } catch (e) {
-        console.log('[RTM] messageReceived handler error', e?.message)
+        console.log('[RTM] messageReceived handler error', e?.message, e?.stack)
       }
     })
   }
@@ -62,11 +80,35 @@ class RtmServiceSingleton {
 
   sendCallInvite = async (peerId, payload) => {
     if (!this.engine) throw new Error('RTM not initialized')
-    console.log('[RTM] sendCallInvite ->', peerId, payload)
-    await this.engine.sendMessageByPeer({
-      peerId: String(peerId),
-      text: JSON.stringify({ type: 'CALL_INVITE', payload }),
-    })
+
+    const message = {
+      type: 'CALL_INVITE',
+      payload: {
+        callId: payload.callId,
+        callType: payload.callType || 'video',
+        channel: payload.channel || payload.channelName,
+        token: payload.token,
+        callerId: payload.callerId,
+        callerName: payload.callerName,
+        callerAvatar: payload.callerAvatar,
+        receiver: payload.receiver,
+        timestamp: new Date().toISOString(),
+        ...payload
+      }
+    }
+
+    console.log('[RTM] sendCallInvite ->', peerId, JSON.stringify(message, null, 2))
+
+    try {
+      await this.engine.sendMessageByPeer({
+        peerId: String(peerId),
+        text: JSON.stringify(message),
+      })
+      console.log('[RTM] Call invite sent successfully to', peerId)
+    } catch (error) {
+      console.log('[RTM] Failed to send call invite:', error.message)
+      throw error
+    }
   }
 
   sendCallControl = async (peerId, type) => {

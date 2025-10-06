@@ -7,31 +7,52 @@ import { ACCEPT_CALL } from '../api/Api_Controller'
 export default function CallInviteHandler() {
   const navigation = useNavigation()
   const showingRef = useRef(false)
+  const currentCallRef = useRef(null)
   const [invite, setInvite] = useState(null)
 
   useEffect(() => {
     const handler = ({ type, payload, from }) => {
-      console.log('[CallInviteHandler] event:', type, 'from:', from, 'payload:', payload)
+      console.log('[CallInviteHandler] event:', type, 'from:', from, 'payload:', JSON.stringify(payload, null, 2))
+
       if (type === 'CALL_INVITE') {
-        if (showingRef.current) return
+        // Allow new call invitations to replace existing ones
         const callId = payload?.callId || payload?.data?.callId
         const callType = payload?.callType || payload?.data?.callType || 'video'
         const channelName = payload?.channel || payload?.channelName || payload?.data?.channelName || payload?.data?.channel
         const token = payload?.token || payload?.data?.token || null
         const receiver = payload?.receiver || payload?.data?.receiver || {}
-        const callerId = payload?.callerId || receiver?.id || receiver?._id || from
-        const callerName = payload?.callerName || receiver?.name || 'Unknown'
-        const callerAvatar = payload?.callerAvatar || receiver?.image || receiver?.avatar || null
+        const callerId = payload?.callerId || payload?.caller_id || receiver?.id || receiver?._id || from
+        const callerName = payload?.callerName || payload?.caller_name || receiver?.name || 'Unknown'
+        const callerAvatar = payload?.callerAvatar || payload?.caller_avatar || receiver?.image || receiver?.avatar || null
+
+        console.log('[CallInviteHandler] Parsed call data:', {
+          callId, callType, channelName, token, callerId, callerName, callerAvatar
+        })
+
+        // Validate required fields
+        if (!callId || !channelName) {
+          console.log('[CallInviteHandler] Missing required fields: callId or channelName')
+          return
+        }
 
         const doctor = { id: callerId, name: callerName, image: callerAvatar }
-        const callData = { callId, channelName, uid: 0, token, receiver: { name: callerName, image: callerAvatar } }
+        const callData = {
+          callId,
+          channelName,
+          uid: 0,
+          token,
+          receiver: { name: callerName, image: callerAvatar }
+        }
+
+        currentCallRef.current = callId
         showingRef.current = true
         setInvite({ from, callType, doctor, callData })
       }
+
       if (type === 'CALL_CANCELLED') {
-        // Best-effort dismiss: Alert cannot be programmatically dismissed cross-platform
-        console.log('[CallInviteHandler] CALL_CANCELLED received')
+        console.log('[CallInviteHandler] CALL_CANCELLED received for call:', currentCallRef.current)
         showingRef.current = false
+        currentCallRef.current = null
         setInvite(null)
       }
     }
@@ -44,42 +65,126 @@ export default function CallInviteHandler() {
   const { from, callType, doctor, callData } = invite
 
   return (
-    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
-      <View style={{ width: '86%', backgroundColor: '#fff', borderRadius: 12, padding: 16 }}>
-        <Text style={{ fontSize: 18, fontWeight: '700', color: '#111' }} numberOfLines={1}>
-          {doctor?.name || 'Incoming call'}
-        </Text>
-        <Text style={{ marginTop: 6, fontSize: 14, color: '#555' }}>
-          {callType === 'video' ? 'Video call' : 'Audio call'}
-        </Text>
+    <View style={{
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 9999,
+      elevation: 10,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+    }}>
+      <View style={{
+        width: '90%',
+        maxWidth: 400,
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 24,
+        elevation: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+      }}>
+        <View style={{ alignItems: 'center', marginBottom: 8 }}>
+          <View style={{
+            width: 80,
+            height: 80,
+            borderRadius: 40,
+            backgroundColor: callType === 'video' ? '#4CAF50' : '#2196F3',
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginBottom: 16,
+          }}>
+            <Text style={{ fontSize: 24, color: '#fff', fontWeight: 'bold' }}>
+              {callType === 'video' ? '📹' : '📞'}
+            </Text>
+          </View>
 
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 18 }}>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: '#111', textAlign: 'center' }} numberOfLines={2}>
+            {doctor?.name || 'Unknown Doctor'}
+          </Text>
+
+          <Text style={{ marginTop: 8, fontSize: 16, color: '#666', textAlign: 'center' }}>
+            Incoming {callType === 'video' ? 'Video Call' : 'Audio Call'}
+          </Text>
+        </View>
+
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 24 }}>
           <TouchableOpacity
             onPress={async () => {
-              try { await notifyCallDeclined(from) } catch {}
-              console.log('[CallInviteHandler] Declined invite from', from)
-              showingRef.current = false
-              setInvite(null)
+              try {
+                await notifyCallDeclined(from)
+                console.log('[CallInviteHandler] Declined invite from', from)
+              } catch (error) {
+                console.log('[CallInviteHandler] Error declining call:', error)
+              } finally {
+                showingRef.current = false
+                currentCallRef.current = null
+                setInvite(null)
+              }
             }}
-            style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#f03d3d', alignItems: 'center', marginRight: 8 }}
+            style={{
+              flex: 1,
+              paddingVertical: 14,
+              borderRadius: 12,
+              backgroundColor: '#f03d3d',
+              alignItems: 'center',
+              marginRight: 10,
+              elevation: 2,
+              shadowColor: '#f03d3d',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.25,
+              shadowRadius: 2,
+            }}
           >
-            <Text style={{ color: '#fff', fontWeight: '700' }}>Decline</Text>
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Decline</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={async () => {
-              try { if (callData?.callId) { await ACCEPT_CALL(callData.callId); console.log('[CallInviteHandler] Accepted callId', callData.callId) } } catch {}
-              if (callType === 'video') {
-                navigation.navigate('VideoCall', { doctor, callData })
-              } else {
-                navigation.navigate('AudioCall', { doctor, callData })
+              try {
+                if (callData?.callId) {
+                  await ACCEPT_CALL(callData.callId)
+                  console.log('[CallInviteHandler] Accepted callId', callData.callId)
+                }
+                showingRef.current = false
+                currentCallRef.current = null
+
+                if (callType === 'video') {
+                  navigation.navigate('VideoCall', { doctor, callData })
+                } else {
+                  navigation.navigate('AudioCall', { doctor, callData })
+                }
+              } catch (error) {
+                console.log('[CallInviteHandler] Error accepting call:', error)
+                showingRef.current = false
+                currentCallRef.current = null
+                setInvite(null)
               }
-              showingRef.current = false
-              setInvite(null)
             }}
-            style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#2e7d32', alignItems: 'center', marginLeft: 8 }}
+            style={{
+              flex: 1,
+              paddingVertical: 14,
+              borderRadius: 12,
+              backgroundColor: '#2e7d32',
+              alignItems: 'center',
+              marginLeft: 10,
+              elevation: 2,
+              shadowColor: '#2e7d32',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.25,
+              shadowRadius: 2,
+            }}
           >
-            <Text style={{ color: '#fff', fontWeight: '700' }}>Accept</Text>
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Accept</Text>
           </TouchableOpacity>
         </View>
       </View>
