@@ -1,6 +1,7 @@
 import React, { Children, Dispatch, SetStateAction, createContext, useContext, useEffect, useState } from "react";
 import { jwtDecode, JwtPayload } from "jwt-decode";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { RtmService } from "../utils/rtmService";
 
 
 export type UserData = {
@@ -103,6 +104,35 @@ export default function LoginProvider({ children }: LoginProviderProps) {
     useEffect(() => {
         getTokenFromLocalstorage();
     }, [isLoggedIn]);
+
+    useEffect(() => {
+        (async () => {
+            try {
+                await RtmService.initialize()
+                if (isLoggedIn) {
+                    const candidateIds: Array<string | number | undefined | null> = [
+                        user?.id,
+                        studentId,
+                        user?.phone,
+                        user?.email,
+                    ]
+                    const firstValid = candidateIds.find((v) => v !== undefined && v !== null && String(v).trim().length > 0)
+                    if (firstValid) {
+                        const uid = String(firstValid)
+                        console.log('[RTM] LoginProvider using uid:', uid)
+                        await RtmService.login(uid)
+                    } else {
+                        console.log('[RTM] LoginProvider no valid uid found; skipping RTM login')
+                    }
+                } else {
+                    await RtmService.logout()
+                }
+            } catch (e) {
+                // ignore RTM init errors to avoid blocking app
+            }
+        })()
+        // No cleanup necessary; RTM logout handled by dependency changes
+    }, [isLoggedIn, user?.id, user?.phone, user?.email, studentId])
 
     return (
         <LoginContext.Provider value={{ isLoggedIn, setIsLoggedIn, user, setUser, role, setRole, refresh, setRefresh, notify, setNotify, appToken, studentId, setStudentId, options, optionsGet, userDetails, setUserDetails, centerId, setCenterId }}>{children}</LoginContext.Provider>

@@ -42,7 +42,7 @@ export default function Login({navigation}) {
 
     setLoading(true);
     try {
-      const response = await Instance.post('/api/v1/users/request/otp', {
+      const response = await Instance.post('api/v1/users/request/otp', {
         mobile: mobile,
       });
 

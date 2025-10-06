@@ -2,6 +2,7 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
+apply plugin: 'com.google.gms.google-services'
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -113,6 +114,18 @@ android {
             signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+
+    // Resolve duplicate native libs between Agora RTM and other deps
+    packaging {
+        jniLibs {
+            pickFirsts += [
+                '**/libaosl.so',
+                'lib/arm64-v8a/libaosl.so',
+                'lib/armeabi-v7a/libaosl.so',
+                'lib/x86_64/libaosl.so'
+            ]
         }
     }
 }

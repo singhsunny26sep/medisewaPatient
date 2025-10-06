@@ -95,14 +95,14 @@ export default function Signup({navigation}) {
         image: '',
       };
 
-      const response = await Instance.post('/api/v1/users/register', body);
+      const response = await Instance.post('api/v1/users/register', body);
       console.log('Response:', response.data);
 
       await AsyncStorage.setItem('userToken', response.data.token);
       await AsyncStorage.setItem('username', name); 
       setToastMessage('Registration successful');
-      setToastType('success');
-      navigation.navigate('MainStack');
+      setToastType('success');   
+      navigation.navigate('Login');
     } catch (error) {
 
       const errorMessage = error.response?.data?.msg || 'Something went wrong';

@@ -51,12 +51,14 @@ import Specialist_List from '../screens/Dr_List/Specialist_List';
 import Department_List from '../screens/Dr_List/Department_List';
 import ChangeLanguage from '../screens/ChangeLanguge/ChangeLanguage';
 import GetDirection from '../screens/Dr_List/GetDirection';
+import CallInviteHandler from '../component/CallInviteHandler';
 
 const Stack = createNativeStackNavigator();
 
 export default function NavigationScreen() {
   return (
     <NavigationContainer>
+      <CallInviteHandler />
       <Stack.Navigator
         initialRouteName="Splash"
         screenOptions={{headerShown: false}}>

@@ -1,287 +1,228 @@
-import React, {useState} from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  Dimensions,
-  StatusBar,
-} from 'react-native';
-import {Container} from '../../component/Container/Container';
-import {COLORS} from '../../Theme/Colors';
-import {moderateScale, scale, verticalScale} from '../../utils/Scaling';
-import {Fonts} from '../../Theme/Fonts';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import React, {useEffect, useMemo, useRef, useState} from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import Ionicons from "react-native-vector-icons/Ionicons";
+import {COLORS} from "../../Theme/Colors";
+import {Fonts} from "../../Theme/Fonts";
+import {moderateScale, scale, verticalScale} from "../../utils/Scaling";
+import {RtcLocalView, RtcRemoteView} from "react-native-agora";
+import {useAgoraCall} from "../../utils/useAgoraCall";
+import {buildChannelName} from "../../utils/agoraConfig";
+import {ACCEPT_CALL, END_CALL} from "../../api/Api_Controller";
 
-const {width, height} = Dimensions.get('window');
-
-export default function VideoCall({route}) {
+export default function VideoCall({route, navigation}) {
+  const {doctor, callData} = route?.params || {};
   const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOff, setIsVideoOff] = useState(false);
-  const [isSpeakerOn, setIsSpeakerOn] = useState(false);
-  const [isCameraFlipped, setIsCameraFlipped] = useState(false);
+  const [isCameraOn, setIsCameraOn] = useState(true);
+  const [seconds, setSeconds] = useState(0);
+  const intervalRef = useRef(null);
+  
+  const channel = callData?.channelName || buildChannelName(doctor?.id ?? "demo");
+  const uid = callData?.uid || 0;
+  const token = callData?.token;
+  const callId = callData?.callId;
+  
+  const {joined, remoteUsers, toggleMute, toggleVideo, switchCamera, leave} = useAgoraCall({
+    channel, 
+    uid, 
+    withVideo: true, 
+    token
+  });
 
-  const doctor = route.params?.doctor;
+  useEffect(() => {
+    // Notify backend that this call is accepted (if navigated without handler)
+    (async () => {
+      try {
+        if (callId) {
+          await ACCEPT_CALL(callId)
+        }
+      } catch (e) {}
+    })()
+    intervalRef.current = setInterval(() => {
+      setSeconds(s => s + 1);
+    }, 1000);
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
+
+
+  const timerLabel = useMemo(() => {
+    const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
+    const ss = String(seconds % 60).padStart(2, "0");
+    return `${mm}:${ss}`;
+  }, [seconds]);
+
+  const endCall = async () => {
+    try {
+      if (callId) {
+        console.log('VideoCall: Ending call with callId:', callId);
+        const response = await END_CALL(callId);
+        console.log('VideoCall: Call ended successfully:', response);
+      }
+    } catch (error) {
+      console.log('VideoCall: Error ending call:', error);
+    } finally {
+      await leave();
+      navigation.goBack();
+    }
+  };
 
   return (
-    <Container
-      statusBarStyle={'light-content'}
-      statusBarBackgroundColor={COLORS.black}
-      backgroundColor={COLORS.black}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.black} />
+    <View style={styles.container}>
+      <View style={styles.topBar}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={COLORS.white} />
+        </TouchableOpacity>
+        <View style={styles.topBarCenter}>
+          <Text style={styles.doctorName} numberOfLines={1}>
+            {callData?.receiver?.name || doctor?.name || "Doctor"}
+          </Text>
+          <Text style={styles.timer}>{timerLabel}</Text>
+        </View>
+        <View style={{width: scale(24)}} />
+      </View>
 
-      <View style={styles.videoContainer}>
+      <View style={styles.videoArea}>
         <View style={styles.remoteVideo}>
-          {doctor?.image && (
-            <Image
-              source={{uri: doctor.image}}
-              style={styles.doctorImage}
-              resizeMode="cover"
+          {joined && remoteUsers.length > 0 ? (
+            <RtcRemoteView.SurfaceView
+              style={StyleSheet.absoluteFill}
+              uid={remoteUsers[0]}
+              channelId={channel}
             />
+          ) : (
+            <Text style={styles.videoLabel}>{joined ? "Waiting for remote..." : "Connecting..."}</Text>
           )}
-          <View style={styles.doctorInfoContainer}>
-            <Text style={styles.doctorName}>{doctor?.name || 'Doctor'}</Text>
-            <Text style={styles.callStatus}>Video Call</Text>
-            <View style={styles.callDurationContainer}>
-              <Ionicons name="time" size={16} color={COLORS.white} />
-              <Text style={styles.callDuration}>00:00</Text>
-            </View>
-          </View>
         </View>
-
         <View style={styles.localVideo}>
-          <View style={styles.localVideoContent}>
-            <View style={styles.localVideoHeader}>
-              <View style={styles.connectionStatus}>
-                <View style={styles.connectionDot} />
-                <Text style={styles.connectionText}>Connected</Text>
-              </View>
-            </View>
-            <View style={styles.youTextContainer}>
-              <Text style={styles.youText}>You</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.topControls}>
-          <TouchableOpacity
-            style={styles.topControlButton}
-            onPress={() => setIsCameraFlipped(!isCameraFlipped)}>
-            <MaterialIcons
-              name="flip-camera-ios"
-              size={24}
-              color={COLORS.white}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.topControlButton}>
-            <Ionicons name="settings" size={24} color={COLORS.white} />
-          </TouchableOpacity>
+          {joined ? (
+            <RtcLocalView.SurfaceView style={StyleSheet.absoluteFill} />
+          ) : (
+            <Text style={styles.videoLabelSmall}>You</Text>
+          )}
         </View>
       </View>
 
-      <View style={styles.controlsContainer}>
-        <View style={styles.controlGroup}>
-          <TouchableOpacity
-            style={[
-              styles.controlButton,
-              isMuted && styles.controlButtonActive,
-            ]}
-            onPress={() => setIsMuted(!isMuted)}>
-            <Ionicons
-              name={isMuted ? 'mic-off' : 'mic'}
-              size={30}
-              color={COLORS.white}
-            />
-            <Text style={styles.controlText}>Mute</Text>
-          </TouchableOpacity>
+      <View style={styles.controls}>
+        <TouchableOpacity
+          style={[styles.controlButton, !isMuted ? styles.enabled : null]}
+          onPress={async () => {
+            const next = !isMuted;
+            setIsMuted(next);
+            await toggleMute(next);
+          }}
+        >
+          <Ionicons name={isMuted ? "mic-off" : "mic"} size={24} color={COLORS.white} />
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.controlButton,
-              isVideoOff && styles.controlButtonActive,
-            ]}
-            onPress={() => setIsVideoOff(!isVideoOff)}>
-            <Ionicons
-              name={isVideoOff ? 'videocam-off' : 'videocam'}
-              size={30}
-              color={COLORS.white}
-            />
-            <Text style={styles.controlText}>Video</Text>
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.controlButton, isCameraOn ? styles.enabled : null]}
+          onPress={async () => {
+            const next = !isCameraOn;
+            setIsCameraOn(next);
+            await toggleVideo(!next);
+          }}
+        >
+          <Ionicons name={isCameraOn ? "videocam" : "videocam-off"} size={24} color={COLORS.white} />
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.controlButton,
-              isSpeakerOn && styles.controlButtonActive,
-            ]}
-            onPress={() => setIsSpeakerOn(!isSpeakerOn)}>
-            <Ionicons
-              name={isSpeakerOn ? 'volume-high' : 'volume-medium'}
-              size={30}
-              color={COLORS.white}
-            />
-            <Text style={styles.controlText}>Speaker</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.controlButton} onPress={switchCamera}>
+          <Ionicons name="camera-reverse" size={24} color={COLORS.white} />
+        </TouchableOpacity>
 
-        <TouchableOpacity style={styles.endCallButton}>
-          <Ionicons name="call" size={30} color={COLORS.white} />
+        <TouchableOpacity style={[styles.controlButton, styles.hangup]} onPress={endCall}>
+          <Ionicons name="call" size={24} color={COLORS.white} />
         </TouchableOpacity>
       </View>
-    </Container>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  videoContainer: {
+  container: {
     flex: 1,
+    backgroundColor: COLORS.black,
+  },
+  topBar: {
+    height: verticalScale(56),
+    paddingHorizontal: scale(16),
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: COLORS.DODGERBLUE,
+  },
+  topBarCenter: {
+    flex: 1,
+    alignItems: "center",
+  },
+  doctorName: {
+    color: COLORS.white,
+    fontFamily: Fonts.Medium,
+    fontSize: moderateScale(15),
+  },
+  timer: {
+    color: COLORS.AntiFlashWhite,
+    fontFamily: Fonts.Light,
+    fontSize: moderateScale(12),
+    marginTop: verticalScale(2),
+  },
+  videoArea: {
+    flex: 1,
+    position: "relative",
     backgroundColor: COLORS.black,
   },
   remoteVideo: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  doctorImage: {
-    width: scale(120),
-    height: scale(120),
-    borderRadius: moderateScale(60),
-    marginBottom: verticalScale(20),
-    borderWidth: 2,
-    borderColor: COLORS.DODGERBLUE,
-  },
-  doctorInfoContainer: {
-    alignItems: 'center',
-  },
-  doctorName: {
-    fontSize: moderateScale(24),
-    color: COLORS.white,
-    fontFamily: Fonts.Bold,
-    marginBottom: verticalScale(5),
-  },
-  callStatus: {
-    fontSize: moderateScale(16),
-    color: COLORS.white,
-    fontFamily: Fonts.Regular,
-    marginBottom: verticalScale(10),
-  },
-  callDurationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: scale(15),
-    paddingVertical: verticalScale(5),
-    borderRadius: moderateScale(20),
-  },
-  callDuration: {
-    fontSize: moderateScale(14),
-    color: COLORS.white,
-    fontFamily: Fonts.Medium,
-    marginLeft: scale(5),
+    backgroundColor: "#111",
+    justifyContent: "center",
+    alignItems: "center",
   },
   localVideo: {
-    position: 'absolute',
-    right: scale(20),
-    top: verticalScale(50),
-    width: scale(100),
-    height: scale(150),
-    backgroundColor: COLORS.gray,
+    position: "absolute",
+    right: scale(12),
+    bottom: scale(12),
+    width: scale(110),
+    height: verticalScale(160),
+    backgroundColor: "#222",
     borderRadius: moderateScale(10),
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: COLORS.DODGERBLUE,
+    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#333",
   },
-  localVideoContent: {
-    flex: 1,
-  },
-  localVideoHeader: {
-    padding: scale(5),
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  connectionStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  connectionDot: {
-    width: scale(8),
-    height: scale(8),
-    borderRadius: scale(4),
-    backgroundColor: COLORS.green,
-    marginRight: scale(5),
-  },
-  connectionText: {
-    fontSize: moderateScale(10),
-    color: COLORS.white,
-    fontFamily: Fonts.Regular,
-  },
-  youTextContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: scale(5),
-  },
-  youText: {
-    fontSize: moderateScale(12),
+  videoLabel: {
     color: COLORS.white,
     fontFamily: Fonts.Medium,
-    textAlign: 'center',
+    fontSize: moderateScale(16),
   },
-  topControls: {
-    position: 'absolute',
-    top: verticalScale(20),
-    right: scale(20),
-    flexDirection: 'row',
+  videoLabelSmall: {
+    color: COLORS.white,
+    fontFamily: Fonts.Medium,
+    fontSize: moderateScale(12),
   },
-  topControlButton: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: moderateScale(20),
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: scale(10),
-  },
-  controlsContainer: {
-    paddingHorizontal: scale(20),
-    paddingBottom: verticalScale(20),
-  },
-  controlGroup: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: verticalScale(20),
+  controls: {
+    height: verticalScale(90),
+    backgroundColor: "rgba(0,0,0,0.6)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-evenly",
+    paddingHorizontal: scale(16),
   },
   controlButton: {
-    alignItems: 'center',
-    padding: scale(10),
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: moderateScale(25),
-    width: scale(85),
+    width: scale(54),
+    height: scale(54),
+    borderRadius: scale(27),
+    backgroundColor: "#333",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  controlButtonActive: {
+  enabled: {
     backgroundColor: COLORS.DODGERBLUE,
   },
-  controlText: {
-    fontSize: moderateScale(12),
-    color: COLORS.white,
-    fontFamily: Fonts.Regular,
-    marginTop: verticalScale(5),
-  },
-  endCallButton: {
-    alignSelf: 'center',
+  hangup: {
     backgroundColor: COLORS.red,
-    width: scale(70),
-    height: scale(70),
-    borderRadius: moderateScale(35),
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: COLORS.black,
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.3,
-    shadowRadius: moderateScale(4),
   },
 });

@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -7,19 +7,37 @@ import {
   Image,
   Animated,
   Easing,
+  Alert,
 } from 'react-native';
 import {Container} from '../../component/Container/Container';
 import {COLORS} from '../../Theme/Colors';
 import {moderateScale, scale, verticalScale} from '../../utils/Scaling';
 import {Fonts} from '../../Theme/Fonts';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import {useAgoraCall} from '../../utils/useAgoraCall';
+import {buildChannelName} from '../../utils/agoraConfig';
+import {ACCEPT_CALL, END_CALL} from '../../api/Api_Controller';
 
 export default function AudioCall({route, navigation}) {
-  const {doctor} = route.params;
+  const {doctor, callData} = route?.params || {};
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(false);
-  const [callDuration, setCallDuration] = useState('00:00');
+  const [seconds, setSeconds] = useState(0);
+  const intervalRef = useRef(null);
   const [isKeypadVisible, setIsKeypadVisible] = useState(false);
+  
+  // Use call data from API response or fallback to doctor data
+  const channel = callData?.channelName || buildChannelName(doctor?.id ?? 'demo');
+  const uid = callData?.uid || 0;
+  const token = callData?.token;
+  const callId = callData?.callId;
+  
+  const {joined, toggleMute, setSpeakerphone, leave} = useAgoraCall({
+    channel, 
+    uid, 
+    withVideo: false, 
+    token
+  });
 
   const pulseAnim = new Animated.Value(1);
 
@@ -40,6 +58,33 @@ export default function AudioCall({route, navigation}) {
     ]).start();
   }, []);
   
+  useEffect(() => {
+    // Notify backend that this call is accepted (if navigated without handler)
+    (async () => {
+      try {
+        if (callId) {
+          await ACCEPT_CALL(callId)
+        }
+      } catch (e) {}
+    })()
+    if (joined) {
+      intervalRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
+    }
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+  }, [joined]);
+
+
+  const timerLabel = React.useMemo(() => {
+    const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
+    const ss = String(seconds % 60).padStart(2, '0');
+    return `${mm}:${ss}`;
+  }, [seconds]);
+  
 
   return (
     <Container
@@ -57,8 +102,12 @@ export default function AudioCall({route, navigation}) {
             ]}>
             <Image source={{uri: doctor.image}} style={styles.doctorImage} />
           </Animated.View>
-          <Text style={styles.doctorName}>{doctor.name}</Text>
-          <Text style={styles.doctorSpecialization}>{callDuration}</Text>
+          <Text style={styles.doctorName}>
+            {callData?.receiver?.name || doctor?.name || "Doctor"}
+          </Text>
+          <Text style={styles.doctorSpecialization}>
+            {joined ? timerLabel : 'Connecting...'}
+          </Text>
           <View style={styles.callStatusContainer}>
             <View style={styles.statusDot} />
             <Text style={styles.callStatus}>Connecting...</Text>
@@ -68,7 +117,11 @@ export default function AudioCall({route, navigation}) {
         <View style={styles.controlsContainer}>
           <TouchableOpacity
             style={[styles.controlButton, isMuted && styles.activeControl]}
-            onPress={() => setIsMuted(!isMuted)}>
+            onPress={async () => {
+              const next = !isMuted
+              setIsMuted(next)
+              await toggleMute(next)
+            }}>
             <Ionicons
               name={isMuted ? 'mic-off' : 'mic'}
               size={30}
@@ -79,7 +132,11 @@ export default function AudioCall({route, navigation}) {
 
           <TouchableOpacity
             style={[styles.controlButton, isSpeakerOn && styles.activeControl]}
-            onPress={() => setIsSpeakerOn(!isSpeakerOn)}>
+            onPress={async () => {
+              const next = !isSpeakerOn;
+              setIsSpeakerOn(next);
+              await setSpeakerphone(next);
+            }}>
             <Ionicons
               name={isSpeakerOn ? 'volume-high' : 'volume-medium'}
               size={30}
@@ -100,7 +157,23 @@ export default function AudioCall({route, navigation}) {
 
         <TouchableOpacity
           style={styles.endCallButton}
-          onPress={() => navigation.goBack()}>
+          onPress={async () => {
+            try {
+              // End the call on the server
+              if (callId) {
+                console.log('AudioCall: Ending call with callId:', callId);
+                const response = await END_CALL(callId);
+                console.log('AudioCall: Call ended successfully:', response);
+              }
+            } catch (error) {
+              console.log('AudioCall: Error ending call:', error);
+              // Continue with local cleanup even if server call fails
+            } finally {
+              // Always clean up local resources
+              await leave();
+              navigation.goBack();
+            }
+          }}>
           <Ionicons name="call" size={30} color={COLORS.white} />
         </TouchableOpacity>
       </View>

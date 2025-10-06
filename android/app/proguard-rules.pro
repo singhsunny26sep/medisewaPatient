@@ -8,3 +8,9 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # Add any project specific keep options here:
+## EnableX / WebRTC
+-keep class com.rnenxrtc.** { *; }
+-keep class org.webrtc.** { *; }
+-keep class io.socket.** { *; }
+-dontwarn org.webrtc.**
+-dontwarn io.socket.**

@@ -16,6 +16,7 @@ import {moderateScale, scale, verticalScale} from '../../utils/Scaling';
 import {Fonts} from '../../Theme/Fonts';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {Instance} from '../../api/Instance';
+import { INITIATE_CALL } from '../../api/Api_Controller';
 
 export default function Specialist_List({route,navigation}) {
   const {specialistId} = route.params;
@@ -30,12 +31,27 @@ export default function Specialist_List({route,navigation}) {
   useEffect(() => {
     const fetchDoctorsByDepartment = async () => {
       try {
+        console.log('Specialist_List: fetching doctors for specialistId:', specialistId);
+        console.log('Specialist_List: request ->', `/api/v1/doctors/search/${specialistId}?type=Specialist`);
         const response = await Instance.get(
           `/api/v1/doctors/search/${specialistId}?type=Specialist`,
         );
+        console.log('Specialist_List: response summary:', {
+          status: response?.status,
+          success: response?.data?.success,
+          length: Array.isArray(response?.data?.result)
+            ? response.data.result.length
+            : undefined,
+        });
+        console.log('Specialist_List: full response data:', response?.data);
         setDoctors(response.data.result);
         setFilteredDoctors(response.data.result);
       } catch (error) {
+        console.log('Specialist_List: error while fetching doctors:', {
+          message: error?.message,
+          status: error?.response?.status,
+          data: error?.response?.data,
+        });
         console.error('Error fetching doctor data by department: ', error);
       } finally {
         setIsLoading(false);
@@ -65,6 +81,28 @@ export default function Specialist_List({route,navigation}) {
   const handleMobilePress = doctor => {
     setSelectedDoctor(doctor);
     setIsModalVisible(true);
+  };
+
+  const initiateCall = async (doctor, type) => {
+    if (!doctor?.userId) {
+      console.log('initiateCall: missing doctor.userId, item:', doctor);
+      return;
+    }
+    try {
+      const recieverId = doctor.userId;
+      const callType = type; // 'audio' | 'video'
+      console.log('Specialist_List initiateCall: request ->', { recieverId, callType });
+      const data = await INITIATE_CALL({ recieverId, callType });
+      console.log('Specialist_List initiateCall: response ->', data);
+      return data; // Return the call data
+    } catch (error) {
+      console.log('Specialist_List initiateCall: error ->', {
+        message: error?.message,
+        status: error?.response?.status,
+        data: error?.response?.data,
+      });
+      throw error; // Re-throw to handle in calling component
+    }
   };
 
   return (
@@ -171,9 +209,18 @@ export default function Specialist_List({route,navigation}) {
             <View style={styles.modalButtonsRow}>
               <TouchableOpacity
                 style={styles.callOption}
-                onPress={() => {
+                onPress={async () => {
                   setIsModalVisible(false);
-                  navigation.navigate('AudioCall', {doctor: selectedDoctor});
+                  try {
+                    const callData = await initiateCall(selectedDoctor, 'audio');
+                    navigation.navigate('AudioCall', {
+                      doctor: selectedDoctor,
+                      callData: callData?.data
+                    });
+                  } catch (error) {
+                    // Handle error - show alert or toast
+                    console.log('Failed to initiate audio call:', error);
+                  }
                 }}>
                 <Ionicons name="call" size={30} color={COLORS.DODGERBLUE} />
                 <Text style={styles.callOptionText}>Audio Call</Text>
@@ -181,7 +228,19 @@ export default function Specialist_List({route,navigation}) {
 
               <TouchableOpacity
                 style={styles.callOption}
-                onPress={() => navigation.navigate('VideoCall')}>
+                onPress={async () => {
+                  setIsModalVisible(false);
+                  try {
+                    const callData = await initiateCall(selectedDoctor, 'video');
+                    navigation.navigate('VideoCall', {
+                      doctor: selectedDoctor,
+                      callData: callData?.data
+                    });
+                  } catch (error) {
+                    // Handle error - show alert or toast
+                    console.log('Failed to initiate video call:', error);
+                  }
+                }}>
                 <Ionicons name="videocam" size={30} color={COLORS.DODGERBLUE} />
                 <Text style={styles.callOptionText}>Video Call</Text>
               </TouchableOpacity>
