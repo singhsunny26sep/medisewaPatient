@@ -189,7 +189,10 @@ export default function Dr_List({navigation}) {
 
               <TouchableOpacity
                 style={styles.callOption}
-                onPress={() => navigation.navigate('VideoCall')}>
+                onPress={() => {
+                  setIsModalVisible(false);
+                  navigation.navigate('VideoCall', {doctor: selectedDoctor});
+                }}>
                 <Ionicons name="videocam" size={30} color={COLORS.DODGERBLUE} />
                 <Text style={styles.callOptionText}>Video Call</Text>
               </TouchableOpacity>

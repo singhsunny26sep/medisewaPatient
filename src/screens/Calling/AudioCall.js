@@ -25,7 +25,18 @@ export default function AudioCall({route, navigation}) {
   const [seconds, setSeconds] = useState(0);
   const intervalRef = useRef(null);
   const [isKeypadVisible, setIsKeypadVisible] = useState(false);
-  
+
+  // Validate required data
+  if (!doctor) {
+    console.error('AudioCall: No doctor data provided');
+    Alert.alert(
+      "Error",
+      "Doctor information is missing. Please try again.",
+      [{ text: "OK", onPress: () => navigation.goBack() }]
+    );
+    return null;
+  }
+
   // Use call data from API response or fallback to doctor data
   const channel = callData?.channelName || buildChannelName(doctor?.id ?? 'demo');
   const uid = callData?.uid || 0;

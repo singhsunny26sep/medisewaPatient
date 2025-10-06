@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "449559036931",
+    "project_id": "medisewapatent",
+    "storage_bucket": "medisewapatent.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:449559036931:android:f53e90f24a7e8bed1d3a36",
+        "android_client_info": {
+          "package_name": "com.thesmartmediseva"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAOkkPZxP0UltVR84kqhNCnR5eefKWmIA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

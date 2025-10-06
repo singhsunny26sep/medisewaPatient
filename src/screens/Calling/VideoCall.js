@@ -15,7 +15,18 @@ export default function VideoCall({route, navigation}) {
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [seconds, setSeconds] = useState(0);
   const intervalRef = useRef(null);
-  
+
+  // Validate required data
+  if (!doctor) {
+    console.error('VideoCall: No doctor data provided');
+    Alert.alert(
+      "Error",
+      "Doctor information is missing. Please try again.",
+      [{ text: "OK", onPress: () => navigation.goBack() }]
+    );
+    return null;
+  }
+
   const channel = callData?.channelName || buildChannelName(doctor?.id ?? "demo");
   const uid = callData?.uid || 0;
   const token = callData?.token;
