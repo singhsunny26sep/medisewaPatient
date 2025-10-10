@@ -51,6 +51,7 @@
     "react-native-pager-view": "^6.7.1",
     "react-native-permissions": "^5.4.0",
     "react-native-phonepe-pg": "https://phonepe.mycloudrepo.io/public/repositories/phonepe-mobile-react-native-sdk/releases/v2/react-native-phonepe-pg.tgz",
+    "react-native-razorpay": "^2.3.0",
     "react-native-reanimated": "^3.17.5",
     "react-native-safe-area-context": "^5.4.0",
     "react-native-screens": "^4.10.0",

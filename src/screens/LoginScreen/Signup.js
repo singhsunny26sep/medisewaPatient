@@ -22,6 +22,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import ToastMessage from '../../component/ToastMessage/ToastMessage';
 import strings from '../../../localization';
 import LinearGradient from 'react-native-linear-gradient';
+ import fcmService from '../../utils/fcmService';
 
 const {width, height} = Dimensions.get('window');
 
@@ -84,6 +85,14 @@ export default function Signup({navigation}) {
     if (!valid) return;
 
     setLoading(true);
+    let fcmToken = fcmService.getStoredToken();
+    if (!fcmToken) {
+      console.log('🔄 No cached FCM token, requesting new one...');
+      fcmToken = await fcmService.requestUserPermission();
+    } else {
+      console.log('✅ Using cached FCM token:', fcmToken?.substring(0, 20) + '...');
+    }
+
     try {
       const body = {
         name,
@@ -93,6 +102,7 @@ export default function Signup({navigation}) {
         address,
         role: 'patient',
         image: '',
+        fcmToken: fcmToken || '',
       };
 
       const response = await Instance.post('api/v1/users/register', body);

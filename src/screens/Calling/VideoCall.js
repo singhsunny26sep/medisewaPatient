@@ -16,7 +16,6 @@ export default function VideoCall({route, navigation}) {
   const [seconds, setSeconds] = useState(0);
   const intervalRef = useRef(null);
 
-  // Validate required data
   if (!doctor) {
     console.error('VideoCall: No doctor data provided');
     Alert.alert(

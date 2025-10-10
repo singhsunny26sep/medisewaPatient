@@ -27,8 +27,12 @@ import moment from 'moment';
 import ToastMessage from '../../component/ToastMessage/ToastMessage';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import usePhonePePayment from '../../component/PhonePay/usePhonePePayment';
+import useRazorpayPayment from '../../component/Rozar/useRazorpayPayment';
 
 export default function Dr_AppointmentBook({route, navigation}) {
+  const {submitHandler: razorpaySubmitHandler, loading: paymentLoading} =
+    useRazorpayPayment();
+
   const {doctorId} = route.params;
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -406,19 +410,34 @@ export default function Dr_AppointmentBook({route, navigation}) {
     </View>
   );
 
+  // In your Dr_AppointmentBook.js, replace the consultation type handler:
+
   const handleConsultationTypeChange = async type => {
     setConsultationType(type);
     if (type === 'online') {
       try {
         const paymentAmount = doctorDetails?.doctorId?.fee || 500;
 
-        const paymentResult = await submitHandler(paymentAmount);
+        // Use the reusable Razorpay hook
+        const paymentResult = await razorpaySubmitHandler(paymentAmount, {
+          description: 'Doctor Consultation Fee',
+          appName: 'Mediseva',
+          doctorId: doctorDetails?.doctorId?._id,
+          appointmentType: 'online_consultation',
+        });
 
         if (paymentResult.status === 'SUCCESS') {
           setToastMessage(
             'Payment successful! Proceeding with online consultation.',
           );
           setToastType('success');
+          // Payment successful - continue with appointment booking
+        } else if (paymentResult.status === 'CANCELLED') {
+          setToastMessage(
+            'Payment was cancelled. Please select offline consultation or try again.',
+          );
+          setToastType('warning');
+          setConsultationType('offline');
         } else {
           setToastMessage(
             'Payment failed. Please try again or select offline consultation.',

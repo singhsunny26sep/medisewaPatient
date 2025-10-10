@@ -7,7 +7,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Modal,
 } from 'react-native';
 import {Container} from '../../component/Container/Container';
 import {COLORS} from '../../Theme/Colors';
@@ -19,8 +18,8 @@ import {useRoute} from '@react-navigation/native';
 import {Instance} from '../../api/Instance';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ToastMessage from '../../component/ToastMessage/ToastMessage';
-import usePhonePePayment from '../../component/PhonePay/usePhonePePayment';
-import CustomRadioButton from '../../component/RadioButton/RadioButton';
+import useRazorpayPayment from '../../component/Rozar/useRazorpayPayment';
+import PaymentMethodModal from '../../component/Rozar/PaymentMethodModal';
 
 export default function Pre_View_Order({navigation}) {
   const route = useRoute('');
@@ -29,13 +28,7 @@ export default function Pre_View_Order({navigation}) {
   const [isLoading, setIsLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('online');
-  const {submitHandler} = usePhonePePayment();
-
-  const paymentMethods = [
-    { id: 'online', label: 'Online Purchase', description: 'Pay using PhonePe' },
-    { id: 'offline', label: 'Offline Purchase', description: 'Pay at store' },
-    { id: 'cod', label: 'Cash on Delivery', description: 'Pay when you receive' },
-  ];
+  const {submitHandler: razorpaySubmitHandler} = useRazorpayPayment();
 
   const handleConfirmOrderPress = () => {
     setShowPaymentModal(true);
@@ -182,75 +175,85 @@ export default function Pre_View_Order({navigation}) {
   };
 
   const ConfirmOrderHandler = async () => {
-  try {
-    setIsLoading(true);
+    try {
+      setIsLoading(true);
 
-    const paymentResult = await submitHandler(totalPrice);
-
-    if (paymentResult.status === 'SUCCESS') {
-      const token = await AsyncStorage.getItem('userToken');
-
-      for (const item of cartData) {
-        const medicine = item.medicineId;
-        const quantity = item.quantity;
-
-        const selectedSize =
-          medicine.size.find(s => s.size === '400' && s.unit === 'ml') ||
-          medicine.size[0];
-
-        if (!selectedSize) {
-          console.warn('No valid size found for medicine:', medicine.title);
-          ToastMessage(`No size found for ${medicine.title}`);
-          continue;
+      const paymentResult = await razorpaySubmitHandler(
+        totalPrice, 
+        {
+          description: 'Medicine Purchase',
+          appName: 'Medisewa',
+          order_type: 'medicine_order',
+          items_count: cartData.length.toString()
         }
+      );
 
-        const sizeId = '680f3707b34b5e41f7f542e6';
-        const price = selectedSize.price;
-        const discount = selectedSize.discount || 0;
-        const discountType = selectedSize.discountType || 'percentage';
+      if (paymentResult.status === 'SUCCESS') {
+        const token = await AsyncStorage.getItem('userToken');
 
-        let priceAtSale = 0;
+        for (const item of cartData) {
+          const medicine = item.medicineId;
+          const quantity = item.quantity;
 
-        if (discount > 0) {
-          if (discountType === 'percentage') {
-            priceAtSale = quantity * price - (quantity * price * discount) / 100;
-          } else {
-            priceAtSale = quantity * (price - discount);
+          const selectedSize =
+            medicine.size.find(s => s.size === '400' && s.unit === 'ml') ||
+            medicine.size[0];
+
+          if (!selectedSize) {
+            console.warn('No valid size found for medicine:', medicine.title);
+            ToastMessage(`No size found for ${medicine.title}`);
+            continue;
           }
-        } else {
-          priceAtSale = quantity * price;
+
+          const sizeId = '680f3707b34b5e41f7f542e6';
+          const price = selectedSize.price;
+          const discount = selectedSize.discount || 0;
+          const discountType = selectedSize.discountType || 'percentage';
+
+          let priceAtSale = 0;
+
+          if (discount > 0) {
+            if (discountType === 'percentage') {
+              priceAtSale = quantity * price - (quantity * price * discount) / 100;
+            } else {
+              priceAtSale = quantity * (price - discount);
+            }
+          } else {
+            priceAtSale = quantity * price;
+          }
+
+          const payload = {
+            sizeId: sizeId,
+            quntity: quantity.toString(),
+            priceAtSale: priceAtSale.toFixed(2),
+            paymentId: paymentResult.paymentId,
+            paymentMethod: 'razorpay',
+          };
+
+          console.log('Sending order item:', payload);
+
+          const response = await Instance.post('api/v1/selles/sellSingle', payload, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          console.log('Order response:', response.data);
         }
 
-        const payload = {
-          sizeId: sizeId,
-          quntity: quantity.toString(),
-          priceAtSale: priceAtSale.toFixed(2),
-          paymentId: paymentResult.transactionId,
-          paymentMethod: paymentResult.paymentMethod,
-        };
-
-        console.log('Sending order item:', payload);
-
-        const response = await Instance.post('api/v1/selles/sellSingle', payload, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        console.log('Order response:', response.data);
+        ToastMessage('Order placed successfully!');
+        navigation.goBack();
+      } else if (paymentResult.status === 'CANCELLED') {
+        ToastMessage('Payment cancelled by user');
+      } else {
+        ToastMessage('Payment failed. Please try again.');
       }
-
-      ToastMessage('Order placed successfully!');
-      navigation.goBack();
-    } else {
-      ToastMessage('Payment failed. Please try again.');
+    } catch (error) {
+      console.error('Error confirming order:', error?.response?.data || error.message);
+      ToastMessage('Failed to confirm order.');
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error('Error confirming order:', error?.response?.data || error.message);
-    ToastMessage('Failed to confirm order.');
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   return (
     <Container
@@ -326,53 +329,21 @@ export default function Pre_View_Order({navigation}) {
         </TouchableOpacity>
       </View>
 
-      {/* Payment Method Selection Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
+      {/* Reusable Payment Method Modal */}
+      <PaymentMethodModal
         visible={showPaymentModal}
-        onRequestClose={() => setShowPaymentModal(false)}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Payment Method</Text>
-            
-            {paymentMethods.map((method) => (
-              <TouchableOpacity
-                key={method.id}
-                style={styles.paymentOption}
-                onPress={() => handlePaymentMethodSelect(method.id)}>
-                <CustomRadioButton
-                  checked={selectedPaymentMethod === method.id}
-                  onPress={() => handlePaymentMethodSelect(method.id)}
-                />
-                <View style={styles.paymentOptionText}>
-                  <Text style={styles.paymentOptionLabel}>{method.label}</Text>
-                  <Text style={styles.paymentOptionDescription}>{method.description}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelModalButton]}
-                onPress={() => setShowPaymentModal(false)}>
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.modalButton, styles.proceedModalButton]}
-                onPress={handleProceedWithPayment}>
-                <Text style={styles.modalButtonText}>Proceed</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowPaymentModal(false)}
+        onProceed={handleProceedWithPayment}
+        selectedMethod={selectedPaymentMethod}
+        onMethodSelect={handlePaymentMethodSelect}
+        proceedButtonText="Proceed to Payment"
+      />
     </Container>
   );
 }
 
 const styles = StyleSheet.create({
+  // ... keep your existing styles same
   scrollContainer: {
     paddingBottom: scale(20),
     paddingHorizontal: scale(15),
@@ -424,7 +395,6 @@ const styles = StyleSheet.create({
     color: COLORS.black,
     fontFamily: Fonts.Regular,
   },
-
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -447,79 +417,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.green,
   },
   buttonText: {
-    color: COLORS.white,
-    fontSize: moderateScale(16),
-    fontFamily: Fonts.Medium,
-  },
-  // Modal Styles
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    width: '85%',
-    backgroundColor: COLORS.white,
-    borderRadius: moderateScale(12),
-    padding: scale(20),
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontSize: moderateScale(18),
-    fontFamily: Fonts.Medium,
-    color: COLORS.black,
-    marginBottom: verticalScale(20),
-    textAlign: 'center',
-  },
-  paymentOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    paddingVertical: verticalScale(12),
-    paddingHorizontal: scale(10),
-    marginVertical: verticalScale(5),
-    borderRadius: moderateScale(8),
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.lightGray,
-  },
-  paymentOptionText: {
-    flex: 1,
-    marginLeft: scale(10),
-  },
-  paymentOptionLabel: {
-    fontSize: moderateScale(16),
-    fontFamily: Fonts.Medium,
-    color: COLORS.black,
-  },
-  paymentOptionDescription: {
-    fontSize: moderateScale(14),
-    fontFamily: Fonts.Regular,
-    color: COLORS.gray,
-    marginTop: verticalScale(2),
-  },
-  modalButtonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginTop: verticalScale(20),
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: verticalScale(12),
-    borderRadius: moderateScale(8),
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cancelModalButton: {
-    backgroundColor: COLORS.red,
-    marginRight: scale(10),
-  },
-  proceedModalButton: {
-    backgroundColor: COLORS.green,
-  },
-  modalButtonText: {
     color: COLORS.white,
     fontSize: moderateScale(16),
     fontFamily: Fonts.Medium,

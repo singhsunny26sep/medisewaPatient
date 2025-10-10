@@ -14,14 +14,16 @@ import { Container } from '../../component/Container/Container';
 import { COLORS } from '../../Theme/Colors';
 import { moderateScale, scale } from '../../utils/Scaling';
 import { Fonts } from '../../Theme/Fonts';
+import fcmService from '../../utils/fcmService';
 
 const { width, height } = Dimensions.get('window');
 
 export default function Splash() {
   const navigation = useNavigation();
   const [isLoading, setIsLoading] = useState(true);
+  const [fcmToken, setFcmToken] = useState(null);
+  const [debugInfo, setDebugInfo] = useState('');
 
-  // Animation values
   const logoScale = useRef(new Animated.Value(0)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const textOpacity = useRef(new Animated.Value(0)).current;
@@ -29,7 +31,6 @@ export default function Splash() {
   const loadingOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Staggered animation sequence
     const animationSequence = async () => {
       // Logo animation
       Animated.parallel([
@@ -45,10 +46,8 @@ export default function Splash() {
         }),
       ]).start();
 
-      // Wait for logo animation to complete
       await new Promise(resolve => setTimeout(resolve, 600));
 
-      // Text animation
       Animated.parallel([
         Animated.timing(textOpacity, {
           toValue: 1,
@@ -62,17 +61,14 @@ export default function Splash() {
         }),
       ]).start();
 
-      // Wait for text animation to complete
       await new Promise(resolve => setTimeout(resolve, 400));
 
-      // Show loading indicator
       Animated.timing(loadingOpacity, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }).start();
 
-      // Check authentication after animations
       setTimeout(() => {
         checkUserAuth();
       }, 500);
@@ -83,20 +79,32 @@ export default function Splash() {
 
   const checkUserAuth = async () => {
     try {
-      const userToken = await AsyncStorage.getItem('userToken');
-      console.log("token", userToken);
+      setDebugInfo('Requesting FCM permission...');
       
-      // Add a minimum delay for better UX
+      const token = await fcmService.requestUserPermission();
+      setFcmToken(token);
+      
+      setDebugInfo(`FCM Token: ${token ? '✅ Received' : '❌ Failed'}`);
+      console.log('Splash Screen - FCM Token:', token);
+
+      const userToken = await AsyncStorage.getItem('userToken');
+      console.log("User token:", userToken ? `✅ (${userToken.length} chars)` : '❌ Not found');
+      
+      setDebugInfo(`User Auth: ${userToken ? '✅ Logged In' : '❌ Not Logged In'}`);
+      
       setTimeout(() => {
         setIsLoading(false);
         if (userToken) {
+          console.log('🔄 Navigating to MainStack...');
           navigation.replace('MainStack');
         } else {
+          console.log('🔄 Navigating to Login...');
           navigation.replace('Login');
         }
       }, 2000);
     } catch (error) {
       console.error('Error checking auth status:', error);
+      setDebugInfo(`Error: ${error.message}`);
       setIsLoading(false);
       navigation.replace('Login');
     }
@@ -135,9 +143,12 @@ export default function Splash() {
               transform: [{ translateY: textTranslateY }]
             }
           ]}>
-          <Text style={styles.appName}>The Smart Medihub</Text>
+          <Text style={styles.appName}>Medisewa-Patient</Text>
           <Text style={styles.tagline}>Your Health, Our Priority</Text>
         </Animated.View>
+
+       
+
 
         <View style={styles.versionContainer}>
           <Text style={styles.versionText}>Version 1.0.0</Text>
@@ -190,7 +201,7 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     alignItems: 'center',
-    marginBottom: scale(60),
+    marginBottom: scale(20),
   },
   appName: {
     color: COLORS.white,
@@ -206,6 +217,20 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(16),
     textAlign: 'center',
     letterSpacing: 0.5,
+  },
+  debugContainer: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    padding: scale(10),
+    borderRadius: scale(8),
+    marginBottom: scale(20),
+    alignItems: 'center',
+  },
+  debugText: {
+    color: COLORS.white,
+    fontSize: moderateScale(10),
+    fontFamily: Fonts.Medium,
+    textAlign: 'center',
+    marginBottom: scale(2),
   },
   loadingContainer: {
     alignItems: 'center',

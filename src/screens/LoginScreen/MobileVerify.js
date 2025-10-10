@@ -22,6 +22,7 @@ import {StatusBar} from 'react-native';
 import {Container} from '../../component/Container/Container';
 import {Fonts} from '../../Theme/Fonts';
 import LinearGradient from 'react-native-linear-gradient';
+import fcmService from '../../utils/fcmService';
 
 const {width, height} = Dimensions.get('window');
 
@@ -80,49 +81,85 @@ export default function MobileVerify({route, navigation}) {
   
     setLoading(true);
     try {
-      const response = await Instance.post('api/v1/users/verify/otp', {
+      console.log('🔄 Requesting fresh FCM token for OTP verification...');
+      const fcmToken = await fcmService.requestUserPermission();
+      
+      console.log('📱 Fresh FCM Token:', fcmToken);
+      
+      const requestPayload = {
         sessionId,
         otp: code,
         mobile,
+        fcmToken: fcmToken || '', 
+      };
+      
+      console.log('📤 Sending OTP verification request with FCM token:', {
+        mobile,
+        sessionId,
+        otpLength: code.length,
+        hasFcmToken: !!fcmToken
       });
+  
+      const response = await Instance.post('api/v1/users/verify/otp', requestPayload);
+  
+      console.log('📥 OTP verification response success:', response.data.success);
   
       if (response.data.success) {
         const token = response.data.token;
-  
+        
+        console.log('✅ OTP verified successfully!');
+        console.log('💾 Storing user token, length:', token?.length);
+        
         await AsyncStorage.setItem('userToken', token);
-  
+        
         navigation.navigate('MainStack');
       } else {
+        console.log('❌ OTP verification failed:', response.data.msg);
         Alert.alert('Verification failed', response.data.msg || 'Invalid OTP');
       }
     } catch (error) {
-      console.error('OTP Verification Error:', error);
+      console.error('❌ OTP Verification Error:', error);
+      console.error('Error details:', error.response?.data || error.message);
       Alert.alert('Error', 'Something went wrong while verifying the OTP.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleResendOTP = async () => {
-    if (!canResend) return;
-    try {
-      const response = await Instance.post('/api/v1/users/request/otp', {
-        mobile: mobile,
-      });
-      if (response.data?.success && response.data.result?.Details) {
-        setTimer(180);
-        setCanResend(false);
-        setCode('');
-        Alert.alert('Success', 'OTP has been resent to your mobile number.');
-      } else {
-        Alert.alert('Error', 'Failed to resend OTP. Please try again.');
-      }
-    } catch (error) {
-      console.log('Resend OTP Error:', error);
-      Alert.alert('Error', 'Unable to resend OTP. Please try again.');
-    }
-  };
 
+ const handleResendOTP = async () => {
+  if (!canResend) return;
+  
+  try {
+    const fcmToken = await fcmService.requestUserPermission();
+    
+    console.log('🔄 Resending OTP with FCM token:', fcmToken);
+    
+    const requestPayload = {
+      mobile: mobile,
+    };
+    
+    if (fcmToken) {
+      requestPayload.fcmToken = fcmToken;
+    }
+    
+    const response = await Instance.post('/api/v1/users/request/otp', requestPayload);
+    
+    if (response.data?.success && response.data.result?.Details) {
+      setTimer(180);
+      setCanResend(false);
+      setCode('');
+      console.log('✅ OTP resent successfully');
+      Alert.alert('Success', 'OTP has been resent to your mobile number.');
+    } else {
+      console.log('❌ OTP resend failed');
+      Alert.alert('Error', 'Failed to resend OTP. Please try again.');
+    }
+  } catch (error) {
+    console.log('❌ Resend OTP Error:', error);
+    Alert.alert('Error', 'Unable to resend OTP. Please try again.');
+  }
+};
   return (
     <Container
       statusBarStyle={'light-content'}

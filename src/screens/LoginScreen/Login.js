@@ -21,6 +21,7 @@ import CustomTextInput from '../../component/texinput/CustomTextInput';
 import {Instance} from '../../api/Instance';
 import ToastMessage from '../../component/ToastMessage/ToastMessage';
 import LinearGradient from 'react-native-linear-gradient';
+import fcmService from '../../utils/fcmService';
 
 const {width, height} = Dimensions.get('window');
 
@@ -42,27 +43,64 @@ export default function Login({navigation}) {
 
     setLoading(true);
     try {
-      const response = await Instance.post('api/v1/users/request/otp', {
+      console.log('📱 Starting OTP request for mobile:', mobile);
+      
+      console.log('🔔 Getting FCM token from service...');
+      const fcmToken = await fcmService.requestUserPermission();
+      
+      console.log('📡 Making OTP API call...');
+      
+      const requestPayload = {
         mobile: mobile,
-      });
+        ...(fcmToken && { fcmToken: fcmToken })
+      };
 
-      console.log('OTP Request Response:', response.data);
+      console.log('📦 Request Payload:', JSON.stringify(requestPayload, null, 2));
+      console.log('🎯 Using key name: fcmToken');
 
-      if (response.data?.success && response.data.result?.Details) {
+      const response = await Instance.post('api/v1/users/request/otp', requestPayload);
+
+      console.log('✅ OTP Request Response:', JSON.stringify(response.data, null, 2));
+      console.log('📊 Response Status:', response.status);
+      
+      if (fcmToken) {
+        console.log('📲 FCM token successfully sent with key: fcmToken');
+        console.log('💾 Stored FCM token available for future use:', fcmService.hasToken());
+      } else {
+        console.log('⚠️  FCM token not available');
+      }
+
+      if (response.data?.success && response.data.result?.Details) { 
         const otpSessionId = response.data.result.Details;
+        console.log('🎯 OTP Session ID obtained:', otpSessionId);
+        console.log('🚀 Navigating to MobileVerify screen...');
+        
         navigation.navigate('MobileVerify', {
           mobile: mobile,
-          sessionId: otpSessionId,
+          sessionId: otpSessionId,    
+          fcmToken: fcmToken 
         });
       } else {
+        console.log('❌ OTP Request failed - Invalid response structure');
         setToastMessage('Failed to request OTP');
         setToastType('danger');
       }
     } catch (error) {
-      console.log('OTP Request Error:', error);
-      Alert.alert('OTP Error', 'Unable to send OTP. Please try again.');
+      console.log('❌ OTP Request Error:', error);
+      
+      if (error.response) {
+        console.log('📋 Server Error Response:', JSON.stringify(error.response.data, null, 2));
+        Alert.alert('OTP Error', error.response.data?.message || 'Unable to send OTP. Please try again.');
+      } else if (error.request) {
+        console.log('🌐 Network Error - No response received');
+        Alert.alert('Network Error', 'Please check your internet connection and try again.');
+      } else {
+        console.log('⚡ Unexpected Error:', error.message);
+        Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
+      console.log('🏁 OTP request process completed');
     }
   };
 
