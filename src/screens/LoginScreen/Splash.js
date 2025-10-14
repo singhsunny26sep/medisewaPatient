@@ -18,11 +18,11 @@ import fcmService from '../../utils/fcmService';
 
 const { width, height } = Dimensions.get('window');
 
-export default function Splash() {
+export default function Splash() {    
   const navigation = useNavigation();
   const [isLoading, setIsLoading] = useState(true);
   const [fcmToken, setFcmToken] = useState(null);
-  const [debugInfo, setDebugInfo] = useState('');
+  const [debugInfo, setDebugInfo] = useState(''); 
 
   const logoScale = useRef(new Animated.Value(0)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
@@ -30,7 +30,7 @@ export default function Splash() {
   const textTranslateY = useRef(new Animated.Value(50)).current;
   const loadingOpacity = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
+  useEffect(() => {   
     const animationSequence = async () => {
       // Logo animation
       Animated.parallel([
@@ -84,21 +84,59 @@ export default function Splash() {
       const token = await fcmService.requestUserPermission();
       setFcmToken(token);
       
-      setDebugInfo(`FCM Token: ${token ? '✅ Received' : '❌ Failed'}`);
-      console.log('Splash Screen - FCM Token:', token);
+      setDebugInfo(`FCM Token: ${token ? 'Received' : 'Failed'}`);
 
       const userToken = await AsyncStorage.getItem('userToken');
-      console.log("User token:", userToken ? `✅ (${userToken.length} chars)` : '❌ Not found');
       
-      setDebugInfo(`User Auth: ${userToken ? '✅ Logged In' : '❌ Not Logged In'}`);
+      console.log("JWT Token Details:");
+      console.log("====================");
+
+      if (userToken) {
+        console.log("JWT Token Found");
+        console.log("Token Length:", userToken.length, "characters");
+        console.log("Token Value:", userToken);
+        
+        try {
+          const tokenParts = userToken.split('.');
+          if (tokenParts.length === 3) {
+            console.log("Token Format: JWT (3 parts detected)");
+            
+            const header = JSON.parse(atob(tokenParts[0]));
+            
+            const payload = JSON.parse(atob(tokenParts[1]));
+            console.log("Token Payload:", payload);
+            
+            if (payload.exp) {
+              const expirationDate = new Date(payload.exp * 1000);
+              const now = new Date();
+              
+              if (payload.userId) {
+                console.log("User ID:", payload.userId);
+              }
+              if (payload.email) {
+                console.log("User Email:", payload.email);
+              }
+            }
+          } else {
+            console.log("ℹ Token Format: Not a standard JWT");
+          }
+        } catch (decodeError) {
+          console.log("Cannot decode token - may not be a JWT:", decodeError.message);
+        }
+      } else {
+        console.log("No JWT Token Found in AsyncStorage");
+        console.log("Available keys in AsyncStorage:", await AsyncStorage.getAllKeys());
+      }
+      
+      console.log("====================");
+      
+      setDebugInfo(`User Auth: ${userToken ? 'Logged In' : 'Not Logged In'}`);
       
       setTimeout(() => {
         setIsLoading(false);
         if (userToken) {
-          console.log('🔄 Navigating to MainStack...');
           navigation.replace('MainStack');
         } else {
-          console.log('🔄 Navigating to Login...');
           navigation.replace('Login');
         }
       }, 2000);
@@ -146,9 +184,6 @@ export default function Splash() {
           <Text style={styles.appName}>Medisewa-Patient</Text>
           <Text style={styles.tagline}>Your Health, Our Priority</Text>
         </Animated.View>
-
-       
-
 
         <View style={styles.versionContainer}>
           <Text style={styles.versionText}>Version 1.0.0</Text>
@@ -224,6 +259,7 @@ const styles = StyleSheet.create({
     borderRadius: scale(8),
     marginBottom: scale(20),
     alignItems: 'center',
+    minWidth: width * 0.8,
   },
   debugText: {
     color: COLORS.white,

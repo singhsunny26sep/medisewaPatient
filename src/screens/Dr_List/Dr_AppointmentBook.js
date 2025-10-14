@@ -1,1027 +1,3 @@
-// import React, {useEffect, useState} from 'react';
-// import {
-//   View,
-//   Text,
-//   Image,
-//   ScrollView,
-//   StyleSheet,
-//   TouchableOpacity,
-//   FlatList,
-//   ActivityIndicator,
-//   Platform,
-//   PermissionsAndroid,
-//   Linking,
-// } from 'react-native';
-// import {Container} from '../../component/Container/Container';
-// import {COLORS} from '../../Theme/Colors';
-// import CustomHeader from '../../component/header/CustomHeader';
-// import {moderateScale, scale} from '../../utils/Scaling';
-// import {Fonts} from '../../Theme/Fonts';
-// import DateTimePickerModal from 'react-native-modal-datetime-picker';
-// import Icon from 'react-native-vector-icons/MaterialIcons';
-// import CustomTextInput from '../../component/texinput/CustomTextInput';
-// import CustomDropdown from '../../component/CustomDropdown/CustomDropdown';
-// import {Instance} from '../../api/Instance';
-// import AsyncStorage from '@react-native-async-storage/async-storage';
-// import moment from 'moment';
-// import ToastMessage from '../../component/ToastMessage/ToastMessage';
-// import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
-// import usePhonePePayment from '../../component/PhonePay/usePhonePePayment';
-// import useRazorpayPayment from '../../component/Rozar/useRazorpayPayment';
-
-// export default function Dr_AppointmentBook({route, navigation}) {
-//   const {submitHandler: razorpaySubmitHandler, loading: paymentLoading} =
-//     useRazorpayPayment();
-
-//   const {doctorId} = route.params;
-//   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
-//   const [selectedDate, setSelectedDate] = useState(null);
-//   const [selectedTime, setSelectedTime] = useState(null);
-//   const [checkupType, setCheckupType] = useState('');
-//   const [gender, setGender] = useState('');
-//   const [age, setAge] = useState('');
-//   const [doctorDetails, setDoctorDetails] = useState(null);
-//   const [loading, setLoading] = useState(true);
-//   const [toastMessage, setToastMessage] = useState('');
-//   const [toastType, setToastType] = useState('');
-//   const [isSubmitting, setIsSubmitting] = useState(false);
-//   const [appointmentTypeOpen, setAppointmentTypeOpen] = useState(false);
-//   const [appointmentType, setAppointmentType] = useState(null);
-//   const [consultationType, setConsultationType] = useState('offline');
-//   const [familyMemberName, setFamilyMemberName] = useState('');
-//   const [familyMemberAge, setFamilyMemberAge] = useState('');
-//   const [familyMemberGender, setFamilyMemberGender] = useState('');
-//   const [familyMemberRelation, setFamilyMemberRelation] = useState('');
-//   const [reports, setReports] = useState([]);
-//   const [uploading, setUploading] = useState(false);
-//   const {submitHandler} = usePhonePePayment();
-//   const [isTimePickerVisible, setTimePickerVisibility] = useState(false);
-
-//   const appointmentTypeItems = [
-//     {label: 'For Myself', value: 'self'},
-//     {label: 'For Family Member', value: 'family'},
-//   ];
-
-//   const genderItems = [
-//     {label: 'Male', value: 'male'},
-//     {label: 'Female', value: 'female'},
-//     {label: 'Other', value: 'other'},
-//   ];
-
-//   const relationItems = [
-//     {label: 'Father', value: 'father'},
-//     {label: 'Mother', value: 'mother'},
-//     {label: 'Spouse', value: 'spouse'},
-//     {label: 'Child', value: 'child'},
-//     {label: 'Sibling', value: 'sibling'},
-//     {label: 'Other', value: 'other'},
-//   ];
-
-//   const handleConfirm = date => {
-//     setSelectedDate(date);
-//     setDatePickerVisibility(false);
-//   };
-
-//   const showDatePicker = () => {
-//     setDatePickerVisibility(true);
-//   };
-
-//   const showTimePicker = () => {
-//     setTimePickerVisibility(true);
-//   };
-
-//   const hideTimePicker = () => {
-//     setTimePickerVisibility(false);
-//   };
-
-//   const handleTimeConfirm = time => {
-//     const formattedTime = moment(time).format('h:mm A');
-//     setSelectedTime(formattedTime);
-//     hideTimePicker();
-//   };
-
-//   const fetchDoctorDetails = async () => {
-//     try {
-//       const token = await AsyncStorage.getItem('userToken');
-//       if (token) {
-//         const response = await Instance.get(`/api/v1/doctors/${doctorId}`, {
-//           headers: {
-//             Authorization: `Bearer ${token}`,
-//           },
-//         });
-//         if (response.data.success) {
-//           setDoctorDetails(response.data.result);
-//         }
-//       } else {
-//         console.log('Token not found!');
-//       }
-//     } catch (error) {
-//       console.error(
-//         'Error fetching doctor details:',
-//         error.response ? error.response.data : error.message,
-//       );
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   useEffect(() => {
-//     fetchDoctorDetails();
-//   }, [doctorId]);
-
-//   const renderDoctorItem = () => {
-//     if (!doctorDetails) return null;
-
-//     const {
-//       doctorId: {
-//         name,
-//         specialization,
-//         contactNumber,
-//         experience,
-//         image,
-//         department,
-//         clinicAddress,
-//         fee,
-//         oldFee,
-//         gender: doctorGender,
-//         startTime,
-//         endTime,
-//       },
-//     } = doctorDetails;
-//     return (
-//       <View style={styles.container}>
-//         <Image
-//           source={{
-//             uri:
-//               image ||
-//               'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSLU7h0cdnX8yFq-73gpabJjRLSJDVu7oQZ4w&s',
-//           }}
-//           style={styles.doctorImage}
-//         />
-//         <View style={styles.detailsContainer}>
-//           <Text style={styles.doctorName}>Dr. {name}</Text>
-//           <Text style={styles.doctorSpecialization}>
-//             {specialization?.name}
-//           </Text>
-//           <View style={styles.doctorInfoContainer}>
-//             <View style={styles.doctorInfoRow}>
-//               <Icon name="phone" size={scale(20)} color={COLORS.DODGERBLUE} />
-//               <Text style={styles.doctorInfoText}>{contactNumber}</Text>
-//             </View>
-//             <View style={styles.doctorInfoRow}>
-//               <Icon name="work" size={scale(20)} color={COLORS.DODGERBLUE} />
-//               <Text style={styles.doctorInfoText}>
-//                 {experience} years of experience
-//               </Text>
-//             </View>
-//             <View style={styles.doctorInfoRow}>
-//               <Icon
-//                 name="business"
-//                 size={scale(20)}
-//                 color={COLORS.DODGERBLUE}
-//               />
-//               <Text style={styles.doctorInfoText}>{department?.name}</Text>
-//             </View>
-//             <View style={styles.doctorInfoRow}>
-//               <Icon
-//                 name="accessibility"
-//                 size={scale(20)}
-//                 color={COLORS.DODGERBLUE}
-//               />
-//               <Text style={styles.doctorInfoText}>{doctorGender}</Text>
-//             </View>
-//             <View style={styles.doctorInfoRow}>
-//               <Icon
-//                 name="location-on"
-//                 size={scale(20)}
-//                 color={COLORS.DODGERBLUE}
-//               />
-//               <Text style={styles.doctorInfoText}>{clinicAddress}</Text>
-//             </View>
-//             <View style={styles.doctorInfoRow}>
-//               <Icon
-//                 name="attach-money"
-//                 size={scale(20)}
-//                 color={COLORS.DODGERBLUE}
-//               />
-//               <Text style={styles.doctorInfoText}>
-//                 ₹{fee}{' '}
-//                 <Text
-//                   style={{
-//                     textDecorationLine: 'line-through',
-//                     color: COLORS.gray,
-//                   }}>
-//                   ₹{oldFee}
-//                 </Text>
-//               </Text>
-//             </View>
-//             <View style={styles.doctorInfoRow}>
-//               <Icon
-//                 name="access-time"
-//                 size={scale(20)}
-//                 color={COLORS.DODGERBLUE}
-//               />
-//               <Text style={styles.doctorInfoText}>
-//                 {startTime} - {endTime}
-//               </Text>
-//             </View>
-//           </View>
-//         </View>
-//       </View>
-//     );
-//   };
-
-//   const handleSubmitAppointment = async () => {
-//     setIsSubmitting(true);
-//     try {
-//       const token = await AsyncStorage.getItem('userToken');
-//       if (!token) {
-//         alert('User not authenticated!');
-//         return;
-//       }
-
-//       if (!appointmentType) {
-//         setToastMessage('Please select appointment type');
-//         setToastType('danger');
-//         setIsSubmitting(false);
-//         return;
-//       }
-
-//       if (appointmentType === 'family') {
-//         if (
-//           !familyMemberName ||
-//           !familyMemberAge ||
-//           !familyMemberGender ||
-//           !familyMemberRelation
-//         ) {
-//           setToastMessage('Please fill all family member details');
-//           setToastType('danger');
-//           setIsSubmitting(false);
-//           return;
-//         }
-//       }
-
-//       const date = selectedDate || new Date();
-//       const formattedDate = moment(date).format(
-//         'YYYY-MM-DDT00:00:00.000+00:00',
-//       );
-//       const formattedTime = moment(selectedTime, 'h:mm A').format('HH:mm');
-
-//       const payload = {
-//         doctorId: doctorDetails?.doctorId?._id,
-//         appointmentDate: formattedDate,
-//         appointmentTime: formattedTime,
-//         consultationFee: doctorDetails?.doctorId?.fee?.toString() || '500',
-//         serviceCharge: '0',
-//         appointmentType: appointmentType,
-//         consultationType: consultationType,
-//         familyMemberDetails:
-//           appointmentType === 'family'
-//             ? {
-//                 name: familyMemberName,
-//                 age: familyMemberAge,
-//                 gender: familyMemberGender,
-//                 relation: familyMemberRelation,
-//               }
-//             : null,
-//       };
-
-//       console.log('Booking payload:', JSON.stringify(payload, null, 2));
-
-//       const response = await Instance.post(
-//         '/api/v1/bookings/book/appointment/null',
-//         payload,
-//         {
-//           headers: {
-//             Authorization: `Bearer ${token}`,
-//           },
-//         },
-//       );
-
-//       if (response.data.success) {
-//         setToastMessage('Appointment booked successfully!');
-//         setToastType('success');
-//         setTimeout(() => {
-//           navigation.goBack();
-//         }, 2000);
-//       } else {
-//         setToastMessage('Failed to book appointment');
-//         setToastType('danger');
-//       }
-//     } catch (error) {
-//       console.error('Booking error:', error.response?.data || error.message);
-//       setToastMessage('Failed to book appointment. Please try again.');
-//       setToastType('danger');
-//     } finally {
-//       setIsSubmitting(false);
-//     }
-//   };
-
-//   const requestCameraPermission = async () => {
-//     if (Platform.OS === 'android') {
-//       try {
-//         const granted = await PermissionsAndroid.request(
-//           PermissionsAndroid.PERMISSIONS.CAMERA,
-//           {
-//             title: 'Camera Permission',
-//             message: 'App needs access to your camera to take photos',
-//             buttonNeutral: 'Ask Me Later',
-//             buttonNegative: 'Cancel',
-//             buttonPositive: 'OK',
-//           },
-//         );
-//         return granted === PermissionsAndroid.RESULTS.GRANTED;
-//       } catch (err) {
-//         console.warn(err);
-//         return false;
-//       }
-//     }
-//     return true;
-//   };
-
-//   const handleImagePick = async type => {
-//     try {
-//       if (type === 'camera') {
-//         const hasPermission = await requestCameraPermission();
-//         if (!hasPermission) {
-//           setToastMessage('Camera permission is required');
-//           setToastType('danger');
-//           return;
-//         }
-//       }
-
-//       const options = {
-//         mediaType: 'photo',
-//         quality: 0.8,
-//         includeBase64: false,
-//         saveToPhotos: true,
-//         cameraType: 'back',
-//       };
-
-//       const result =
-//         type === 'camera'
-//           ? await launchCamera(options)
-//           : await launchImageLibrary(options);
-
-//       if (result.didCancel) {
-//         console.log('User cancelled image picker');
-//         return;
-//       }
-
-//       if (result.errorCode) {
-//         console.log('ImagePicker Error: ', result.errorMessage);
-//         setToastMessage('Error capturing image');
-//         setToastType('danger');
-//         return;
-//       }
-
-//       if (result.assets && result.assets[0]) {
-//         const newReport = {
-//           type: 'image',
-//           name: result.assets[0].fileName || 'image.jpg',
-//           uri: result.assets[0].uri,
-//           size: result.assets[0].fileSize,
-//         };
-
-//         setReports([...reports, newReport]);
-//       }
-//     } catch (err) {
-//       console.error('Image picker error:', err);
-//       setToastMessage('Error capturing image');
-//       setToastType('danger');
-//     }
-//   };
-
-//   const removeReport = index => {
-//     const newReports = [...reports];
-//     newReports.splice(index, 1);
-//     setReports(newReports);
-//   };
-
-//   const renderReportItem = ({item, index}) => (
-//     <View style={styles.reportItem}>
-//       <Image source={{uri: item.uri}} style={styles.reportThumbnail} />
-//       <Text style={styles.reportName} numberOfLines={1}>
-//         {item.name}
-//       </Text>
-//       <TouchableOpacity onPress={() => removeReport(index)}>
-//         <Icon name="close" size={scale(20)} color={COLORS.red} />
-//       </TouchableOpacity>
-//     </View>
-//   );
-
-//   // In your Dr_AppointmentBook.js, replace the consultation type handler:
-
-//   const handleConsultationTypeChange = async type => {
-//     setConsultationType(type);
-//     if (type === 'online') {
-//       try {
-//         const paymentAmount = doctorDetails?.doctorId?.fee || 500;
-
-//         // Use the reusable Razorpay hook
-//         const paymentResult = await razorpaySubmitHandler(paymentAmount, {
-//           description: 'Doctor Consultation Fee',
-//           appName: 'Mediseva',
-//           doctorId: doctorDetails?.doctorId?._id,
-//           appointmentType: 'online_consultation',
-//         });
-
-//         if (paymentResult.status === 'SUCCESS') {
-//           setToastMessage(
-//             'Payment successful! Proceeding with online consultation.',
-//           );
-//           setToastType('success');
-//           // Payment successful - continue with appointment booking
-//         } else if (paymentResult.status === 'CANCELLED') {
-//           setToastMessage(
-//             'Payment was cancelled. Please select offline consultation or try again.',
-//           );
-//           setToastType('warning');
-//           setConsultationType('offline');
-//         } else {
-//           setToastMessage(
-//             'Payment failed. Please try again or select offline consultation.',
-//           );
-//           setToastType('danger');
-//           setConsultationType('offline');
-//         }
-//       } catch (error) {
-//         console.error('Payment error:', error);
-//         setToastMessage(
-//           'Payment failed. Please try again or select offline consultation.',
-//         );
-//         setToastType('danger');
-//         setConsultationType('offline');
-//       }
-//     }
-//   };
-
-//   return (
-//     <Container
-//       statusBarStyle={'dark-content'}
-//       statusBarBackgroundColor={COLORS.white}
-//       backgroundColor={COLORS.white}>
-//       <CustomHeader title="Dr. Appointment Booking" navigation={navigation} />
-//       <ScrollView contentContainerStyle={styles.scrollView}>
-//         {loading ? (
-//           <ActivityIndicator
-//             size="large"
-//             color={COLORS.DODGERBLUE}
-//             style={styles.loader}
-//           />
-//         ) : doctorDetails ? (
-//           <FlatList
-//             data={[doctorDetails]}
-//             renderItem={renderDoctorItem}
-//             keyExtractor={item => item?.doctorId?._id?.toString()}
-//           />
-//         ) : (
-//           {}
-//         )}
-
-//         <View style={styles.dropdownContainer}>
-//           <Text style={[styles.selectDateText, {marginHorizontal: scale(0)}]}>
-//             Appointment For
-//           </Text>
-//           <CustomDropdown
-//             data={appointmentTypeItems}
-//             value={appointmentType}
-//             onChange={setAppointmentType}
-//             placeholder="Select appointment type"
-//             style={styles.dropdown}
-//             containerStyle={styles.dropdownContainerStyle}
-//           />
-//         </View>
-
-//         <View style={styles.consultationTypeContainer}>
-//           <Text style={[styles.selectDateText, {marginHorizontal: scale(0)}]}>
-//             Consultation Type
-//           </Text>
-//           <View style={styles.radioContainer}>
-//             <TouchableOpacity
-//               style={styles.radioButton}
-//               onPress={() => handleConsultationTypeChange('offline')}>
-//               <View style={styles.radioOuter}>
-//                 {consultationType === 'offline' && (
-//                   <View style={styles.radioInner} />
-//                 )}
-//               </View>
-//               <Text style={styles.radioText}>Clinic visit</Text>
-//             </TouchableOpacity>
-
-//             <TouchableOpacity
-//               style={styles.radioButton}
-//               onPress={() => handleConsultationTypeChange('online')}>
-//               <View style={styles.radioOuter}>
-//                 {consultationType === 'online' && (
-//                   <View style={styles.radioInner} />
-//                 )}
-//               </View>
-//               <Text style={styles.radioText}>Online Consultation</Text>
-//             </TouchableOpacity>
-//           </View>
-//         </View>
-//         {consultationType === 'offline' &&
-//           doctorDetails?.doctorId?.clinicAddress && (
-//             <TouchableOpacity
-//               style={styles.getDirectionButton}
-//               onPress={() => {
-//                 const address = encodeURIComponent(
-//                   doctorDetails.doctorId.clinicAddress,
-//                 );
-//                 const url =
-//                   Platform.OS === 'ios'
-//                     ? `http://maps.apple.com/?daddr=${address}`
-//                     : `https://www.google.com/maps/dir/?api=1&destination=${address}`;
-//                 Linking.openURL(url);
-//               }}>
-//               <Text style={styles.getDirectionButtonText}>Get Direction</Text>
-//             </TouchableOpacity>
-//           )}
-
-//         {appointmentType === 'family' && (
-//           <View style={styles.familyMemberContainer}>
-//             <Text style={styles.sectionTitle}>Family Member Details</Text>
-//             <CustomTextInput
-//               placeholder="Enter Name"
-//               value={familyMemberName}
-//               onChangeText={setFamilyMemberName}
-//               style={styles.input}
-//             />
-//             <CustomTextInput
-//               placeholder="Enter Age"
-//               value={familyMemberAge}
-//               onChangeText={setFamilyMemberAge}
-//               keyboardType="numeric"
-//               style={styles.input}
-//             />
-//             <CustomDropdown
-//               data={genderItems}
-//               value={familyMemberGender}
-//               onChange={setFamilyMemberGender}
-//               placeholder="Select Gender"
-//               style={styles.dropdown}
-//               containerStyle={styles.dropdownContainerStyle}
-//             />
-//             <CustomDropdown
-//               data={relationItems}
-//               value={familyMemberRelation}
-//               onChange={setFamilyMemberRelation}
-//               placeholder="Select Relation"
-//               style={[styles.dropdown, {marginTop: scale(12)}]}
-//               containerStyle={styles.dropdownContainerStyle}
-//             />
-//           </View>
-//         )}
-
-//         <View>
-//           <Text style={styles.selectDateText}>Select Date</Text>
-//           <TouchableOpacity onPress={showDatePicker}>
-//             <View style={styles.dateContainer}>
-//               <Icon
-//                 name="date-range"
-//                 size={scale(20)}
-//                 color={'grey'}
-//                 style={styles.icon}
-//               />
-//               <Text style={styles.selectedDate}>
-//                 {selectedDate
-//                   ? selectedDate.toLocaleDateString()
-//                   : 'Select a date'}
-//               </Text>
-//             </View>
-//           </TouchableOpacity>
-//         </View>
-
-//         <Text style={[styles.selectDateText, styles.availableSlotsText]}>
-//           Select Time
-//         </Text>
-//         <TouchableOpacity onPress={showTimePicker}>
-//           <View style={styles.dateContainer}>
-//             <Icon
-//               name="access-time"
-//               size={scale(20)}
-//               color={'grey'}
-//               style={styles.icon}
-//             />
-//             <Text style={styles.selectedDate}>
-//               {selectedTime ? selectedTime : 'Select a time'}
-//             </Text>
-//           </View>
-//         </TouchableOpacity>
-
-//         <DateTimePickerModal
-//           isVisible={isTimePickerVisible}
-//           mode="time"
-//           onConfirm={handleTimeConfirm}
-//           onCancel={hideTimePicker}
-//           is24Hour={false}
-//         />
-
-//         {/* Remove the old time slots FlatList section and replace with our new time picker UI that we added above */}
-
-//         <View style={styles.reportsContainer}>
-//           <Text style={styles.sectionTitle}>Past Reports</Text>
-//           <View style={styles.uploadButtonsContainer}>
-//             <TouchableOpacity
-//               style={styles.uploadButton}
-//               onPress={() => handleImagePick('gallery')}>
-//               <Icon
-//                 name="photo-library"
-//                 size={scale(24)}
-//                 color={COLORS.DODGERBLUE}
-//               />
-//               <Text style={styles.uploadButtonText}>Gallery</Text>
-//             </TouchableOpacity>
-
-//             <TouchableOpacity
-//               style={styles.uploadButton}
-//               onPress={() => handleImagePick('camera')}>
-//               <Icon
-//                 name="camera-alt"
-//                 size={scale(24)}
-//                 color={COLORS.DODGERBLUE}
-//               />
-//               <Text style={styles.uploadButtonText}>Camera</Text>
-//             </TouchableOpacity>
-//           </View>
-
-//           {reports.length > 0 && (
-//             <View style={styles.reportsList}>
-//               <Text style={styles.reportsListTitle}>Uploaded Reports</Text>
-//               <FlatList
-//                 data={reports}
-//                 renderItem={renderReportItem}
-//                 keyExtractor={(item, index) => index.toString()}
-//                 scrollEnabled={false}
-//               />
-//             </View>
-//           )}
-//         </View>
-
-//         <TouchableOpacity
-//           onPress={handleSubmitAppointment}
-//           disabled={isSubmitting}>
-//           <View style={styles.submitButton}>
-//             {isSubmitting ? (
-//               <ActivityIndicator size="small" color={COLORS.white} />
-//             ) : (
-//               <Text style={styles.submitButtonText}>Submit Appointment</Text>
-//             )}
-//           </View>
-//         </TouchableOpacity>
-//       </ScrollView>
-
-//       <DateTimePickerModal
-//         isVisible={isDatePickerVisible}
-//         mode="date"
-//         onConfirm={handleConfirm}
-//         onCancel={() => setDatePickerVisibility(false)}
-//       />
-//       {toastMessage && <ToastMessage type={toastType} message={toastMessage} />}
-//     </Container>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   scrollView: {
-//     paddingBottom: scale(20),
-//     backgroundColor: COLORS.white,
-//   },
-//   loader: {
-//     flex: 1,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     marginTop: scale(20),
-//   },
-//   errorText: {
-//     fontSize: moderateScale(16),
-//     color: COLORS.red,
-//     textAlign: 'center',
-//     marginTop: scale(20),
-//   },
-//   container: {
-//     paddingHorizontal: scale(15),
-//     marginTop: scale(20),
-//   },
-//   doctorImage: {
-//     height: scale(120),
-//     width: scale(120),
-//     alignSelf: 'center',
-//     borderRadius: scale(60),
-//     borderWidth: 2,
-//     borderColor: COLORS.DODGERBLUE,
-//     marginBottom: scale(15),
-//   },
-//   detailsContainer: {
-//     marginTop: scale(5),
-//     padding: scale(15),
-//     backgroundColor: COLORS.white,
-//     borderRadius: scale(15),
-//     shadowColor: COLORS.black,
-//     shadowOpacity: 0.1,
-//     shadowOffset: {width: 0, height: 4},
-//     shadowRadius: scale(8),
-//     elevation: 5,
-//     marginBottom: scale(15),
-//   },
-//   doctorName: {
-//     fontFamily: Fonts.Bold,
-//     color: COLORS.black,
-//     fontSize: moderateScale(22),
-//     textAlign: 'center',
-//     marginBottom: scale(5),
-//   },
-//   doctorSpecialization: {
-//     fontFamily: Fonts.Medium,
-//     color: COLORS.DODGERBLUE,
-//     fontSize: moderateScale(16),
-//     textAlign: 'center',
-//     marginBottom: scale(5),
-//   },
-//   doctorInfoContainer: {
-//     borderRadius: scale(10),
-//   },
-//   doctorInfoRow: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     marginVertical: scale(8),
-//     paddingHorizontal: scale(5),
-//   },
-//   doctorInfoText: {
-//     fontFamily: Fonts.Medium,
-//     color: COLORS.black,
-//     fontSize: moderateScale(14),
-//     marginLeft: scale(12),
-//     flex: 1,
-//   },
-//   inputContainer: {
-//     paddingHorizontal: scale(15),
-//     borderTopWidth: 0.5,
-//     borderColor: COLORS.AshGray,
-//     paddingTop: scale(15),
-//     marginTop: scale(5),
-//   },
-//   selectDateText: {
-//     fontFamily: Fonts.Light,
-//     color: COLORS.black,
-//     marginHorizontal: scale(15),
-//     fontSize: moderateScale(16),
-//     marginBottom: scale(10),
-//     marginTop: scale(15),
-//   },
-//   availableSlotsText: {
-//     marginTop: scale(15),
-//   },
-//   dateContainer: {
-//     padding: scale(12),
-//     borderWidth: 1,
-//     borderColor: COLORS.AshGray,
-//     borderRadius: scale(12),
-//     backgroundColor: COLORS.white,
-//     marginHorizontal: scale(15),
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     shadowColor: COLORS.black,
-//     shadowOpacity: 0.05,
-//     shadowOffset: {width: 0, height: 2},
-//     shadowRadius: scale(4),
-//     elevation: 2,
-//   },
-//   icon: {
-//     marginRight: scale(10),
-//   },
-//   selectedDate: {
-//     fontFamily: Fonts.Medium,
-//     color: COLORS.black,
-//     fontSize: moderateScale(15),
-//   },
-//   timeSlotsContainer: {
-//     paddingHorizontal: scale(15),
-//     marginTop: scale(5),
-//   },
-//   timeSlotBox: {
-//     padding: scale(12),
-//     marginRight: scale(10),
-//     borderWidth: 1,
-//     borderColor: COLORS.AshGray,
-//     borderRadius: scale(12),
-//     backgroundColor: COLORS.white,
-//     shadowColor: COLORS.black,
-//     shadowOpacity: 0.05,
-//     shadowOffset: {width: 0, height: 2},
-//     shadowRadius: scale(4),
-//     elevation: 2,
-//   },
-//   selectedTimeSlot: {
-//     backgroundColor: COLORS.DODGERBLUE,
-//     borderColor: COLORS.DODGERBLUE,
-//   },
-//   timeSlotText: {
-//     color: COLORS.black,
-//     fontFamily: Fonts.Medium,
-//     fontSize: moderateScale(14),
-//   },
-//   selectedTimeText: {
-//     color: COLORS.white,
-//   },
-//   submitButton: {
-//     marginTop: scale(30),
-//     marginHorizontal: scale(15),
-//     backgroundColor: COLORS.DODGERBLUE,
-//     paddingVertical: scale(15),
-//     borderRadius: scale(12),
-//     alignItems: 'center',
-//     shadowColor: COLORS.DODGERBLUE,
-//     shadowOpacity: 0.3,
-//     shadowOffset: {width: 0, height: 4},
-//     shadowRadius: scale(8),
-//     elevation: 5,
-//   },
-//   submitButtonText: {
-//     color: COLORS.white,
-//     fontFamily: Fonts.SemiBold,
-//     fontSize: moderateScale(16),
-//   },
-//   dropdownContainer: {
-//     marginHorizontal: scale(15),
-//     marginTop: scale(10),
-//     zIndex: 3000,
-//     marginBottom: scale(10),
-//   },
-//   dropdown: {
-//     borderColor: COLORS.AshGray,
-//     borderRadius: scale(12),
-//     height: scale(50),
-//     backgroundColor: COLORS.white,
-//     shadowColor: COLORS.black,
-//     shadowOpacity: 0.05,
-//     shadowOffset: {width: 0, height: 2},
-//     shadowRadius: scale(4),
-//     elevation: 2,
-//   },
-//   dropdownContainerStyle: {
-//     borderColor: COLORS.AshGray,
-//     borderRadius: scale(12),
-//     backgroundColor: COLORS.white,
-//   },
-//   familyMemberContainer: {
-//     marginHorizontal: scale(15),
-//     marginTop: scale(10),
-//     backgroundColor: COLORS.white,
-//     padding: scale(15),
-//     borderRadius: scale(15),
-//     shadowColor: COLORS.black,
-//     shadowOpacity: 0.1,
-//     shadowOffset: {width: 0, height: 4},
-//     shadowRadius: scale(8),
-//     elevation: 5,
-//   },
-//   input: {
-//     borderWidth: 1,
-//     borderColor: COLORS.AshGray,
-//     borderRadius: scale(12),
-//     paddingHorizontal: scale(15),
-//     height: scale(50),
-//     marginBottom: scale(12),
-//     fontFamily: Fonts.Medium,
-//     backgroundColor: COLORS.white,
-//     shadowColor: COLORS.black,
-//     shadowOpacity: 0.05,
-//     shadowOffset: {width: 0, height: 2},
-//     shadowRadius: scale(4),
-//     elevation: 2,
-//   },
-//   sectionTitle: {
-//     fontFamily: Fonts.Light,
-//     color: COLORS.black,
-//     fontSize: moderateScale(16),
-//     marginBottom: scale(10),
-//   },
-//   divider: {
-//     height: 1,
-//     backgroundColor: COLORS.AshGray,
-//     marginVertical: scale(15),
-//     opacity: 0.5,
-//   },
-//   reportsContainer: {
-//     marginHorizontal: scale(15),
-//     marginTop: scale(20),
-//     backgroundColor: COLORS.white,
-//     padding: scale(15),
-//     borderRadius: scale(15),
-//     shadowColor: COLORS.black,
-//     shadowOpacity: 0.1,
-//     shadowOffset: {width: 0, height: 4},
-//     shadowRadius: scale(8),
-//     elevation: 5,
-//   },
-//   uploadButtonsContainer: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-around',
-//     marginTop: scale(10),
-//   },
-//   uploadButton: {
-//     flex: 1,
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//     backgroundColor: COLORS.lightGray,
-//     padding: scale(12),
-//     borderRadius: scale(12),
-//     marginHorizontal: scale(10),
-//   },
-//   uploadButtonText: {
-//     fontFamily: Fonts.Medium,
-//     color: COLORS.black,
-//     fontSize: moderateScale(12),
-//     marginTop: scale(5),
-//   },
-//   reportsList: {
-//     marginTop: scale(15),
-//   },
-//   reportsListTitle: {
-//     fontFamily: Fonts.Light,
-//     color: COLORS.black,
-//     fontSize: moderateScale(16),
-//     marginBottom: scale(10),
-//   },
-//   reportItem: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     backgroundColor: COLORS.lightGray,
-//     padding: scale(12),
-//     borderRadius: scale(8),
-//     marginBottom: scale(8),
-//   },
-//   reportThumbnail: {
-//     width: scale(40),
-//     height: scale(40),
-//     borderRadius: scale(4),
-//   },
-//   reportName: {
-//     flex: 1,
-//     fontFamily: Fonts.Medium,
-//     fontSize: moderateScale(14),
-//     color: COLORS.black,
-//     marginLeft: scale(10),
-//   },
-//   consultationTypeContainer: {
-//     marginHorizontal: scale(15),
-//     marginBottom: scale(10),
-//   },
-//   radioContainer: {
-//     flexDirection: 'row',
-//     marginTop: scale(5),
-//   },
-//   radioButton: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     marginRight: scale(20),
-//   },
-//   radioOuter: {
-//     height: scale(20),
-//     width: scale(20),
-//     borderRadius: scale(10),
-//     borderWidth: 2,
-//     borderColor: COLORS.DODGERBLUE,
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//   },
-//   radioInner: {
-//     height: scale(10),
-//     width: scale(10),
-//     borderRadius: scale(5),
-//     backgroundColor: COLORS.DODGERBLUE,
-//   },
-//   radioText: {
-//     marginLeft: scale(8),
-//     fontSize: moderateScale(14),
-//     fontFamily: Fonts.Medium,
-//     color: COLORS.black,
-//   },
-//   getDirectionButton: {
-//     marginTop: scale(8),
-//     marginBottom: scale(8),
-//     backgroundColor: COLORS.DODGERBLUE,
-//     paddingVertical: scale(8),
-//     paddingHorizontal: scale(16),
-//     borderRadius: scale(8),
-//     alignSelf: 'flex-start',
-//     marginLeft: scale(15),
-//   },
-//   getDirectionButtonText: {
-//     color: COLORS.white,
-//     fontFamily: Fonts.Medium,
-//     fontSize: moderateScale(14),
-//   },
-//   hiddenSlotNote: {
-//     marginHorizontal: scale(15),
-//     marginBottom: scale(10),
-//     fontSize: moderateScale(13),
-//     fontFamily: Fonts.Medium,
-//     color: COLORS.red,
-//   },
-// });
 import React, {useEffect, useState} from 'react';
 import {
   View,
@@ -1061,6 +37,9 @@ export default function Dr_AppointmentBook({route, navigation}) {
     useRazorpayPayment();
 
   const {doctorId} = route.params;
+  console.log('🔍 route.params:', route.params);
+  console.log('🔍 doctorId from route.params:', doctorId);
+  console.log('🔍 Type of doctorId:', typeof doctorId);
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
@@ -1083,111 +62,9 @@ export default function Dr_AppointmentBook({route, navigation}) {
   const [uploading, setUploading] = useState(false);
   const {submitHandler} = usePhonePePayment();
   const [isTimePickerVisible, setTimePickerVisibility] = useState(false);
-
-  const [availableSlots, setAvailableSlots] = useState([
-    {
-      id: '1',
-      date: 'Thu, 9 Oct',
-      day: 'Today',
-      slots: 0,
-      available: false,
-      fullDate: '2024-10-09'
-    },
-    {
-      id: '2', 
-      date: 'Fri, 10 Oct',
-      day: 'Tomorrow',
-      slots: 9,
-      available: true,
-      fullDate: '2024-10-10',
-      timeSlots: {
-        morning: [
-          { time: '11:00 AM', available: true },
-          { time: '11:20 AM', available: true },
-          { time: '11:40 AM', available: true }
-        ],
-        afternoon: [
-          { time: '12:00 PM', available: true },
-          { time: '12:20 PM', available: true },
-          { time: '12:40 PM', available: true },
-          { time: '01:00 PM', available: true },
-          { time: '01:20 PM', available: true },
-          { time: '01:40 PM', available: true }
-        ]
-      }
-    },
-    {
-      id: '3',
-      date: 'Sat, 11 Oct', 
-      day: 'Saturday',
-      slots: 9,
-      available: true,
-      fullDate: '2024-10-11',
-      timeSlots: {
-        morning: [
-          { time: '10:00 AM', available: true },
-          { time: '10:20 AM', available: true },
-          { time: '10:40 AM', available: true }
-        ],
-        afternoon: [
-          { time: '02:00 PM', available: true },
-          { time: '02:20 PM', available: true },
-          { time: '02:40 PM', available: true },
-          { time: '03:00 PM', available: true },
-          { time: '03:20 PM', available: true },
-          { time: '03:40 PM', available: true }
-        ]
-      }
-    },
-    {
-      id: '4',
-      date: 'Sun, 12 Oct',
-      day: 'Sunday',
-      slots: 6,
-      available: true,
-      fullDate: '2024-10-12',
-      timeSlots: {
-        morning: [
-          { time: '09:00 AM', available: true },
-          { time: '09:30 AM', available: true }
-        ],
-        afternoon: [
-          { time: '02:00 PM', available: true },
-          { time: '02:30 PM', available: true },
-          { time: '03:00 PM', available: true },
-          { time: '03:30 PM', available: true }
-        ]
-      }
-    },
-    {
-      id: '5',
-      date: 'Mon, 13 Oct',
-      day: 'Monday',
-      slots: 12,
-      available: true,
-      fullDate: '2024-10-13',
-      timeSlots: {
-        morning: [
-          { time: '10:00 AM', available: true },
-          { time: '10:20 AM', available: true },
-          { time: '10:40 AM', available: true },
-          { time: '11:00 AM', available: true }
-        ],
-        afternoon: [
-          { time: '02:00 PM', available: true },
-          { time: '02:20 PM', available: true },
-          { time: '02:40 PM', available: true },
-          { time: '03:00 PM', available: true },
-          { time: '03:20 PM', available: true },
-          { time: '03:40 PM', available: true },
-          { time: '04:00 PM', available: true },
-          { time: '04:20 PM', available: true }
-        ]
-      }
-    }
-  ]);
-
-  const [selectedDay, setSelectedDay] = useState(1);
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [selectedDay, setSelectedDay] = useState(0);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   const appointmentTypeItems = [
     {label: 'For Myself', value: 'self'},
@@ -1209,6 +86,170 @@ export default function Dr_AppointmentBook({route, navigation}) {
     {label: 'Other', value: 'other'},
   ];
 
+  const formatTimeSlotKey = (key) => {
+    const timeMap = {
+      'at9AM': '09:00 AM',
+      'at9_30AM': '09:30 AM',
+      'at10AM': '10:00 AM',
+      'at10_30AM': '10:30 AM', 
+      'at11AM': '11:00 AM',
+      'at11_30AM': '11:30 AM',
+      'at12PM': '12:00 PM',
+      'at12_30PM': '12:30 PM',
+      'at1PM': '01:00 PM',
+      'at1_30PM': '01:30 PM',
+      'at2PM': '02:00 PM',
+      'at2_30PM': '02:30 PM',
+      'at3PM': '03:00 PM',
+      'at3_30PM': '03:30 PM',
+      'at4PM': '04:00 PM',
+      'at4_30PM': '04:30 PM',
+      'at5PM': '05:00 PM',
+      'at5_30PM': '05:30 PM',
+      'at6PM': '06:00 PM',
+      'at6_30PM': '06:30 PM',
+      'at7PM': '07:00 PM',
+      'at7_30PM': '07:30 PM',
+      'at8PM': '08:00 PM',
+      'at8_30PM': '08:30 PM'
+    };
+    
+    return timeMap[key] || key;
+  };
+
+  // Function to fetch time slots for a specific date
+  const fetchTimeSlots = async (date) => {
+    try {
+      setLoadingSlots(true);
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) {
+        console.log('Token not found!');
+        return;
+      }
+
+      const formattedDate = moment(date).format('YYYY-MM-DD');
+      const response = await Instance.get(`api/v1/time-slots/getAll?doctorId=${"68e75b523f50d39c33ac1f32"}&date=${formattedDate}&page=1&limit=10`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.data.success && response.data.data.timeSlots.length > 0) {
+        const timeSlotData = response.data.data.timeSlots[0];
+        return processTimeSlotData(timeSlotData, date);
+      } else {
+        // No slots available for this date
+        return createEmptySlotData(date);
+      }
+    } catch (error) {
+      console.error('Error fetching time slots:', error.response?.data || error.message);
+      return createEmptySlotData(date);
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
+  // Process time slot data from API
+  const processTimeSlotData = (timeSlotData, date) => {
+    const { morning = {}, afternoon = {}, evening = {} } = timeSlotData;
+    
+    const morningSlots = [];
+    const afternoonSlots = [];
+    const eveningSlots = [];
+
+    // Process morning slots
+    Object.keys(morning).forEach(key => {
+      if (morning[key]) {
+        morningSlots.push({
+          time: formatTimeSlotKey(key),
+          available: true
+        });
+      }
+    });
+
+    // Process afternoon slots
+    Object.keys(afternoon).forEach(key => {
+      if (afternoon[key]) {
+        afternoonSlots.push({
+          time: formatTimeSlotKey(key),
+          available: true
+        });
+      }
+    });
+
+    // Process evening slots
+    Object.keys(evening).forEach(key => {
+      if (evening[key]) {
+        eveningSlots.push({
+          time: formatTimeSlotKey(key),
+          available: true
+        });
+      }
+    });
+
+    const totalSlots = morningSlots.length + afternoonSlots.length + eveningSlots.length;
+    
+    return {
+      id: timeSlotData._id,
+      date: moment(date).format('ddd, D MMM'),
+      day: getDayLabel(date),
+      slots: totalSlots,
+      available: totalSlots > 0,
+      fullDate: moment(date).format('YYYY-MM-DD'),
+      timeSlots: {
+        morning: morningSlots,
+        afternoon: afternoonSlots,
+        evening: eveningSlots
+      }
+    };
+  };
+
+  // Create empty slot data when no slots are available
+  const createEmptySlotData = (date) => {
+    return {
+      id: `empty-${moment(date).format('YYYY-MM-DD')}`,
+      date: moment(date).format('ddd, D MMM'),
+      day: getDayLabel(date),
+      slots: 0,
+      available: false,
+      fullDate: moment(date).format('YYYY-MM-DD'),
+      timeSlots: null
+    };
+  };
+
+  // Get day label (Today, Tomorrow, etc.)
+  const getDayLabel = (date) => {
+    const today = moment().startOf('day');
+    const tomorrow = moment().add(1, 'days').startOf('day');
+    const targetDate = moment(date).startOf('day');
+
+    if (targetDate.isSame(today)) return 'Today';
+    if (targetDate.isSame(tomorrow)) return 'Tomorrow';
+    return targetDate.format('dddd');
+  };
+
+  // Generate dates for the next 7 days
+  const generateDateRange = () => {
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      dates.push(moment().add(i, 'days').toDate());
+    }
+    return dates;
+  };
+
+  // Fetch time slots for all dates in range
+  const fetchAllTimeSlots = async () => {
+    const dates = generateDateRange();
+    const slotsPromises = dates.map(date => fetchTimeSlots(date));
+    
+    try {
+      const slotsData = await Promise.all(slotsPromises);
+      setAvailableSlots(slotsData);
+    } catch (error) {
+      console.error('Error fetching all time slots:', error);
+    }
+  };
+
   const handleConfirm = date => {
     setSelectedDate(date);
     setDatePickerVisibility(false);
@@ -1222,10 +263,18 @@ export default function Dr_AppointmentBook({route, navigation}) {
     setSelectedTime(time);
   };
 
-  const handleDaySelect = (index) => {
-    if (availableSlots[index].available) {
+  const handleDaySelect = async (index) => {
+    if (availableSlots[index]?.available) {
       setSelectedDay(index);
-      setSelectedTime(null); 
+      setSelectedTime(null);
+      
+      // Refresh slots for selected day
+      const date = generateDateRange()[index];
+      const updatedSlot = await fetchTimeSlots(date);
+      
+      const updatedSlots = [...availableSlots];
+      updatedSlots[index] = updatedSlot;
+      setAvailableSlots(updatedSlots);
     }
   };
 
@@ -1241,6 +290,8 @@ export default function Dr_AppointmentBook({route, navigation}) {
         if (response.data.success) {
           setDoctorDetails(response.data.result);
         }
+        console.log('🔍 Doctor details response:', response.data);
+
       } else {
         console.log('Token not found!');
       }
@@ -1256,11 +307,12 @@ export default function Dr_AppointmentBook({route, navigation}) {
 
   useEffect(() => {
     fetchDoctorDetails();
+    fetchAllTimeSlots();
   }, [doctorId]);
 
   const renderDoctorItem = () => {
     if (!doctorDetails) return null;
-
+    console.log('🔍 Fetching doctor details for doctorId:', doctorId);
     const {
       doctorId: {
         name,
@@ -1365,10 +417,13 @@ export default function Dr_AppointmentBook({route, navigation}) {
     try {
       const token = await AsyncStorage.getItem('userToken');
       if (!token) {
-        alert('User not authenticated!');
+        setToastMessage('User not authenticated!');
+        setToastType('danger');
+        setIsSubmitting(false);
         return;
       }
 
+      // Validation checks
       if (!appointmentType) {
         setToastMessage('Please select appointment type');
         setToastType('danger');
@@ -1377,12 +432,7 @@ export default function Dr_AppointmentBook({route, navigation}) {
       }
 
       if (appointmentType === 'family') {
-        if (
-          !familyMemberName ||
-          !familyMemberAge ||
-          !familyMemberGender ||
-          !familyMemberRelation
-        ) {
+        if (!familyMemberName || !familyMemberAge || !familyMemberGender || !familyMemberRelation) {
           setToastMessage('Please fill all family member details');
           setToastType('danger');
           setIsSubmitting(false);
@@ -1397,10 +447,15 @@ export default function Dr_AppointmentBook({route, navigation}) {
         return;
       }
 
-      const date = selectedDate || new Date();
-      const formattedDate = moment(date).format(
-        'YYYY-MM-DDT00:00:00.000+00:00',
-      );
+      const selectedSlot = availableSlots[selectedDay];
+      if (!selectedSlot || !selectedSlot.available) {
+        setToastMessage('Please select a valid date with available slots');
+        setToastType('danger');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const formattedDate = selectedSlot.fullDate;
       const formattedTime = moment(selectedTime, 'h:mm A').format('HH:mm');
 
       const payload = {
@@ -1411,15 +466,12 @@ export default function Dr_AppointmentBook({route, navigation}) {
         serviceCharge: '0',
         appointmentType: appointmentType,
         consultationType: consultationType,
-        familyMemberDetails:
-          appointmentType === 'family'
-            ? {
-                name: familyMemberName,
-                age: familyMemberAge,
-                gender: familyMemberGender,
-                relation: familyMemberRelation,
-              }
-            : null,
+        familyMemberDetails: appointmentType === 'family' ? {
+          name: familyMemberName,
+          age: familyMemberAge,
+          gender: familyMemberGender,
+          relation: familyMemberRelation,
+        } : null,
       };
 
       console.log('Booking payload:', JSON.stringify(payload, null, 2));
@@ -1441,18 +493,18 @@ export default function Dr_AppointmentBook({route, navigation}) {
           navigation.goBack();
         }, 2000);
       } else {
-        setToastMessage('Failed to book appointment');
+        setToastMessage(response.data.message || 'Failed to book appointment');
         setToastType('danger');
       }
     } catch (error) {
       console.error('Booking error:', error.response?.data || error.message);
-      setToastMessage('Failed to book appointment. Please try again.');
+      setToastMessage(error.response?.data?.message || 'Failed to book appointment. Please try again.');
       setToastType('danger');
     } finally {
       setIsSubmitting(false);
     }
   };
-
+  
   const requestCameraPermission = async () => {
     if (Platform.OS === 'android') {
       try {
@@ -1591,66 +643,79 @@ export default function Dr_AppointmentBook({route, navigation}) {
   // Enhanced renderDayButtons with horizontal FlatList
   const renderDayButtons = () => (
     <View style={styles.daysContainer}>
-      <FlatList
-        data={availableSlots}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.daysListContent}
-        renderItem={({item, index}) => (
-          <TouchableOpacity
-            style={[
-              styles.dayButton,
-              selectedDay === index && styles.selectedDayButton,
-              !item.available && styles.disabledDayButton
-            ]}
-            onPress={() => handleDaySelect(index)}
-            disabled={!item.available}
-          >
-            <Text style={[
-              styles.dayText,
-              selectedDay === index && styles.selectedDayText,
-              !item.available && styles.disabledDayText
-            ]}>
-              {item.day}
-            </Text>
-            <Text style={[
-              styles.dateText,
-              selectedDay === index && styles.selectedDayText,
-              !item.available && styles.disabledDayText
-            ]}>
-              {item.date}
-            </Text>
-            
-            {item.available ? (
-              <View style={[
-                styles.slotsBadge,
-                selectedDay === index && styles.selectedSlotsBadge
+      {loadingSlots ? (
+        <ActivityIndicator size="small" color={COLORS.DODGERBLUE} />
+      ) : (
+        <FlatList
+          data={availableSlots}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.daysListContent}
+          renderItem={({item, index}) => (
+            <TouchableOpacity
+              style={[
+                styles.dayButton,
+                selectedDay === index && styles.selectedDayButton,
+                !item.available && styles.disabledDayButton
+              ]}
+              onPress={() => handleDaySelect(index)}
+              disabled={!item.available}
+            >
+              <Text style={[
+                styles.dayText,
+                selectedDay === index && styles.selectedDayText,
+                !item.available && styles.disabledDayText
               ]}>
-                <Text style={[
-                  styles.slotsText,
-                  selectedDay === index && styles.selectedSlotsText
+                {item.day}
+              </Text>
+              <Text style={[
+                styles.dateText,
+                selectedDay === index && styles.selectedDayText,
+                !item.available && styles.disabledDayText
+              ]}>
+                {item.date}
+              </Text>
+              
+              {item.available ? (
+                <View style={[
+                  styles.slotsBadge,
+                  selectedDay === index && styles.selectedSlotsBadge
                 ]}>
-                  {item.slots} slots
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.unavailableBadge}>
-                <Text style={styles.unavailableText}>
-                  Not available
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        )}
-      />
+                  <Text style={[
+                    styles.slotsText,
+                    selectedDay === index && styles.selectedSlotsText
+                  ]}>
+                    {item.slots} slots
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.unavailableBadge}>
+                  <Text style={styles.unavailableText}>
+                    Not available
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
+        />
+      )}
     </View>
   );
 
   // Enhanced renderTimeSlots with better UI
   const renderTimeSlots = () => {
+    if (loadingSlots) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.DODGERBLUE} />
+          <Text style={styles.loadingText}>Loading time slots...</Text>
+        </View>
+      );
+    }
+
     const selectedSlot = availableSlots[selectedDay];
-    if (!selectedSlot.timeSlots) {
+    if (!selectedSlot || !selectedSlot.timeSlots) {
       return (
         <View style={styles.noSlotsContainer}>
           <Icon name="event-busy" size={scale(40)} color={COLORS.gray} />
@@ -1659,19 +724,21 @@ export default function Dr_AppointmentBook({route, navigation}) {
       );
     }
 
+    const { morning = [], afternoon = [], evening = [] } = selectedSlot.timeSlots;
+
     return (
       <View style={styles.timeSlotsContainer}>
         {/* Morning Slots */}
-        {selectedSlot.timeSlots.morning && selectedSlot.timeSlots.morning.length > 0 && (
+        {morning.length > 0 && (
           <View style={styles.timeSlotSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.timeSlotSectionTitle}>Morning</Text>
               <Text style={styles.timeSlotCount}>
-                {selectedSlot.timeSlots.morning.length} slots
+                {morning.length} slots
               </Text>
             </View>
             <View style={styles.timeSlotsGrid}>
-              {selectedSlot.timeSlots.morning.map((timeSlot, index) => (
+              {morning.map((timeSlot, index) => (
                 <TouchableOpacity
                   key={index}
                   style={[
@@ -1696,16 +763,50 @@ export default function Dr_AppointmentBook({route, navigation}) {
         )}
 
         {/* Afternoon Slots */}
-        {selectedSlot.timeSlots.afternoon && selectedSlot.timeSlots.afternoon.length > 0 && (
+        {afternoon.length > 0 && (
           <View style={styles.timeSlotSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.timeSlotSectionTitle}>Afternoon</Text>
               <Text style={styles.timeSlotCount}>
-                {selectedSlot.timeSlots.afternoon.length} slots
+                {afternoon.length} slots
               </Text>
             </View>
             <View style={styles.timeSlotsGrid}>
-              {selectedSlot.timeSlots.afternoon.map((timeSlot, index) => (
+              {afternoon.map((timeSlot, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.timeSlotButton,
+                    selectedTime === timeSlot.time && styles.selectedTimeSlotButton,
+                    !timeSlot.available && styles.disabledTimeSlotButton
+                  ]}
+                  onPress={() => timeSlot.available && handleTimeSelect(timeSlot.time)}
+                  disabled={!timeSlot.available}
+                >
+                  <Text style={[
+                    styles.timeSlotText,
+                    selectedTime === timeSlot.time && styles.selectedTimeSlotText,
+                    !timeSlot.available && styles.disabledTimeSlotText
+                  ]}>
+                    {timeSlot.time}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Evening Slots */}
+        {evening.length > 0 && (
+          <View style={styles.timeSlotSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.timeSlotSectionTitle}>Evening</Text>
+              <Text style={styles.timeSlotCount}>
+                {evening.length} slots
+              </Text>
+            </View>
+            <View style={styles.timeSlotsGrid}>
+              {evening.map((timeSlot, index) => (
                 <TouchableOpacity
                   key={index}
                   style={[
@@ -1752,7 +853,7 @@ export default function Dr_AppointmentBook({route, navigation}) {
             keyExtractor={item => item?.doctorId?._id?.toString()}
           />
         ) : (
-          {}
+          <Text style={styles.errorText}>Failed to load doctor details</Text>
         )}
 
         <View style={styles.dropdownContainer}>
@@ -1901,15 +1002,18 @@ export default function Dr_AppointmentBook({route, navigation}) {
         </View>
 
         <TouchableOpacity
+          style={[
+            styles.submitButton,
+            isSubmitting && styles.submitButtonDisabled
+          ]}
           onPress={handleSubmitAppointment}
-          disabled={isSubmitting}>
-          <View style={styles.submitButton}>
-            {isSubmitting ? (
-              <ActivityIndicator size="small" color={COLORS.white} />
-            ) : (
-              <Text style={styles.submitButtonText}>Submit Appointment</Text>
-            )}
-          </View>
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator size="small" color={COLORS.white} />
+          ) : (
+            <Text style={styles.submitButtonText}>Submit Appointment</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
 
@@ -2048,7 +1152,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowOffset: {width: 0, height: 4},
     shadowRadius: scale(8),
-    elevation: 5,
+    elevation: 0,
+  },
+  submitButtonDisabled: {
+    backgroundColor: COLORS.gray,
+    opacity: 0.6,
   },
   submitButtonText: {
     color: COLORS.white,
@@ -2390,5 +1498,16 @@ const styles = StyleSheet.create({
     color: COLORS.gray,
     marginTop: scale(10),
     textAlign: 'center',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: scale(40),
+  },
+  loadingText: {
+    fontFamily: Fonts.Medium,
+    fontSize: moderateScale(14),
+    color: COLORS.gray,
+    marginTop: scale(10),
   },
 });

@@ -31,6 +31,8 @@ import {useSelector} from 'react-redux';
 import { Instance } from '../../api/Instance';
 import LocationModal from '../../component/LocationModal';
 import {useUserLocation} from '../../utils/useUserLocation';
+import { requestUserPermission } from '../../utils/Firebase';
+import fcmService from '../../utils/fcmService';
 
 const {width} = Dimensions.get('window');
 
@@ -68,6 +70,21 @@ export default function Home({navigation}) {
     };
 
     getProfileData();
+  }, []);
+
+  useEffect(() => {
+    const getFCMToken = async () => {
+      try {
+        const token = await fcmService.requestUserPermission();
+        if (token) {
+          console.log('FCM Token:', token);
+        }
+      } catch (error) {
+        console.log('FCM Error:', error);
+      }
+    };
+  
+    getFCMToken();
   }, []);
 
   const closeModal = () => {

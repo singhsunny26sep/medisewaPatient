@@ -1,13 +1,13 @@
-{
+  {
   "project_info": {
-    "project_number": "558414295325",
-    "project_id": "mediseva-d1051",
-    "storage_bucket": "mediseva-d1051.firebasestorage.app"
+    "project_number": "297189863529",
+    "project_id": "smartmediseva",
+    "storage_bucket": "smartmediseva.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:558414295325:android:9e6bd35bd9f07b15a9b1f4",
+        "mobilesdk_app_id": "1:297189863529:android:88b50971b1e75e7366b2f8",
         "android_client_info": {
           "package_name": "com.thesmartmediseva"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBOhPtnRG6XJ_GTCskbEe03rOivBsqo00Y"
+          "current_key": "AIzaSyBDjcN-PT5q9HQV2U0T5vOVHqMFwWdoibs"
         }
       ],
       "services": {
