@@ -17,14 +17,21 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import {useAgoraCall} from '../../utils/useAgoraCall';
 import {buildChannelName} from '../../utils/agoraConfig';
 import {ACCEPT_CALL, END_CALL} from '../../api/Api_Controller';
+import {useCallManager} from '../../utils/CallManager';
+import {AgoraNotificationManager} from '../../utils/AgoraNotificationHandler';
 
 export default function AudioCall({route, navigation}) {
-  const {doctor, callData} = route?.params || {};
+  const {doctor, callData, callAccepted = false} = route?.params || {};
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const intervalRef = useRef(null);
   const [isKeypadVisible, setIsKeypadVisible] = useState(false);
+  const [showCallBackOptions, setShowCallBackOptions] = useState(false);
+  const [hasAcceptedCall, setHasAcceptedCall] = useState(false);
+  const [isCallAccepted, setIsCallAccepted] = useState(callAccepted);
+  const [callStatus, setCallStatus] = useState(callAccepted ? 'Connecting...' : 'Ringing...');
+  const { initiateCall } = useCallManager();
 
   // Validate required data
   if (!doctor) {
@@ -70,24 +77,34 @@ export default function AudioCall({route, navigation}) {
   }, []);
   
   useEffect(() => {
-    // Notify backend that this call is accepted (if navigated without handler)
-    (async () => {
-      try {
-        if (callId) {
-          await ACCEPT_CALL(callId)
+    // Only call ACCEPT_CALL API if this is the receiver who accepted the call
+    if (callAccepted && callId && !hasAcceptedCall) {
+      (async () => {
+        try {
+          console.log('AudioCall: Receiver accepted call - calling ACCEPT_CALL API for callId:', callId);
+          await ACCEPT_CALL(callId);
+          setHasAcceptedCall(true);
+          setIsCallAccepted(true);
+          setCallStatus('Connecting...');
+          console.log('AudioCall: Call accepted successfully on server');
+        } catch (error) {
+          console.error('AudioCall: Error calling ACCEPT_CALL API:', error);
         }
-      } catch (e) {}
-    })()
-    if (joined) {
+      })();
+    }
+
+    // Start call timer only after call is accepted and joined
+    if (isCallAccepted && joined) {
       intervalRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
     }
+
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-    }
-  }, [joined]);
+    };
+  }, [joined, callId, hasAcceptedCall, callAccepted, isCallAccepted]);
 
 
   const timerLabel = React.useMemo(() => {
@@ -95,6 +112,44 @@ export default function AudioCall({route, navigation}) {
     const ss = String(seconds % 60).padStart(2, '0');
     return `${mm}:${ss}`;
   }, [seconds]);
+
+  // Handle call back to patient
+  const handleCallBack = async (callType) => {
+    try {
+      console.log(`Doctor initiating ${callType} call back to patient`);
+
+      // Get patient info from current call
+      const patientInfo = {
+        id: callData?.patientId || doctor?.patientId,
+        name: callData?.patientName || doctor?.patientName || 'Patient',
+        userId: callData?.patientUserId || doctor?.patientUserId,
+      };
+
+      if (!patientInfo.userId) {
+        Alert.alert('Error', 'Patient information not available for call back');
+        return;
+      }
+
+      // Initiate call back through call manager
+      const callResult = await initiateCall(patientInfo, callType, true); // true = doctor initiated
+
+      if (callResult) {
+        console.log('Call back initiated successfully:', callResult);
+
+        // Navigate to new call screen
+        navigation.replace(callType === 'video' ? 'VideoCall' : 'AudioCall', {
+          doctor: patientInfo,
+          callData: callResult,
+          isCallBack: true,
+        });
+      }
+    } catch (error) {
+      console.error('Error initiating call back:', error);
+      Alert.alert('Error', 'Failed to initiate call back. Please try again.');
+    } finally {
+      setShowCallBackOptions(false);
+    }
+  };
   
 
   return (
@@ -103,6 +158,33 @@ export default function AudioCall({route, navigation}) {
       statusBarBackgroundColor={COLORS.DODGERBLUE}
       backgroundColor={COLORS.DODGERBLUE}>
       <View style={styles.container}>
+
+        {/* Call Back Button */}
+        <View style={styles.statusBar}>
+          <TouchableOpacity onPress={() => setShowCallBackOptions(!showCallBackOptions)}>
+            <Ionicons name="call" size={20} color={COLORS.white} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Call Back Options Modal */}
+        {showCallBackOptions && (
+          <View style={styles.callBackModal}>
+            <TouchableOpacity
+              style={styles.callBackOption}
+              onPress={() => handleCallBack('video')}
+            >
+              <Ionicons name="videocam" size={20} color={COLORS.DODGERBLUE} />
+              <Text style={styles.callBackText}>Video Call Back</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.callBackOption}
+              onPress={() => handleCallBack('audio')}
+            >
+              <Ionicons name="call" size={20} color={COLORS.DODGERBLUE} />
+              <Text style={styles.callBackText}>Audio Call Back</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         <View style={styles.doctorInfoContainer}>
           <Animated.View
             style={[
@@ -117,11 +199,11 @@ export default function AudioCall({route, navigation}) {
             {callData?.receiver?.name || doctor?.name || "Doctor"}
           </Text>
           <Text style={styles.doctorSpecialization}>
-            {joined ? timerLabel : 'Connecting...'}
+            {isCallAccepted && joined ? timerLabel : callStatus}
           </Text>
           <View style={styles.callStatusContainer}>
             <View style={styles.statusDot} />
-            <Text style={styles.callStatus}>Connecting...</Text>
+            <Text style={styles.callStatus}>{callStatus}</Text>
           </View>
         </View>
 
@@ -328,5 +410,39 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(24),
     color: COLORS.white,
     fontFamily: Fonts.Bold,
+  },
+  statusBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: scale(20),
+    marginTop: verticalScale(10),
+  },
+  callBackModal: {
+    position: 'absolute',
+    top: verticalScale(60),
+    right: scale(20),
+    backgroundColor: COLORS.white,
+    borderRadius: moderateScale(8),
+    padding: scale(8),
+    elevation: 5,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    zIndex: 1000,
+  },
+  callBackOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: verticalScale(8),
+    paddingHorizontal: scale(12),
+    minWidth: scale(140),
+  },
+  callBackText: {
+    marginLeft: scale(8),
+    fontSize: moderateScale(14),
+    color: COLORS.DODGERBLUE,
+    fontFamily: Fonts.Medium,
   },
 });

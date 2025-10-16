@@ -1,4 +1,4 @@
-import React, {useRef, useEffect, useState} from 'react';
+import React, {useRef, useEffect, useState, useCallback, useMemo} from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,6 +10,9 @@ import {
   Alert,
   Dimensions,
   TextInput,
+  RefreshControl,
+  Animated,
+  ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
@@ -36,21 +39,46 @@ import fcmService from '../../utils/fcmService';
 
 const {width} = Dimensions.get('window');
 
+// Debounce utility function
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
+
 export default function Home({navigation}) {
   const scrollViewRef = useRef(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [profileData, setProfileData] = useState(null);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [slideAnim] = useState(new Animated.Value(50));
   const defaultLocation = useUserLocation();
   const [selectedLocation, setSelectedLocation] = useState(null);
 
   const language = useSelector(state => state.Common.language);
 
   useEffect(() => {
-    const getProfileData = async () => {  
+    const getProfileData = async () => {
       try {
+        setLoading(true);
+        setError(null);
         const token = await AsyncStorage.getItem('userToken');
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+
         const response = await Instance.get('/api/v1/users/profile', {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -60,10 +88,11 @@ export default function Home({navigation}) {
         if (response.data.success) {
           setProfileData(response.data.result);
         } else {
-          console.warn('Failed to fetch profile');
+          setError('Failed to fetch profile data');
         }
       } catch (error) {
         console.error('Error fetching profile:', error);
+        setError('Unable to load profile data');
       } finally {
         setLoading(false);
       }
@@ -96,6 +125,106 @@ export default function Home({navigation}) {
     setLocationModalVisible(false);
   };
 
+  // Debounced search function
+  const debouncedSearch = useCallback(
+    debounce((text) => {
+      setSearchText(text);
+    }, 300),
+    []
+  );
+
+  // Pull to refresh function
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setError(null);
+
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (token) {
+        const response = await Instance.get('/api/v1/users/profile', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.data.success) {
+          setProfileData(response.data.result);
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      setError('Failed to refresh data');
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  // Retry function for error handling
+  const retryLoadProfile = useCallback(() => {
+    setError(null);
+    setLoading(true);
+
+    const getProfileData = async () => {
+      try {
+        const token = await AsyncStorage.getItem('userToken');
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+
+        const response = await Instance.get('/api/v1/users/profile', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.data.success) {
+          setProfileData(response.data.result);
+        } else {
+          setError('Failed to fetch profile data');
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+        setError('Unable to load profile data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getProfileData();
+  }, []);
+
+  // Smooth scroll to top function
+  const scrollToTop = useCallback(() => {
+    scrollViewRef.current?.scrollTo({
+      y: 0,
+      animated: true,
+    });
+  }, []);
+
+  // Enhanced scroll handler for smooth interactions
+  const handleScroll = useCallback((event) => {
+    const { y } = event.nativeEvent.contentOffset;
+    // Add any scroll-based animations or behaviors here
+    // For example, hide/show header on scroll
+  }, []);
+
+  useEffect(() => {
+    // Animate content entrance
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [loading]);
+
   return (
     <Container
       statusBarStyle={'light-content'}
@@ -122,7 +251,20 @@ export default function Home({navigation}) {
               </View>
               <View style={styles.welcomeTextContainer}>
                 <Text style={styles.welcomeText}>{strings.welcome},</Text>
-                <Text style={styles.userName} numberOfLines={1}>{profileData?.name || "Loading.."}</Text>
+                {loading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color={COLORS.white} />
+                    <Text style={styles.loadingText}>Loading...</Text>
+                  </View>
+                ) : error ? (
+                  <TouchableOpacity onPress={retryLoadProfile} style={styles.errorContainer}>
+                    <Text style={styles.errorText}>Tap to retry</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={styles.userName} numberOfLines={1}>
+                    {profileData?.name || "User"}
+                  </Text>
+                )}
               </View>
             </View>
             <TouchableOpacity
@@ -137,10 +279,33 @@ export default function Home({navigation}) {
           </View>
         </LinearGradient>
 
-        <ScrollView
+        <Animated.ScrollView
           ref={scrollViewRef}
           showsVerticalScrollIndicator={false}
-          style={styles.scrollView}>
+          style={[styles.scrollView, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
+          contentContainerStyle={styles.scrollViewContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.DODGERBLUE]}
+              tintColor={COLORS.DODGERBLUE}
+              title="Pull to refresh"
+              titleColor={COLORS.DODGERBLUE}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+            />
+          }
+          decelerationRate="normal"
+          scrollEventThrottle={16}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={100}
+          initialNumToRender={10}
+          windowSize={10}
+          disableIntervalMomentum={false}
+          disableScrollViewPanResponder={false}
+        >
           <View style={styles.searchContainer}>
             <View style={styles.searchBar}>
               <Ionicons name="search" size={20} color={COLORS.ARSENIC} />
@@ -149,10 +314,11 @@ export default function Home({navigation}) {
                 placeholder="Search for doctors, medicines..."
                 placeholderTextColor="#999"
                 value={searchText}
-                onChangeText={setSearchText}
+                onChangeText={debouncedSearch}
                 returnKeyType="search"
                 autoCapitalize="none"
                 autoCorrect={false}
+                allowsNativeAnimation={true}
               />
               {searchText.length > 0 && (
                 <TouchableOpacity
@@ -223,7 +389,7 @@ export default function Home({navigation}) {
             </LinearGradient>
           </View>
           <TrustedBanner />
-        </ScrollView>
+        </Animated.ScrollView>
       </View>
 
       <CustomModal
@@ -337,6 +503,28 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollViewContent: {
+    paddingBottom: verticalScale(20),
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: COLORS.white,
+    fontFamily: Fonts.Regular,
+    fontSize: moderateScale(16),
+    marginLeft: scale(8),
+  },
+  errorContainer: {
+    paddingVertical: verticalScale(2),
+  },
+  errorText: {
+    color: '#FFE66D',
+    fontFamily: Fonts.Medium,
+    fontSize: moderateScale(16),
+    textDecorationLine: 'underline',
   },
   searchContainer: {
     paddingHorizontal: scale(20),

@@ -3,6 +3,7 @@ import {View, Text, TouchableOpacity} from 'react-native'
 import {useNavigation} from '@react-navigation/native'
 import {RtmService, notifyCallDeclined} from '../utils/rtmService'
 import { ACCEPT_CALL } from '../api/Api_Controller'
+import { AgoraNotificationManager } from '../utils/AgoraNotificationHandler'
 
 export default function CallInviteHandler() {
   const navigation = useNavigation()
@@ -14,8 +15,8 @@ export default function CallInviteHandler() {
     const handler = ({ type, payload, from }) => {
       console.log('[CallInviteHandler] event:', type, 'from:', from, 'payload:', JSON.stringify(payload, null, 2))
 
-      if (type === 'CALL_INVITE') {
-        // Allow new call invitations to replace existing ones
+      if (type === 'CALL_INVITE' || type === 'CALL_INVITE_ENHANCED' || type === 'CALL_NOTIFICATION') {
+        // Handle both regular and enhanced call invitations
         const callId = payload?.callId || payload?.data?.callId
         const callType = payload?.callType || payload?.data?.callType || 'video'
         const channelName = payload?.channel || payload?.channelName || payload?.data?.channelName || payload?.data?.channel
@@ -60,9 +61,9 @@ export default function CallInviteHandler() {
     return () => RtmService.setMessageHandler(null)
   }, [navigation])
 
-  if (!invite) return null
+  const { from, callType, doctor, callData } = invite || {}
 
-  const { from, callType, doctor, callData } = invite
+  if (!invite) return null
 
   return (
     <View style={{
@@ -151,20 +152,28 @@ export default function CallInviteHandler() {
           <TouchableOpacity
             onPress={async () => {
               try {
-                if (callData?.callId) {
-                  await ACCEPT_CALL(callData.callId)
-                  console.log('[CallInviteHandler] Accepted callId', callData.callId)
-                }
+                // Don't call ACCEPT_CALL here - let the call screen handle it when it opens
+                console.log('[CallInviteHandler] User accepted call - navigating to call screen')
+
                 showingRef.current = false
                 currentCallRef.current = null
 
+                // Navigate to call screen - the call screen will handle ACCEPT_CALL API
                 if (callType === 'video') {
-                  navigation.navigate('VideoCall', { doctor, callData })
+                  navigation.navigate('VideoCall', {
+                    doctor,
+                    callData,
+                    callAccepted: true // Flag to indicate call was accepted from invitation
+                  })
                 } else {
-                  navigation.navigate('AudioCall', { doctor, callData })
+                  navigation.navigate('AudioCall', {
+                    doctor,
+                    callData,
+                    callAccepted: true // Flag to indicate call was accepted from invitation
+                  })
                 }
               } catch (error) {
-                console.log('[CallInviteHandler] Error accepting call:', error)
+                console.log('[CallInviteHandler] Error navigating to call screen:', error)
                 showingRef.current = false
                 currentCallRef.current = null
                 setInvite(null)

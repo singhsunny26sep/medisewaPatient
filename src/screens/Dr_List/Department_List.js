@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,23 +9,27 @@ import {
   Image,
   ActivityIndicator,
   Modal,
+  StatusBar,
 } from 'react-native';
-import {Container} from '../../component/Container/Container';
-import {COLORS} from '../../Theme/Colors';
-import {moderateScale, scale, verticalScale} from '../../utils/Scaling';
-import {Fonts} from '../../Theme/Fonts';
+import { Container } from '../../component/Container/Container';
+import { COLORS } from '../../Theme/Colors';
+import { moderateScale, scale, verticalScale } from '../../utils/Scaling';
+import { Fonts } from '../../Theme/Fonts';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import {Instance} from '../../api/Instance';
+import { Instance } from '../../api/Instance';
 
-export default function Department_List({route, navigation}) {
-  const {departmentId} = route.params;
-
+export default function Department_List({ route, navigation }) {
+  const { departmentId } = route.params;
   const [doctors, setDoctors] = useState([]);
   const [filteredDoctors, setFilteredDoctors] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    console.log('Modal visibility changed:', isModalVisible);
+  }, [isModalVisible]);
 
   useEffect(() => {
     const fetchDoctorsByDepartment = async () => {
@@ -41,10 +45,8 @@ export default function Department_List({route, navigation}) {
         setIsLoading(false);
       }
     };
-
     fetchDoctorsByDepartment();
   }, [departmentId]);
-
   const handleSearch = text => {
     setSearchQuery(text);
     if (text.trim() === '') {
@@ -63,15 +65,19 @@ export default function Department_List({route, navigation}) {
   };
 
   const handleMobilePress = doctor => {
+    console.log('Call icon pressed for doctor:', doctor?.name);
+    console.log('Modal state before:', isModalVisible);
     setSelectedDoctor(doctor);
     setIsModalVisible(true);
+    console.log('Modal should be visible now, state after:', true);
   };
 
   return (
-    <Container
-      statusBarStyle={'light-content'}
-      statusBarBackgroundColor={COLORS.DODGERBLUE}
-      backgroundColor={COLORS.white}>
+    <View style={styles.mainContainer}>
+      <StatusBar
+        backgroundColor={COLORS.DODGERBLUE}
+        barStyle="light-content"
+      />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={25} color={COLORS.white} />
@@ -101,6 +107,7 @@ export default function Department_List({route, navigation}) {
         data={filteredDoctors}
         showsVerticalScrollIndicator={false}
         keyExtractor={item => item._id.toString()}
+        pointerEvents="box-none"
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
             <Ionicons name="search" size={50} color={COLORS.gray} />
@@ -110,11 +117,11 @@ export default function Department_List({route, navigation}) {
             </Text>
           </View>
         )}
-        renderItem={({item}) => {
+        renderItem={({ item }) => {
           return (
-            <View style={styles.card}>
+            <View style={styles.card} pointerEvents="box-none">
               <View style={styles.cardContent}>
-                <Image source={{uri: item.image}} style={styles.cardImage} />
+                <Image source={{ uri: item.image }} style={styles.cardImage} />
                 <View style={styles.cardText}>
                   <Text style={styles.drName}>{item.name}</Text>
                   <Text style={styles.drType}>
@@ -128,7 +135,8 @@ export default function Department_List({route, navigation}) {
                   </Text>
                   <TouchableOpacity
                     style={styles.contact}
-                    onPress={() => handleMobilePress(item)}>
+                    onPress={() => handleMobilePress(item)}
+                    activeOpacity={0.7}>
                     <Ionicons name="call" size={23} color={COLORS.DODGERBLUE} />
                     <Text style={styles.mobile}>{item.contactNumber}</Text>
                   </TouchableOpacity>
@@ -136,13 +144,13 @@ export default function Department_List({route, navigation}) {
                     <View
                       style={[
                         styles.statusDot,
-                        {backgroundColor: item.isOnline ? 'green' : 'red'},
+                        { backgroundColor: item.isOnline ? 'green' : 'red' },
                       ]}
                     />
                     <Text
                       style={[
                         styles.statusText,
-                        {color: item.isOnline ? 'green' : 'red'},
+                        { color: item.isOnline ? 'green' : 'red' },
                       ]}>
                       {item.isOnline ? 'Online' : 'Offline'}
                     </Text>
@@ -167,41 +175,55 @@ export default function Department_List({route, navigation}) {
         transparent={true}
         visible={isModalVisible}
         animationType="slide"
-        onRequestClose={() => setIsModalVisible(false)}>
+        presentationStyle="overFullScreen"
+        onRequestClose={() => {
+          console.log('Modal close requested');
+          setIsModalVisible(false);
+        }}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <View style={styles.modalButtonsRow}>
               <TouchableOpacity
                 style={styles.callOption}
                 onPress={() => {
+                  console.log('Audio call button pressed for doctor:', selectedDoctor?.name);
                   setIsModalVisible(false);
-                  navigation.navigate('AudioCall', {doctor: selectedDoctor});
+                  navigation.navigate('AudioCall', { doctor: selectedDoctor });
                 }}>
                 <Ionicons name="call" size={30} color={COLORS.DODGERBLUE} />
                 <Text style={styles.callOptionText}>Audio Call</Text>
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={styles.callOption}
-                onPress={() => navigation.navigate('VideoCall')}>
+                onPress={() => {
+                  console.log('Video call button pressed for doctor:', selectedDoctor?.name);
+                  setIsModalVisible(false);
+                  navigation.navigate('VideoCall', { doctor: selectedDoctor });
+                }}>
                 <Ionicons name="videocam" size={30} color={COLORS.DODGERBLUE} />
                 <Text style={styles.callOptionText}>Video Call</Text>
               </TouchableOpacity>
             </View>
-
             <TouchableOpacity
               style={styles.cancelButton}
-              onPress={() => setIsModalVisible(false)}>
+              onPress={() => {
+                console.log('Cancel button pressed');
+                setIsModalVisible(false);
+              }}>
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
-    </Container>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -249,7 +271,7 @@ const styles = StyleSheet.create({
     borderRadius: moderateScale(8),
     elevation: 5,
     shadowColor: COLORS.black,
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: moderateScale(4),
     paddingBottom: verticalScale(5),
@@ -297,6 +319,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: verticalScale(5),
+    paddingVertical: verticalScale(5),
+    paddingHorizontal: scale(8),
+    borderRadius: moderateScale(5),
+    backgroundColor: 'rgba(3, 133, 234, 0.1)',
   },
   mobile: {
     fontSize: moderateScale(14),
@@ -348,12 +374,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
+    zIndex: 1000,
   },
   modalContainer: {
     backgroundColor: COLORS.white,
     padding: scale(20),
     borderTopLeftRadius: scale(20),
     borderTopRightRadius: scale(20),
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   modalButtonsRow: {
     flexDirection: 'row',

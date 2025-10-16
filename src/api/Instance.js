@@ -25,12 +25,21 @@ Instance.interceptors.request.use(
 );
 
 export const fetchAgoraToken = async (channelName, uid) => {
-  const res = await Instance.get(
-    `/calls/agora-token?channel=${encodeURIComponent(channelName)}&uid=${encodeURIComponent(
-      String(uid),
-    )}`,
-  );
-  return res.data?.token;
+  try {
+    console.log('Fetching Agora token for channel:', channelName, 'uid:', uid);
+    const res = await Instance.get(
+      `/calls/agora-token?channel=${encodeURIComponent(channelName)}&uid=${encodeURIComponent(
+        String(uid),
+      )}`,
+    );
+    console.log('Agora token response:', res.data);
+    return res.data?.token;
+  } catch (error) {
+    console.error('Error fetching Agora token:', error);
+    console.error('Response data:', error.response?.data);
+    console.error('Response status:', error.response?.status);
+    throw error;
+  }
 };
 
 export {Instance};

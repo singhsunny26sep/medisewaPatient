@@ -26,7 +26,6 @@ import CustomHeader from '../../component/header/CustomHeader';
 export default function ProfileScreen({}) {
   const navigation = useNavigation('');
   const language = useSelector((state) => state.Common.language);
-
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -82,7 +81,7 @@ export default function ProfileScreen({}) {
       statusBarStyle={'dark-content'}
       statusBarBackgroundColor={COLORS.white}
       backgroundColor={COLORS.white}>
-         <CustomHeader showIcon={false} title={strings.Profile}/>
+      <CustomHeader showIcon={false} title={strings.Profile}/>
       <ScrollView showsVerticalScrollIndicator={false}>
         {loading ? (
           <ActivityIndicator size="large" color={COLORS.DODGERBLUE} />

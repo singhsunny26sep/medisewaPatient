@@ -1,6 +1,8 @@
 import RtmEngine from 'agora-react-native-rtm'
 import { Platform } from 'react-native'
 import { AGORA_APP_ID } from './agoraConfig'
+import messaging from '@react-native-firebase/messaging'
+import { AgoraNotificationManager } from './AgoraNotificationHandler'
 
 class RtmServiceSingleton {
   constructor() {
@@ -122,6 +124,124 @@ class RtmServiceSingleton {
       text: JSON.stringify({ type, payload: {} }),
     })
   }
+
+  // Send call notification through Agora's notification system
+  sendCallNotification = async (targetUserId, callData) => {
+    try {
+      console.log('[Agora] Sending call notification to user:', targetUserId);
+
+      // Use Agora RTM to send call invitation
+      // This will trigger Agora's built-in notification system
+      const notificationMessage = {
+        type: 'CALL_NOTIFICATION',
+        payload: {
+          callId: callData.callId,
+          callType: callData.callType,
+          channelName: callData.channelName,
+          token: callData.token,
+          callerId: callData.callerId,
+          callerName: callData.callerName,
+          callerAvatar: callData.callerAvatar,
+          timestamp: new Date().toISOString(),
+          // Agora-specific notification fields
+          category: 'call',
+          priority: 'high',
+          persistent: true,
+        }
+      };
+
+      // Send through RTM - Agora will handle the system notification
+      await this.engine.sendMessageByPeer({
+        peerId: String(targetUserId),
+        text: JSON.stringify(notificationMessage),
+        options: {
+          enableHistoricalMessaging: true,
+          enableOfflineMessaging: true,
+        }
+      });
+
+      console.log('[Agora] Call notification sent successfully via RTM');
+      return true;
+    } catch (error) {
+      console.log('[Agora] Error sending call notification:', error);
+
+      // Fallback: Try to send through your backend API
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/send-call-notification`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            targetUserId,
+            callData,
+          }),
+        });
+
+        if (response.ok) {
+          console.log('[Agora] Call notification sent via backend API');
+          return true;
+        }
+      } catch (apiError) {
+        console.log('[Agora] Backend API also failed:', apiError);
+      }
+
+      return false;
+    }
+  }
+
+  // Enhanced call invitation with Agora notification support
+  sendEnhancedCallInvite = async (peerId, payload) => {
+    if (!this.engine) throw new Error('RTM not initialized');
+
+    const message = {
+      type: 'CALL_INVITE_ENHANCED',
+      payload: {
+        callId: payload.callId,
+        callType: payload.callType || 'video',
+        channel: payload.channel || payload.channelName,
+        token: payload.token,
+        callerId: payload.callerId,
+        callerName: payload.callerName,
+        callerAvatar: payload.callerAvatar,
+        receiver: payload.receiver,
+        timestamp: new Date().toISOString(),
+        // Agora notification properties
+        notification: {
+          title: `Incoming ${payload.callType === 'video' ? 'Video' : 'Audio'} Call`,
+          body: `${payload.callerName} is calling you`,
+          icon: 'call',
+          color: '#2196F3',
+          sound: 'default',
+          tag: `call_${payload.callId}`,
+          requireInteraction: true,
+          actions: [
+            { action: 'accept', title: 'Accept', icon: 'call' },
+            { action: 'decline', title: 'Decline', icon: 'call_end' }
+          ]
+        },
+        ...payload
+      }
+    };
+
+    console.log('[Agora] sendEnhancedCallInvite ->', peerId, JSON.stringify(message, null, 2));
+
+    try {
+      await this.engine.sendMessageByPeer({
+        peerId: String(peerId),
+        text: JSON.stringify(message),
+        options: {
+          enableHistoricalMessaging: true,
+          enableOfflineMessaging: true,
+          enableNotification: true, // Enable Agora's notification system
+        }
+      });
+      console.log('[Agora] Enhanced call invite sent successfully');
+    } catch (error) {
+      console.log('[Agora] Failed to send enhanced call invite:', error.message);
+      throw error;
+    }
+  }
 }
 
 export const RtmService = new RtmServiceSingleton()
@@ -147,6 +267,34 @@ export const sendVideoCallInvite = (peerId, { callId, channel, callerId, callerN
     callerName,
     callerAvatar,
   })
+}
+
+// Enhanced call invitation methods using Agora's notification system
+export const sendEnhancedAudioCallInvite = (peerId, { callId, channel, callerId, callerName, callerAvatar }) => {
+  return RtmService.sendEnhancedCallInvite(peerId, {
+    callId,
+    channel,
+    callType: 'audio',
+    callerId: String(callerId),
+    callerName,
+    callerAvatar,
+  })
+}
+
+export const sendEnhancedVideoCallInvite = (peerId, { callId, channel, callerId, callerName, callerAvatar }) => {
+  return RtmService.sendEnhancedCallInvite(peerId, {
+    callId,
+    channel,
+    callType: 'video',
+    callerId: String(callerId),
+    callerName,
+    callerAvatar,
+  })
+}
+
+// Send call notification through Agora's system
+export const sendAgoraCallNotification = (targetUserId, callData) => {
+  return RtmService.sendCallNotification(targetUserId, callData)
 }
 
 export const notifyCallCancelled = (peerId) => RtmService.sendCallControl(peerId, 'CALL_CANCELLED')

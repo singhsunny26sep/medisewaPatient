@@ -155,7 +155,6 @@ export default function Dr_List({navigation}) {
                   </View>
                 </View>
               </View>
-
               <TouchableOpacity
                 style={styles.bookingButton}
                 onPress={() =>

@@ -28,7 +28,6 @@ export default function Cart({navigation}) {
   const cartItems = useSelector(state => state.cart.cartItems);
   const [loading, setLoading] = useState(true);
   const [quantities, setQuantities] = useState({});
-
   useEffect(() => {
     const fetchCartData = async () => {
       try {

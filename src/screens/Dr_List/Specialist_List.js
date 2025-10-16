@@ -9,6 +9,7 @@ import {
   Image,
   ActivityIndicator,
   Modal,
+  Alert,
 } from 'react-native';
 import {Container} from '../../component/Container/Container';
 import {COLORS} from '../../Theme/Colors';
@@ -17,6 +18,9 @@ import {Fonts} from '../../Theme/Fonts';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {Instance} from '../../api/Instance';
 import { INITIATE_CALL } from '../../api/Api_Controller';
+import { sendEnhancedAudioCallInvite, sendEnhancedVideoCallInvite } from '../../utils/rtmService';
+import { useCallManager } from '../../utils/CallManager';
+import { AgoraNotificationManager } from '../../utils/AgoraNotificationHandler';
 
 export default function Specialist_List({route,navigation}) {
   const {specialistId} = route.params;
@@ -27,6 +31,7 @@ export default function Specialist_List({route,navigation}) {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const { initiateCall: initiateCallFromManager } = useCallManager();
 
   useEffect(() => {
     const fetchDoctorsByDepartment = async () => {
@@ -81,19 +86,12 @@ export default function Specialist_List({route,navigation}) {
   const handleMobilePress = doctor => {
     console.log('=== handleMobilePress START ===');
     console.log('Doctor:', doctor?.name, doctor?._id);
-    console.log('Current modal state:', isModalVisible);
-    console.log('Setting selectedDoctor to:', doctor?.name);
 
+    // Set both states immediately for better responsiveness
     setSelectedDoctor(doctor);
-    console.log('Setting modal visibility to true');
     setIsModalVisible(true);
 
-    // Force update check
-    setTimeout(() => {
-      console.log('After timeout - Modal state:', isModalVisible);
-      console.log('Selected doctor:', selectedDoctor?.name);
-    }, 100);
-
+    console.log('Modal states set - modal should be visible at bottom of screen');
     console.log('=== handleMobilePress END ===');
   };
 
@@ -106,8 +104,33 @@ export default function Specialist_List({route,navigation}) {
       const recieverId = doctor.userId;
       const callType = type; // 'audio' | 'video'
       console.log('Specialist_List initiateCall: request ->', { recieverId, callType });
+
+      // First initiate the call through your API
       const data = await INITIATE_CALL({ recieverId, callType });
       console.log('Specialist_List initiateCall: response ->', data);
+
+      // Then send enhanced call invitation through Agora's notification system
+      if (data?.data) {
+        const callData = {
+          callId: data.data.callId,
+          channelName: data.data.channelName,
+          token: data.data.token,
+          callerId: data.data.callerId,
+          callerName: data.data.callerName,
+          callerAvatar: data.data.callerAvatar,
+        };
+
+        // Use enhanced call invitation that works with Agora's notification system
+        const notificationSent = await sendAgoraCallNotification(recieverId, {
+          ...callData,
+          callType,
+        });
+
+        if (notificationSent) {
+          console.log('Specialist_List: Enhanced call notification sent via Agora');
+        }
+      }
+
       return data; // Return the call data
     } catch (error) {
       console.log('Specialist_List initiateCall: error ->', {
@@ -116,6 +139,66 @@ export default function Specialist_List({route,navigation}) {
         data: error?.response?.data,
       });
       throw error; // Re-throw to handle in calling component
+    }
+  };
+
+  // Handle doctor-initiated calls (for when doctors want to call patients)
+  const handleDoctorInitiatedCall = async (patient, callType) => {
+    try {
+      console.log(`Doctor initiating ${callType} call to patient:`, patient.name);
+
+      if (!patient?.userId) {
+        console.log('Patient userId missing for doctor-initiated call');
+        return;
+      }
+
+      // Use the call manager to initiate the call
+      const callResult = await initiateCall(patient, callType);
+
+      if (callResult?.data) {
+        console.log('Doctor-initiated call successful:', callResult.data);
+
+        // Navigate to the appropriate call screen
+        navigation.navigate(callType === 'video' ? 'VideoCall' : 'AudioCall', {
+          doctor: patient,
+          callData: callResult.data,
+          isDoctorInitiated: true,
+        });
+      }
+    } catch (error) {
+      console.error('Error in doctor-initiated call:', error);
+      Alert.alert('Error', 'Failed to initiate call. Please try again.');
+    }
+  };
+
+  // Send call notification through Agora's system
+  const sendAgoraCallNotification = async (targetUserId, callData) => {
+    try {
+      console.log('Sending Agora call notification to:', targetUserId);
+
+      // Use enhanced call invitation for Agora's notification system
+      if (callData.callType === 'audio') {
+        await sendEnhancedAudioCallInvite(targetUserId, {
+          callId: callData.callId,
+          channel: callData.channelName,
+          callerId: callData.callerId,
+          callerName: callData.callerName,
+          callerAvatar: callData.callerAvatar,
+        });
+      } else {
+        await sendEnhancedVideoCallInvite(targetUserId, {
+          callId: callData.callId,
+          channel: callData.channelName,
+          callerId: callData.callerId,
+          callerName: callData.callerName,
+          callerAvatar: callData.callerAvatar,
+        });
+      }
+
+      return true;
+    } catch (error) {
+      console.log('Error sending Agora call notification:', error);
+      return false;
     }
   };
 
@@ -186,10 +269,10 @@ export default function Specialist_List({route,navigation}) {
                     onPress={() => {
                       console.log('=== CALL BUTTON PRESSED ===');
                       console.log('Doctor:', item.name, item._id);
-                      console.log('Current state before:', { isModalVisible, selectedDoctor: selectedDoctor?.name });
                       handleMobilePress(item);
                     }}
-                    activeOpacity={0.7}>
+                    activeOpacity={0.7}
+                    hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
                     <Ionicons name="call" size={20} color={COLORS.white} />
                     <Text style={styles.callButtonText}>Call Now</Text>
                   </TouchableOpacity>
@@ -225,10 +308,6 @@ export default function Specialist_List({route,navigation}) {
           );
         }}
       />
-      {console.log('=== MODAL RENDER CHECK ===')}
-      {console.log('isModalVisible:', isModalVisible)}
-      {console.log('selectedDoctor:', selectedDoctor?.name)}
-      {console.log('========================')}
       <Modal
         transparent={true}
         visible={isModalVisible}
@@ -237,7 +316,7 @@ export default function Specialist_List({route,navigation}) {
           console.log('Modal onRequestClose called');
           setIsModalVisible(false);
         }}
-        onShow={() => console.log('Modal onShow called - modal is now visible!')}
+        onShow={() => console.log('Modal onShow called - modal is now visible at bottom!')}
         onDismiss={() => console.log('Modal onDismiss called - modal is now hidden')}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
@@ -467,7 +546,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
-    zIndex: 1000,
+    zIndex: 9999,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   modalContainer: {
     backgroundColor: COLORS.white,
@@ -479,6 +563,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+    width: '100%',
+    maxWidth: scale(400),
+    alignSelf: 'center',
   },
   modalButtonsRow: {
     flexDirection: 'row',
