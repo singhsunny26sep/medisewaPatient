@@ -4,6 +4,7 @@ import {useNavigation} from '@react-navigation/native'
 import {RtmService, notifyCallDeclined} from '../utils/rtmService'
 import { ACCEPT_CALL } from '../api/Api_Controller'
 import { AgoraNotificationManager } from '../utils/AgoraNotificationHandler'
+import { notificationService } from '../utils/NotificationService'
 
 export default function CallInviteHandler() {
   const navigation = useNavigation()
@@ -25,17 +26,14 @@ export default function CallInviteHandler() {
         const callerId = payload?.callerId || payload?.caller_id || receiver?.id || receiver?._id || from
         const callerName = payload?.callerName || payload?.caller_name || receiver?.name || 'Unknown'
         const callerAvatar = payload?.callerAvatar || payload?.caller_avatar || receiver?.image || receiver?.avatar || null
-
         console.log('[CallInviteHandler] Parsed call data:', {
           callId, callType, channelName, token, callerId, callerName, callerAvatar
         })
-
         // Validate required fields
         if (!callId || !channelName) {
           console.log('[CallInviteHandler] Missing required fields: callId or channelName')
           return
         }
-
         const doctor = { id: callerId, name: callerName, image: callerAvatar }
         const callData = {
           callId,
@@ -44,12 +42,17 @@ export default function CallInviteHandler() {
           token,
           receiver: { name: callerName, image: callerAvatar }
         }
-
         currentCallRef.current = callId
         showingRef.current = true
         setInvite({ from, callType, doctor, callData })
+        // Show "message received" notification when call is received
+        notificationService.showMessageReceivedNotification({
+          callerName: callerName,
+          callType: callType
+        }).catch(error => {
+          console.log('[CallInviteHandler] Error showing message received notification:', error)
+        })
       }
-
       if (type === 'CALL_CANCELLED') {
         console.log('[CallInviteHandler] CALL_CANCELLED received for call:', currentCallRef.current)
         showingRef.current = false
@@ -60,11 +63,8 @@ export default function CallInviteHandler() {
     RtmService.setMessageHandler(handler)
     return () => RtmService.setMessageHandler(null)
   }, [navigation])
-
   const { from, callType, doctor, callData } = invite || {}
-
   if (!invite) return null
-
   return (
     <View style={{
       position: 'absolute',

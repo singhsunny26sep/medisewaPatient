@@ -106,6 +106,47 @@ class NotificationService {
       ongoing: true,
     };
   }
+
+  // Method to show "message received" notification when call is received
+  async showMessageReceivedNotification(callData) {
+    const { callerName, callType } = callData;
+
+    try {
+      // Create a simple notification payload for Firebase
+      const message = {
+        notification: {
+          title: 'Message Received',
+          body: `${callerName} sent you a ${callType === 'video' ? 'video' : 'voice'} message`,
+        },
+        data: {
+          type: 'message_received',
+          callerName,
+          callType,
+          timestamp: new Date().toISOString(),
+        },
+        android: {
+          channelId: 'message_notifications',
+          priority: 'high',
+          sound: 'default',
+          icon: 'ic_notification_message',
+          color: '#4CAF50',
+        },
+      };
+
+      // For local notifications, we'll use the Firebase SDK to display it
+      // This approach works for showing notifications when the app is in foreground/background
+      await messaging().sendMessage(message);
+
+      console.log('[NotificationService] Message received notification sent for:', callerName);
+      return true;
+    } catch (error) {
+      console.log('[NotificationService] Error sending message received notification:', error);
+
+      // Fallback: Show a simple console message
+      console.log(`📱 Message Received: ${callerName} sent you a ${callType === 'video' ? 'video' : 'voice'} message`);
+      return false;
+    }
+  }
 }
 
 // Singleton pattern
