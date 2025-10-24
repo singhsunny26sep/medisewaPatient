@@ -31,11 +31,17 @@ const CustomStatusBar = ({
     notificationCount,
     showStatusBar,
     setShowStatusBar,
-    userStatus
+    userStatus,
+    showCurrentStatus
   } = useStatusBar();
 
   const slideAnim = React.useRef(new Animated.Value(-50)).current;
   const language = useSelector(state => state.Common.language);
+
+  // Show current status when component mounts
+  React.useEffect(() => {
+    showCurrentStatus();
+  }, []);
 
   // Show status bar when notification count changes
   React.useEffect(() => {
@@ -157,6 +163,14 @@ const CustomStatusBar = ({
         </View>
       </View>
 
+      {/* Status Info Button */}
+      <TouchableOpacity
+        style={styles.infoButton}
+        onPress={showCurrentStatus}
+        activeOpacity={0.7}>
+        <Ionicons name="information-circle-outline" size={16} color={textColor} />
+      </TouchableOpacity>
+
       {/* Close Button */}
       <TouchableOpacity
         style={styles.closeButton}
@@ -202,6 +216,10 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(12),
     fontFamily: Fonts.Medium,
     marginLeft: scale(4),
+  },
+  infoButton: {
+    padding: scale(4),
+    marginRight: scale(8),
   },
   closeButton: {
     padding: scale(4),

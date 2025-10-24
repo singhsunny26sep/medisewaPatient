@@ -18,6 +18,7 @@ interface StatusBarContextType {
   showWarning: (message: string, duration?: number) => void;
   hideAfterDelay: (delay?: number) => void;
   reset: () => void;
+  showCurrentStatus: () => void;
 }
 
 const StatusBarContext = createContext<StatusBarContextType | undefined>(undefined);
@@ -55,6 +56,20 @@ export const StatusBarProvider: React.FC<StatusBarProviderProps> = ({children}) 
         setTimeout(() => {
           setShowStatusBar(false);
         }, 5000);
+      }
+    });
+
+    // Get initial network state
+    NetInfo.fetch().then(state => {
+      setIsConnected(state.isConnected ?? false);
+      setConnectionType(state.type || 'unknown');
+      // Show status bar initially to display current connection status
+      setShowStatusBar(true);
+      // Auto-hide after 3 seconds if connected
+      if (state.isConnected) {
+        setTimeout(() => {
+          setShowStatusBar(false);
+        }, 3000);
       }
     });
 
@@ -125,6 +140,17 @@ export const StatusBarProvider: React.FC<StatusBarProviderProps> = ({children}) 
     setUserStatus('online');
   };
 
+  // Method to show current status
+  const showCurrentStatus = () => {
+    setShowStatusBar(true);
+    // Auto-hide after 5 seconds if connected
+    if (isConnected) {
+      setTimeout(() => {
+        setShowStatusBar(false);
+      }, 5000);
+    }
+  };
+
   const value: StatusBarContextType = {
     isConnected,
     connectionType,
@@ -141,6 +167,7 @@ export const StatusBarProvider: React.FC<StatusBarProviderProps> = ({children}) 
     showWarning,
     hideAfterDelay,
     reset,
+    showCurrentStatus,
   };
 
   return (

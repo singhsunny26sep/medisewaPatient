@@ -66,6 +66,8 @@ export default function NearestLabPage({navigation}) {
 
   const fetchLocation = async () => {
     try {
+      setLocationName('Fetching location...');
+
       const permissionStatus = await check(
         PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
       );
@@ -77,44 +79,53 @@ export default function NearestLabPage({navigation}) {
 
         if (requestResult !== RESULTS.GRANTED) {
           setError('Location permission not granted');
-          setLocationName('');
+          setLocationName('Location not available');
           return;
         }
       } else if (permissionStatus !== RESULTS.GRANTED) {
         setError('Location permission not granted');
-        setLocationName('');
+        setLocationName('Location not available');
         return;
       }
 
       const position = await new Promise((resolve, reject) => {
-        Geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 10000,
-        });
+        Geolocation.getCurrentPosition(
+          resolve,
+          reject,
+          {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 10000,
+          }
+        );
       });
 
       const {latitude, longitude} = position.coords;
 
-      const response = await Instance.get(
-        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_API_KEY}`,
-      );
-
-      if (response.data.results.length > 0) {
-        const location = extractCityStatePincode(
-          response.data.results[0].address_components,
+      try {
+        const response = await Instance.get(
+          `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_API_KEY}`,
         );
-        setLocationName(location);
+
+        if (response.data && response.data.results && response.data.results.length > 0) {
+          const location = extractCityStatePincode(
+            response.data.results[0].address_components,
+          );
+          setLocationName(location || 'Unknown location');
+          setError(null);
+        } else {
+          setLocationName('Unknown location');
+          setError(null);
+        }
+      } catch (apiError) {
+        console.error('Google API Error:', apiError);
+        setLocationName('Current location');
         setError(null);
-      } else {
-        setError('Unable to fetch location name');
-        setLocationName('');
       }
     } catch (err) {
       console.error('Error fetching location:', err);
-      setError('Error fetching location');
-      setLocationName('');
-    } finally {
+      setError(null);
+      setLocationName('Current location');
     }
   };
 
@@ -124,21 +135,37 @@ export default function NearestLabPage({navigation}) {
 
     const fetchLabs = async () => {
       try {
+        setLoading(true);
         const token = await AsyncStorage.getItem('userToken');
-        const {data} = await Instance.get('/labs', {
+
+        if (!token) {
+          setError('User not authenticated');
+          setLoading(false);
+          return;
+        }
+
+        const response = await Instance.get('/labs', {
           headers: {
-            Authorization: token,
+            Authorization: `Bearer ${token}`,
           },
         });
 
-        if (data && isMounted) {
-          setLabs(data.data);
-          setFilteredLabs(data.data);
+        if (response && response.data && isMounted) {
+          const labsData = response.data.data || [];
+          setLabs(labsData);
+          setFilteredLabs(labsData);
           setError(null);
+        } else {
+          setLabs([]);
+          setFilteredLabs([]);
+          setError('No labs found');
         }
       } catch (err) {
+        console.error('Error fetching labs:', err);
         if (isMounted) {
-          setError(err.message || 'Something went wrong');
+          setError('Unable to load labs. Please try again.');
+          setLabs([]);
+          setFilteredLabs([]);
         }
       } finally {
         if (isMounted) {
@@ -169,59 +196,101 @@ export default function NearestLabPage({navigation}) {
   }, [searchQuery, labs]);
 
   const handleLocationSelect = async (data, details) => {
-    const location = extractCityStatePincode(details.address_components);
-    // console.log('Selected Location:', location);
-    setLocationModalVisible(false);
-    setLocationName(location);
-
-    const locationKeyword = location.split(',')[0];
-
     try {
-      const requestUrl = `/location?search=${encodeURIComponent(
-        locationKeyword,
-      )}`;
-      // console.log('Request URL:', requestUrl);
+      if (!details || !details.address_components) {
+        setLocationModalVisible(false);
+        setLocationName('Invalid location');
+        return;
+      }
 
-      const response = await Instance.get(requestUrl);
-      const locationLabs = response.data;
+      const location = extractCityStatePincode(details.address_components);
+      setLocationModalVisible(false);
+      setLocationName(location || 'Selected location');
 
-      if (locationLabs.length > 0) {
-        setFilteredLabs(locationLabs);
+      if (!location) {
+        setFilteredLabs(labs);
         setNoServiceAvailable(false);
-      } else {
-        setFilteredLabs([]);
-        setNoServiceAvailable(true);
+        return;
+      }
+
+      const locationKeyword = location.split(',')[0]?.trim();
+
+      if (!locationKeyword) {
+        setFilteredLabs(labs);
+        setNoServiceAvailable(false);
+        return;
+      }
+
+      try {
+        const requestUrl = `/location?search=${encodeURIComponent(locationKeyword)}`;
+
+        const response = await Instance.get(requestUrl);
+
+        if (response && response.data) {
+          const locationLabs = Array.isArray(response.data) ? response.data : [];
+
+          if (locationLabs.length > 0) {
+            setFilteredLabs(locationLabs);
+            setNoServiceAvailable(false);
+          } else {
+            setFilteredLabs([]);
+            setNoServiceAvailable(true);
+          }
+        } else {
+          setFilteredLabs(labs);
+          setNoServiceAvailable(false);
+        }
+      } catch (apiError) {
+        console.error('Error fetching labs for location:', apiError);
+        setFilteredLabs(labs);
+        setNoServiceAvailable(false);
       }
     } catch (error) {
-      console.error(
-        'Error fetching labs for location:',
-        error.response ? error.response.data : error.message,
-      );
-      setNoServiceAvailable(true);
+      console.error('Error in location select:', error);
+      setLocationModalVisible(false);
+      setLocationName('Error selecting location');
+      setFilteredLabs(labs);
+      setNoServiceAvailable(false);
     }
   };
 
   const renderLabItem = useCallback(
     ({item}) => {
-      const imageUri =
-        item.image && item.image.startsWith('http')
-          ? item.image
-          : DEFAULT_IMAGE;
-      const LogoimageUri =
-        item.image && item.image.startsWith('http')
-          ? item.image
-          : DEFAULT_LogoIMAGE;
+      // Safety check for item data
+      if (!item) {
+        return null;
+      }
+
+      const imageUri = (item.image && typeof item.image === 'string' && item.image.startsWith('http'))
+        ? item.image
+        : DEFAULT_IMAGE;
+
+      const LogoimageUri = (item.image && typeof item.image === 'string' && item.image.startsWith('http'))
+        ? item.image
+        : DEFAULT_LogoIMAGE;
+
+      const labName = item.name || 'Unknown Lab';
+      const city = item.address?.city || 'Unknown City';
+      const state = item.address?.state || 'Unknown State';
 
       return (
         <TouchableOpacity
           style={styles.labItem}
-          onPress={() =>
-            navigation.navigate('LabDetailsPage', {
-              lab: item,
-              locationAddress: locationName,
-            })
-          }>
-          <Image style={styles.imageStyle} source={{uri: imageUri}} />
+          onPress={() => {
+            if (item && item._id) {
+              navigation.navigate('LabDetailsPage', {
+                lab: item,
+                locationAddress: locationName,
+              });
+            } else {
+              console.error('Invalid lab data:', item);
+            }
+          }}>
+          <Image
+            style={styles.imageStyle}
+            source={{uri: imageUri}}
+            defaultSource={require('../../../assets/NearestLabLogo.jpg')}
+          />
           <View>
             <View style={styles.NameAddView}>
               <View style={styles.LogoView}>
@@ -229,25 +298,25 @@ export default function NearestLabPage({navigation}) {
                   source={{uri: LogoimageUri}}
                   style={styles.LogoImageStyle}
                   resizeMode="cover"
+                  defaultSource={require('../../../assets/NearestLabLogo.jpg')}
                 />
               </View>
               <View style={styles.LabAddressView}>
                 <Fontisto name="laboratory" size={20} color={COLORS.ARSENIC} />
-                <Text style={styles.labName}>{item.name}</Text>
+                <Text style={styles.labName} numberOfLines={1}>{labName}</Text>
               </View>
               <View style={styles.LabAddressView}>
                 <Icon name="location" size={20} color={COLORS.ARSENIC} />
-                <Text
-                  style={
-                    styles.labAddress
-                  }>{`${item.address.city}, ${item.address.state}`}</Text>
+                <Text style={styles.labAddress} numberOfLines={1}>
+                  {`${city}, ${state}`}
+                </Text>
               </View>
             </View>
           </View>
         </TouchableOpacity>
       );
     },
-    [navigation],
+    [navigation, locationName],
   );
 
   const keyExtractor = item => {
@@ -290,12 +359,43 @@ export default function NearestLabPage({navigation}) {
       {loading ? (
         <View style={styles.loader}>
           <ActivityIndicator size="large" color={COLORS.DODGERBLUE} />
+          <Text style={styles.loadingText}>Loading labs...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={50} color={COLORS.red} />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              setError(null);
+              fetchLocation();
+            }}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : noServiceAvailable ? (
+        <View style={styles.noServiceContainer}>
+          <Ionicons name="search" size={50} color={COLORS.gray} />
+          <Text style={styles.noServiceText}>No labs found in this area</Text>
+          <Text style={styles.noServiceSubtext}>Try selecting a different location</Text>
+          <TouchableOpacity
+            style={styles.changeLocationButton}
+            onPress={() => setLocationModalVisible(true)}>
+            <Text style={styles.changeLocationText}>Change Location</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
           data={filteredLabs}
           renderItem={renderLabItem}
           keyExtractor={keyExtractor}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No labs available</Text>
+            </View>
+          }
+          showsVerticalScrollIndicator={false}
         />
       )}
       <Modal
@@ -313,6 +413,14 @@ export default function NearestLabPage({navigation}) {
                 language: 'en',
               }}
               styles={styles.autocomplete}
+              onFail={(error) => {
+                console.error('Google Places Error:', error);
+              }}
+              onTimeout={() => {
+                console.error('Google Places Timeout');
+              }}
+              enablePoweredByContainer={false}
+              minLength={2}
             />
             <TouchableOpacity
               style={styles.modalCloseButton}
@@ -507,5 +615,79 @@ const styles = StyleSheet.create({
     predefinedPlacesDescription: {
       color: COLORS.ARSENIC,
     },
+  },
+  loadingText: {
+    fontSize: moderateScale(16),
+    color: COLORS.gray,
+    marginTop: verticalScale(10),
+    fontFamily: Fonts.Medium,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: scale(20),
+  },
+  errorText: {
+    fontSize: moderateScale(16),
+    color: COLORS.red,
+    textAlign: 'center',
+    marginTop: verticalScale(10),
+    marginBottom: verticalScale(20),
+    fontFamily: Fonts.Medium,
+  },
+  retryButton: {
+    backgroundColor: COLORS.DODGERBLUE,
+    paddingHorizontal: scale(20),
+    paddingVertical: verticalScale(10),
+    borderRadius: moderateScale(8),
+  },
+  retryText: {
+    color: COLORS.white,
+    fontSize: moderateScale(16),
+    fontFamily: Fonts.Medium,
+  },
+  noServiceContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: scale(20),
+  },
+  noServiceText: {
+    fontSize: moderateScale(18),
+    color: COLORS.gray,
+    textAlign: 'center',
+    marginTop: verticalScale(10),
+    fontFamily: Fonts.Medium,
+  },
+  noServiceSubtext: {
+    fontSize: moderateScale(14),
+    color: COLORS.gray,
+    textAlign: 'center',
+    marginTop: verticalScale(5),
+    marginBottom: verticalScale(20),
+    fontFamily: Fonts.Regular,
+  },
+  changeLocationButton: {
+    backgroundColor: COLORS.DODGERBLUE,
+    paddingHorizontal: scale(20),
+    paddingVertical: verticalScale(10),
+    borderRadius: moderateScale(8),
+  },
+  changeLocationText: {
+    color: COLORS.white,
+    fontSize: moderateScale(16),
+    fontFamily: Fonts.Medium,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: verticalScale(50),
+  },
+  emptyText: {
+    fontSize: moderateScale(16),
+    color: COLORS.gray,
+    fontFamily: Fonts.Medium,
   },
 });

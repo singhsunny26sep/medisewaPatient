@@ -29,7 +29,6 @@ class NotificationService {
       this.handleNotificationTap(remoteMessage);
     });
 
-    // Handle initial notification when app is opened from terminated state
     messaging()
       .getInitialNotification()
       .then((remoteMessage) => {
@@ -42,7 +41,6 @@ class NotificationService {
 
   async handleBackgroundCallNotification(remoteMessage) {
     const { data } = remoteMessage;
-
     if (data?.type === 'incoming_call') {
       console.log('Showing system notification for incoming call');
 
@@ -80,6 +78,7 @@ class NotificationService {
   }
 
   // Method to show incoming call notification (for server-side integration)
+  
   getCallNotificationPayload(callData) {
     const { callId, callType, callerName, callerId } = callData;
 

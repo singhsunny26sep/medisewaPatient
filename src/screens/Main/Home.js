@@ -1,4 +1,4 @@
-import React, {useRef, useEffect, useState, useCallback, useMemo} from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -18,26 +18,27 @@ import LinearGradient from 'react-native-linear-gradient';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import {COLORS} from '../../Theme/Colors';
-import {scale, verticalScale, moderateScale} from '../../utils/Scaling';
+import { COLORS } from '../../Theme/Colors';
+import { scale, verticalScale, moderateScale } from '../../utils/Scaling';
 import ReusableView from '../../component/ReusableView';
 import RecommendedLabs from '../../component/HomeCompo/RecommendedLabs';
 import Question from '../../component/HomeCompo/Question';
 import TrustedBanner from '../../component/HomeCompo/TrustedBanner';
-import {StatusBar} from 'react-native';
+import { StatusBar } from 'react-native';
 import CustomModal from '../../component/HomeCompo/CustomModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {Fonts} from '../../Theme/Fonts';
-import {Container} from '../../component/Container/Container';
+import { Fonts } from '../../Theme/Fonts';
+import { Container } from '../../component/Container/Container';
 import strings from '../../../localization';
-import {useSelector} from 'react-redux';
+import { useSelector } from 'react-redux';
 import { Instance } from '../../api/Instance';
 import LocationModal from '../../component/LocationModal';
-import {useUserLocation} from '../../utils/useUserLocation';
+import { useUserLocation } from '../../utils/useUserLocation';
 import { requestUserPermission } from '../../utils/Firebase';
 import fcmService from '../../utils/fcmService';
+import { useStatusBar } from '../../utils/StatusBarContext';
 
-const {width} = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 // Debounce utility function
 const debounce = (func, wait) => {
@@ -52,7 +53,7 @@ const debounce = (func, wait) => {
   };
 };
 
-export default function Home({navigation}) {
+export default function Home({ navigation }) {
   const scrollViewRef = useRef(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -67,6 +68,7 @@ export default function Home({navigation}) {
   const [selectedLocation, setSelectedLocation] = useState(null);
 
   const language = useSelector(state => state.Common.language);
+  const { showNotification, showSuccess, showError } = useStatusBar();
 
   useEffect(() => {
     const getProfileData = async () => {
@@ -74,11 +76,11 @@ export default function Home({navigation}) {
         setLoading(true);
         setError(null);
         const token = await AsyncStorage.getItem('userToken');
+        console.log(token, "this is newtoken")
         if (!token) {
           setLoading(false);
           return;
         }
-
         const response = await Instance.get('/api/v1/users/profile', {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -112,7 +114,7 @@ export default function Home({navigation}) {
         console.log('FCM Error:', error);
       }
     };
-  
+
     getFCMToken();
   }, []);
 
@@ -171,7 +173,6 @@ export default function Home({navigation}) {
           setLoading(false);
           return;
         }
-
         const response = await Instance.get('/api/v1/users/profile', {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -232,25 +233,26 @@ export default function Home({navigation}) {
       backgroundColor={COLORS.white}>
       <View style={styles.container}>
         <LinearGradient
-          colors={['#64B5F6', '#42A5F5', '#2196F3']}
-          start={{x: 0, y: 0}}  
-          end={{x: 1, y: 1}}
+          colors={['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={styles.headerGradient}>
           <View style={styles.headerContent}>
             <View style={styles.welcomeSection}>
               <View style={styles.profileSection}>
                 <LinearGradient
-                  colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.15)']}
+                  colors={['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.2)']}
                   style={styles.profileIconContainer}>
                   <FontAwesome
                     name="user-circle"
                     size={40}
                     color={COLORS.white}
                   />
+                  <View style={styles.profileBadge} />
                 </LinearGradient>
               </View>
               <View style={styles.welcomeTextContainer}>
-                <Text style={styles.welcomeText}>{strings.welcome},</Text>
+                {/* <Text style={styles.welcomeText}>{strings.welcome},</Text> */}
                 {loading ? (
                   <View style={styles.loadingContainer}>
                     <ActivityIndicator size="small" color={COLORS.white} />
@@ -267,15 +269,26 @@ export default function Home({navigation}) {
                 )}
               </View>
             </View>
-            <TouchableOpacity
-              onPress={() => setLocationModalVisible(true)}
-              style={styles.locationButton}>
-              <MaterialIcons name="location-pin" size={16} color={COLORS.white} />
-              <Text style={styles.locationText} numberOfLines={1} ellipsizeMode="tail">
-                {selectedLocation || defaultLocation || 'Select Location'}
-              </Text>
-              <MaterialIcons name="expand-more" size={20} color={COLORS.white} />
-            </TouchableOpacity>
+            <View style={styles.headerRight}>
+              <TouchableOpacity
+                onPress={() => showNotification(1, 'New message from doctor')}
+                style={styles.notificationButton}>
+                <LinearGradient
+                  colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.15)']}
+                  style={styles.notificationIconContainer}>
+                  <Ionicons name="notifications" size={20} color={COLORS.white} />
+                </LinearGradient>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setLocationModalVisible(true)}
+                style={styles.locationButton}>
+                <MaterialIcons name="location-pin" size={16} color={COLORS.white} />
+                <Text style={styles.locationText} numberOfLines={1} ellipsizeMode="tail">
+                  {selectedLocation || defaultLocation || 'Select Location'}
+                </Text>
+                <MaterialIcons name="expand-more" size={20} color={COLORS.white} />
+              </TouchableOpacity>
+            </View>
           </View>
         </LinearGradient>
 
@@ -307,12 +320,14 @@ export default function Home({navigation}) {
           disableScrollViewPanResponder={false}
         >
           <View style={styles.searchContainer}>
-            <View style={styles.searchBar}>
-              <Ionicons name="search" size={20} color={COLORS.ARSENIC} />
+            <LinearGradient
+              colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.8)']}
+              style={styles.searchBar}>
+              <Ionicons name="search" size={20} color={COLORS.DODGERBLUE} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search for doctors, medicines..."
-                placeholderTextColor="#999"
+                placeholderTextColor="#666"
                 value={searchText}
                 onChangeText={debouncedSearch}
                 returnKeyType="search"
@@ -324,39 +339,51 @@ export default function Home({navigation}) {
                 <TouchableOpacity
                   onPress={() => setSearchText('')}
                   style={styles.clearButton}>
-                  <Ionicons name="close-circle" size={20} color="#999" />
+                  <Ionicons name="close-circle" size={20} color={COLORS.DODGERBLUE} />
                 </TouchableOpacity>
               )}
-            </View>
+            </LinearGradient>
           </View>
           <View style={styles.servicesContainer}>
-            <Text style={styles.sectionTitle}>{strings.OurServices}</Text>
-            <View style={styles.servicesGrid}>
-              <ReusableView
-                text={strings.OnlineDoctorConsultations}
-                imageSource={require('../../assets/Dr10mint.jpg')}
-                imageStyle={styles.DrImageStyle}
-                navigation={() => navigation.navigate('FindDoctor')}
-              />
-              <ReusableView
-                text={strings.LabTestsAndScans}
-                imageSource={require('../../assets/NearestLabLogo.jpg')}
-                navigation={() => navigation.navigate('NearestLabPage')}
-                imageStyle={styles.LabImageStyle}
-              />
-              <ReusableView
-                text={"Prescription & Reports"}
-                imageSource={require('../../assets/Reports.jpg')}
-                imageStyle={styles.ReportImageStyle}
-                navigation={() => navigation.navigate('Reports')} 
-              />                         
-              <ReusableView
-                text={strings.OrderMedicines}
-                imageSource={require('../../assets/MedicinePng.png')}
-                navigation={() => navigation.navigate('MedicineCategory')}
-                imageStyle={styles.ImageStyle3}
-              />
-            </View>
+            <LinearGradient
+              colors={['rgba(102, 126, 234, 0.1)', 'rgba(118, 75, 162, 0.1)']}
+              style={styles.servicesBackground}>
+              <Text style={styles.sectionTitle}>{strings.OurServices}</Text>
+              <View style={styles.servicesGrid}>
+                <View style={styles.serviceItem}>
+                  <ReusableView
+                    text={strings.OnlineDoctorConsultations}
+                    imageSource={require('../../assets/Dr10mint.jpg')}
+                    imageStyle={styles.DrImageStyle}
+                    navigation={() => navigation.navigate('FindDoctor')}
+                  />
+                </View>
+                <View style={styles.serviceItem}>
+                  <ReusableView
+                    text={strings.LabTestsAndScans}
+                    imageSource={require('../../assets/NearestLabLogo.jpg')}
+                    navigation={() => navigation.navigate('NearestLabPage')}
+                    imageStyle={styles.LabImageStyle}
+                  />
+                </View>
+                <View style={styles.serviceItem}>
+                  <ReusableView
+                    text={"Prescription & Reports"}
+                    imageSource={require('../../assets/Reports.jpg')}
+                    imageStyle={styles.ReportImageStyle}
+                    navigation={() => navigation.navigate('Reports')}
+                  />
+                </View>
+                <View style={styles.serviceItem}>
+                  <ReusableView
+                    text={strings.OrderMedicines}
+                    imageSource={require('../../assets/MedicinePng.png')}
+                    navigation={() => navigation.navigate('MedicineCategory')}
+                    imageStyle={styles.ImageStyle3}
+                  />
+                </View>
+              </View>
+            </LinearGradient>
           </View>
           <View style={styles.labBannerContainer}>
             <LinearGradient
@@ -390,6 +417,18 @@ export default function Home({navigation}) {
           </View>
           <TrustedBanner />
         </Animated.ScrollView>
+
+        {/* Floating Action Button */}
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => showSuccess('Quick action triggered!', 2000)}
+          activeOpacity={0.8}>
+          <LinearGradient
+            colors={['#667eea', '#764ba2']}
+            style={styles.fabGradient}>
+            <Ionicons name="chatbubble-ellipses" size={24} color={COLORS.white} />
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
 
       <CustomModal
@@ -415,8 +454,7 @@ const styles = StyleSheet.create({
   headerGradient: {
     paddingTop: verticalScale(20),
     paddingBottom: verticalScale(20),
-    borderBottomLeftRadius: moderateScale(30),
-    borderBottomRightRadius: moderateScale(30),
+
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: {
@@ -446,6 +484,22 @@ const styles = StyleSheet.create({
     borderRadius: moderateScale(15),
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  profileBadge: {
+    position: 'absolute',
+    top: scale(5),
+    right: scale(5),
+    width: scale(12),
+    height: scale(12),
+    borderRadius: scale(6),
+    backgroundColor: COLORS.green,
+    borderWidth: 2,
+    borderColor: COLORS.white,
   },
   welcomeTextContainer: {
     flex: 1,
@@ -461,8 +515,21 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.Bold,
     fontSize: moderateScale(18),
     textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: {width: 0, height: 1},
+    textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  notificationButton: {
+    marginRight: scale(10),
+  },
+  notificationIconContainer: {
+    padding: moderateScale(10),
+    borderRadius: moderateScale(15),
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   locationButton: {
     flexDirection: 'row',
@@ -472,7 +539,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(8),
     borderRadius: moderateScale(20),
     maxWidth: scale(150),
-    marginRight:scale(2)
+    marginRight: scale(2)
   },
   locationText: {
     flex: 1,
@@ -514,7 +581,7 @@ const styles = StyleSheet.create({
   loadingText: {
     color: COLORS.white,
     fontFamily: Fonts.Regular,
-    fontSize: moderateScale(16),
+    fontSize: moderateScale(8),
     marginLeft: scale(8),
   },
   errorContainer: {
@@ -533,15 +600,14 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
     borderRadius: moderateScale(12),
     paddingHorizontal: scale(15),
     paddingVertical: verticalScale(12),
-    elevation: 3,
+    elevation: 5,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   searchInput: {
     flex: 1,
@@ -557,6 +623,12 @@ const styles = StyleSheet.create({
   servicesContainer: {
     paddingHorizontal: scale(20),
     marginTop: verticalScale(10),
+
+  },
+  servicesBackground: {
+    padding: scale(15),
+    borderRadius: moderateScale(15),
+    marginBottom: verticalScale(10),
   },
   sectionTitle: {
     fontFamily: Fonts.Bold,
@@ -568,6 +640,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+  },
+  serviceItem: {
+    width: '48%',
+    marginBottom: verticalScale(15),
   },
   labBannerContainer: {
     paddingHorizontal: scale(20),
@@ -645,5 +721,22 @@ const styles = StyleSheet.create({
     width: scale(61),
     resizeMode: 'cover',
     borderRadius: moderateScale(10),
+  },
+  fab: {
+    position: 'absolute',
+    bottom: verticalScale(80),
+    right: scale(20),
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
+  fabGradient: {
+    width: scale(56),
+    height: scale(56),
+    borderRadius: moderateScale(28),
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

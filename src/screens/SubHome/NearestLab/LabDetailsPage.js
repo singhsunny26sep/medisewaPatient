@@ -79,10 +79,20 @@ export default function LabDetailsPage({route, navigation}) {
   };
 
   const renderTest = ({item}) => {
+    // Safety check for item data
+    if (!item) {
+      return null;
+    }
+
+    const labCategory = item.labCategory || {};
+    const testName = labCategory.name || 'Unknown Test';
+    const testPrice = item.price || 0;
+    const imageUrl = (labCategory.image && typeof labCategory.image === 'string') ? labCategory.image : TestImage;
+
     const isInCart = cart.some(
-      cartItem => cartItem.labCategory.name === item.labCategory.name,
+      cartItem => cartItem && cartItem.labCategory?.name === testName,
     );
-    const imageUrl = item.labCategory.image;
+
     return (
       <View style={styles.MaintestItemContainer}>
         <LinearGradient
@@ -92,33 +102,33 @@ export default function LabDetailsPage({route, navigation}) {
           style={styles.testItemContainer}>
           <Image
             style={styles.testImage}
-            source={{uri: item.labCategory.image}}
+            source={{uri: imageUrl}}
             resizeMode="contain"
+            defaultSource={require('../../../assets/Reports.jpg')}
           />
           <View style={styles.testDetailsContainer}>
             <View style={styles.testNameView}>
-              <Text style={styles.testName}>{item.labCategory.name}</Text>
-              <Text style={styles.testPrice}>Price: ₹ {item.price} /-</Text>
+              <Text style={styles.testName} numberOfLines={2}>{testName}</Text>
+              <Text style={styles.testPrice}>Price: ₹ {testPrice} /-</Text>
             </View>
-            <View
-              style={{
-                justifyContent: 'center',
-              }}>
+            <View style={{justifyContent: 'center'}}>
               {isInCart ? (
                 <TouchableOpacity
-                  onPress={() => removeFromCart(item)}
-                  accessibilityLabel="Remove from cart">
+                  onPress={() => item && item._id && removeFromCart(item)}
+                  accessibilityLabel="Remove from cart"
+                  disabled={!item || !item._id}>
                   <Icon
                     name="trash-bin"
                     size={moderateScale(24)}
-                    color={COLORS.red}
+                    color={item && item._id ? COLORS.red : COLORS.gray}
                   />
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
-                  onPress={() => addToCart(item)}
-                  style={styles.addButton}
-                  accessibilityLabel="Add to cart">
+                  onPress={() => item && item._id && addToCart(item)}
+                  style={[styles.addButton, (!item || !item._id) && styles.disabledButton]}
+                  accessibilityLabel="Add to cart"
+                  disabled={!item || !item._id}>
                   <MaterialIcons
                     name="add"
                     size={moderateScale(16)}
@@ -135,12 +145,34 @@ export default function LabDetailsPage({route, navigation}) {
   };
 
   const handleProceedToBook = () => {
+    if (!lab) {
+      Alert.alert('Error', 'Lab information is missing');
+      return;
+    }
+
+    if (!lab._id) {
+      Alert.alert('Error', 'Lab ID is missing');
+      return;
+    }
+
+    if (cart.length === 0) {
+      Alert.alert('Error', 'Please select at least one test');
+      return;
+    }
+
+    const validTests = cart.filter(item => item && item._id);
+
+    if (validTests.length === 0) {
+      Alert.alert('Error', 'No valid tests selected');
+      return;
+    }
+
     navigation.navigate('BookAppointment', {
-      labName: lab.name,
+      labName: lab.name || 'Unknown Lab',
       labId: lab._id,
-      selectedTestIds: cart.map(item => item._id),
-      selectedTestsname: cart.map(item => item.labCategory.name),
-      locationAddress,
+      selectedTestIds: validTests.map(item => item._id),
+      selectedTestsname: validTests.map(item => item.labCategory?.name || 'Unknown Test'),
+      locationAddress: locationAddress || 'Unknown Location',
     });
   };
 
@@ -148,8 +180,9 @@ export default function LabDetailsPage({route, navigation}) {
     <View style={styles.headerContainer}>
       <ImageBackground
         style={styles.labImage}
-        source={{uri: lab.image || DEFAULT_IMAGE}}
-        resizeMode="contain">
+        source={{uri: (lab?.image && typeof lab.image === 'string') ? lab.image : DEFAULT_IMAGE}}
+        resizeMode="contain"
+        defaultSource={require('../../../assets/NearestLabLogo.jpg')}>
         <View style={styles.headerSubContainer}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Icon
@@ -163,7 +196,7 @@ export default function LabDetailsPage({route, navigation}) {
           </TouchableOpacity>
         </View>
       </ImageBackground>
-      <Text style={styles.title}>{lab.name}</Text>
+      <Text style={styles.title}>{lab?.name || 'Lab Details'}</Text>
       <View style={styles.TouchableTxt}>
         <Icon
           name="flask-outline"
@@ -194,7 +227,7 @@ export default function LabDetailsPage({route, navigation}) {
                 <Text style={styles.AddressTxt}>Address</Text>
               </View>
               <Text style={styles.modalText}>
-                {`: ${lab.address.address}, ${lab.address.city}, ${lab.address.state} - ${lab.address.pinCode}`}
+                {`: ${lab?.address?.address || 'N/A'}, ${lab?.address?.city || 'N/A'}, ${lab?.address?.state || 'N/A'} - ${lab?.address?.pinCode || 'N/A'}`}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -209,7 +242,7 @@ export default function LabDetailsPage({route, navigation}) {
                 />
                 <Text style={styles.AddressTxt}>Mobile</Text>
               </View>
-              <Text style={styles.modalText}>{`: ${lab.contactNumber}`}</Text>
+              <Text style={styles.modalText}>{`: ${lab?.contactNumber || 'N/A'}`}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={toggleModal} style={styles.closeButton}>
               <Text style={styles.closeButtonText}>Close</Text>
@@ -229,7 +262,7 @@ export default function LabDetailsPage({route, navigation}) {
         ListHeaderComponent={renderHeader}
         data={lab.testsOffered}
         renderItem={renderTest}
-        keyExtractor={item => item._id.toString()}
+        keyExtractor={item => item._id ? item._id.toString() : Math.random().toString()}
         contentContainerStyle={styles.scrollViewContent}
         ListEmptyComponent={
           <Text style={styles.noTests}>No tests offered</Text>
@@ -360,6 +393,10 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontFamily:Fonts.Light,
     fontSize: moderateScale(14),
+  },
+  disabledButton: {
+    backgroundColor: COLORS.gray,
+    borderColor: COLORS.gray,
   },
   noTests: {
     fontSize: moderateScale(16),

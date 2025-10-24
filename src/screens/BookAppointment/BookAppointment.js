@@ -19,9 +19,6 @@ import CustomRadioButton from '../../component/CustomRadioButton';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {StatusBar} from 'react-native';
-import Base64 from 'react-native-base64';
-import sha256 from 'sha256';
-// import PhonePePaymentSDK from 'react-native-phonepe-pg';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import {Container} from '../../component/Container/Container';
 import CustomHeader from '../../component/header/CustomHeader';
@@ -29,9 +26,6 @@ import CustomTextInput from '../../component/texinput/CustomTextInput';
 import {Fonts} from '../../Theme/Fonts';
 
 export default function BookAppointment({route, navigation}) {
-  const environment = 'SANDBOX';
-  const appId = null;
-  const enableLogging = true;
   // const amount = 400;
 
   const {labId, selectedTestIds, labName, selectedTestsname, locationAddress} =
@@ -96,132 +90,6 @@ export default function BookAppointment({route, navigation}) {
     return `${merchantPrefix}${timestamp}${random}`;
   };
 
-  const handlePayment = async (
-    merchantid,
-    generateTransactionId,
-    genrateMerchantUserId,
-    amount,
-    callbackUrl,
-    paymentInstrumentType,
-    saltKey,
-    saltIndex,
-  ) => {
-    console.log(
-      merchantid,
-      generateTransactionId,
-      genrateMerchantUserId,
-      amount,
-      callbackUrl,
-      paymentInstrumentType,
-      saltKey,
-      saltIndex,
-    );
-
-    /* PhonePePaymentSDK.init(environment, merchantid, appId, enableLogging)
-      .then(result => {
-        // if (!result) {
-        //   Alert.alert('Error', 'Failed to initialize PhonePe SDK.');
-        // }
-        console.log(result, 'iniii');
-        const requestBody = {
-          merchantId: merchantid,
-          // PGTESTPAYUAT86
-          merchantTransactionId: `MID${generateTransactionId}`,
-          merchantUserId: '',
-          amount: amount,
-          mobileNumber: null,
-          callbackUrl: '',
-          paymentInstrument: {
-            type: paymentInstrumentType,
-          },
-        };
-        const salt_key = saltKey;
-        const salt_index = saltIndex;
-        const payload = JSON.stringify(requestBody);
-        const payload_main = Base64.encode(payload);
-        const string = payload_main + '/pg/v1/pay' + salt_key;
-
-        const checksum = sha256(string) + '###' + salt_index;
-        // const checksum = checkSum
-        PhonePePaymentSDK.startTransaction(payload_main, checksum, null, null)
-          .then(async resp => {
-            console.log(resp, 'startt');
-            const userToken = await AsyncStorage.getItem('userToken');
-            console.log('User Token =', userToken);
-            if (!userToken) {
-              Alert.alert('Error', 'User token not found. Please login again.');
-              setLoading(false);
-              return;
-            }
-            const payload = {
-              merchantId: merchantid,
-              merchantTransactionId: generateTransactionId,
-              status: resp?.status,
-            };
-            if (resp?.status == 'SUCCESS') {
-              // Alert.alert('Payment Successfully')
-              try {
-                // console.log('Sending data:', JSON.stringify(appointmentData, null, 2));
-
-                const response = await Instance.post(
-                  '/api/payment-callback',
-                  payload,
-                  {
-                    headers: {
-                      authorization: userToken,
-                    },
-                  },
-                );
-
-                console.log(response?.data, 'appoinment api callback:');
-                if (response?.data?.status == 'PAYMENT_SUCCESS') {
-                  setpaymentSuccess(true);
-                  setLoading(false);
-                  // Alert.alert('Payment Successfully')
-                } else {
-                  Alert.alert('Payment Failed');
-                }
-              } catch (error) {
-                console.error('Error details:', error);
-                setLoading(false);
-
-                if (error.response) {
-                  console.error('Server Error:', error.response.data);
-                  const message =
-                    error.response.data?.message ||
-                    'An unexpected server error occurred';
-
-                  Alert.alert(
-                    'Server Error',
-                    `Status: ${error.response.status}, Message: ${message}`,
-                  );
-                } else if (error.request) {
-                  console.error('Network Error:', error.request);
-                  Alert.alert(
-                    'Network Error',
-                    'No response received from the server.',
-                  );
-                } else {
-                  console.error('Error:', error.message);
-                  Alert.alert('Error', `Request failed: ${error.message}`);
-                }
-              }
-            } else if (resp?.status == 'FAILURE') {
-              Alert.alert('Payment Failed');
-              setLoading(false);
-            }
-          })
-          .catch(error => {
-            console.log(error);
-            setLoading(false);
-          });
-      })
-      .catch(error => {
-        console.log(error);
-        setLoading(false);
-        Alert.alert('Error', `SDK initialization failed: ${error.message}`);
-      })*/
-  };
 
   const handleInputChange = (name, value) => {
     setFormData(prevState => ({...prevState, [name]: value}));
@@ -301,18 +169,6 @@ export default function BookAppointment({route, navigation}) {
         },
       });
 
-      // console.log(response.data?.phonepeDetails?.payload, 'Response appoinment api:' ,response.data?.phonepeDetails?.saltKey, response.data?.phonepeDetails?.saltIndex);
-
-      handlePayment(
-        response.data?.phonepeDetails?.payload?.merchantId,
-        response.data?.phonepeDetails?.payload?.merchantTransactionId,
-        response.data?.phonepeDetails?.payload?.merchantUserId,
-        response.data?.phonepeDetails?.payload?.amount,
-        response.data?.phonepeDetails?.payload?.callbackUrl,
-        response.data?.phonepeDetails?.payload?.paymentInstrument?.type,
-        response.data?.phonepeDetails?.saltKey,
-        response.data?.phonepeDetails?.saltIndex,
-      );
     } catch (error) {
       console.error('Error details:', error);
       setLoading(false);

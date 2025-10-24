@@ -13,7 +13,6 @@ import {ToastProvider} from 'react-native-toast-notifications';
 import {cartReducer} from './Store/Store';
 import LoginProvider from './src/context/LoginProvider';
 import {StatusBarProvider} from './src/utils/StatusBarContext';
-import StatusBarManager from './src/component/CustomStatusBar/StatusBarManager';
 import {requestUserPermission} from './src/utils/Firebase';
 import {notificationService} from './src/utils/NotificationService';
 import {AgoraNotificationManager} from './src/utils/AgoraNotificationHandler';
@@ -64,7 +63,6 @@ function App(): React.JSX.Element {
           <ToastProvider>
             <LoginProvider>
               <StatusBarProvider>
-                <StatusBarManager />
                 <NavigationScreen />
               </StatusBarProvider>
             </LoginProvider>

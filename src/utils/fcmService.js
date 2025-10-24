@@ -17,19 +17,15 @@ class FcmService {
         this.isTokenRequested = true;
         return storedToken;
       }
-
       if (this.isTokenRequested && this.fcmToken) {
         console.log('✅ Using cached FCM token:', this.fcmToken);
         return this.fcmToken;
       }
-
       const authStatus = await messaging().requestPermission();
       const enabled =
         authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
         authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-
       console.log('🔔 FCM Authorization status:', authStatus);
-      
       if (enabled) {
         const token = await this.getFcmToken();
         return token;
@@ -42,26 +38,20 @@ class FcmService {
       return null;
     }
   };
-
   getFcmToken = async () => {
     try {
       if (!messaging().isDeviceRegisteredForRemoteMessages) {
         await messaging().registerDeviceForRemoteMessages();
       }
-
       const token = await messaging().getToken();
       console.log('✅ FCM Token obtained:', token);
-      
       this.fcmToken = token;
       this.isTokenRequested = true;
-      
       // Store token for future use
       await this.storeToken(token);
-      
       return token;
     } catch (error) {
       console.log('❌ Error getting FCM token:', error);
-      
       // Fallback: try to get stored token
       const storedToken = await this.getStoredToken();
       if (storedToken) {
@@ -69,11 +59,9 @@ class FcmService {
         this.fcmToken = storedToken;
         return storedToken;
       }
-      
       return null;
     }
   };
-
   // Store token in AsyncStorage
   storeToken = async (token) => {
     try {
@@ -108,88 +96,57 @@ class FcmService {
   getCurrentToken = () => {
     return this.fcmToken;
   };
-
   clearToken = () => {
     this.fcmToken = null;
     this.isTokenRequested = false;
     this.clearStoredToken();
   };
-
   hasToken = () => {
     return !!this.fcmToken;
   };
-
   // Setup token refresh listener
   setupTokenRefreshListener = () => {
     messaging().onTokenRefresh(async (newToken) => {
       console.log('🔄 FCM Token refreshed:', newToken);
       this.fcmToken = newToken;
       await this.storeToken(newToken);
-      
-      // You can send this new token to your server here
       this.sendTokenToServer(newToken);
     });
   };
-
   // Send token to your backend server
   sendTokenToServer = async (token) => {
     try {
-      // Replace with your API endpoint
       const userToken = await AsyncStorage.getItem('userToken');
       if (userToken && token) {
         console.log('📡 Sending FCM token to server...');
-        // Your API call to send token to backend
-        // await api.updateFCMToken(token);
       }
     } catch (error) {
       console.log('Error sending token to server:', error);
     }
   };
-
   checkInitialNotification = async () => {
     const initialNotification = await messaging().getInitialNotification();
-    
+
     if (initialNotification) {
       console.log('📱 Initial Notification:', initialNotification);
       this.handleNotification(initialNotification);
     }
   };
-
-  setupBackgroundMessageHandler = () => {
-    messaging().setBackgroundMessageHandler(async remoteMessage => {
-      console.log('📱 Message handled in background:', remoteMessage);
-      // Handle background messages
-    });
-  };
-
-  setupForegroundMessageHandler = () => {
-    messaging().onMessage(async remoteMessage => {
-      console.log('📱 Message received in foreground:', remoteMessage);
-      // Handle foreground messages - show notification, etc.
-    });
-  };
-
   handleNotification = (notification) => {
     console.log('📢 Received Notification:', notification);
-    
+
     if (notification.data && notification.data.screen) {
       // Navigate to specific screen based on notification data
     }
   };
-
   // Initialize all FCM services
   initialize = async () => {
     try {
       console.log('🚀 Initializing FCM Service...');
-      
       // Setup listeners
       this.setupTokenRefreshListener();
-      this.setupBackgroundMessageHandler();
-      this.setupForegroundMessageHandler();
-      
       // Check for initial notification
       await this.checkInitialNotification();
-      
       // Get token if not available
       if (!this.fcmToken) {
         const storedToken = await this.getStoredToken();
@@ -197,12 +154,10 @@ class FcmService {
           await this.requestUserPermission();
         }
       }
-      
       console.log('✅ FCM Service initialized successfully');
     } catch (error) {
       console.log('❌ FCM Service initialization error:', error);
     }
   };
 }
-
 export default new FcmService();

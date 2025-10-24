@@ -30,7 +30,7 @@ export default function ReusableView({
 
 const styles = StyleSheet.create({
   container: {
-    width: scale(150),
+    flex: 1,
     height: verticalScale(160),
     marginBottom: verticalScale(15),
     borderRadius: moderateScale(20),

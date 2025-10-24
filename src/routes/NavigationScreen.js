@@ -1,13 +1,15 @@
-import React from 'react';
-import {NavigationContainer} from '@react-navigation/native';
-import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import {createDrawerNavigator} from '@react-navigation/drawer';
-import {createMaterialTopTabNavigator} from '@react-navigation/material-top-tabs';
+import React, { useEffect } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createDrawerNavigator } from '@react-navigation/drawer';
+import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+import { useNavigationContainerRef } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import {COLORS} from '../Theme/Colors';
-import {moderateScale, scale, verticalScale} from '../utils/Scaling';
-
+import { COLORS } from '../Theme/Colors';
+import { moderateScale, scale, verticalScale } from '../utils/Scaling';
+import { setNavigationRef } from '../utils/Firebase';
+import { notificationService } from '../utils/NotificationService';
 import Home from '../screens/Main/Home';
 import Profile from '../screens/Main/Profile';
 import Transactions from '../screens/SubProfile/Transactions';
@@ -52,16 +54,25 @@ import Department_List from '../screens/Dr_List/Department_List';
 import ChangeLanguage from '../screens/ChangeLanguge/ChangeLanguage';
 import GetDirection from '../screens/Dr_List/GetDirection';
 import CallInviteHandler from '../component/CallInviteHandler';
+import StatusBarManager from '../component/CustomStatusBar/StatusBarManager';
 
 const Stack = createNativeStackNavigator();
 
 export default function NavigationScreen() {
+  const navigationRef = useNavigationContainerRef();
+
+  useEffect(() => {
+    setNavigationRef(navigationRef);
+    notificationService.setNavigationRef(navigationRef);
+  }, [navigationRef]);
+
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <CallInviteHandler />
+      <StatusBarManager />
       <Stack.Navigator
         initialRouteName="Splash"
-        screenOptions={{headerShown: false}}>
+        screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Splash" component={Splash} />
         <Stack.Screen name="Login" component={Login} />
         <Stack.Screen name="Signup" component={Signup} />

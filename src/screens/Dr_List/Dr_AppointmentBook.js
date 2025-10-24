@@ -27,7 +27,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import moment from 'moment';
 import ToastMessage from '../../component/ToastMessage/ToastMessage';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
-import usePhonePePayment from '../../component/PhonePay/usePhonePePayment';
 import useRazorpayPayment from '../../component/Rozar/useRazorpayPayment';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -60,7 +59,6 @@ export default function Dr_AppointmentBook({route, navigation}) {
   const [familyMemberRelation, setFamilyMemberRelation] = useState('');
   const [reports, setReports] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const {submitHandler} = usePhonePePayment();
   const [isTimePickerVisible, setTimePickerVisibility] = useState(false);
   const [availableSlots, setAvailableSlots] = useState([]);
   const [selectedDay, setSelectedDay] = useState(0);
