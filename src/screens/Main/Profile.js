@@ -8,12 +8,15 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Dimensions,
 } from 'react-native';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import {COLORS} from '../../Theme/Colors';
 import {moderateScale, scale, verticalScale} from '../../utils/Scaling';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import {Container} from '../../component/Container/Container';
 import {Fonts} from '../../Theme/Fonts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,6 +25,8 @@ import {useNavigation} from '@react-navigation/native';
 import strings from '../../../localization';
 import { useSelector } from 'react-redux';
 import CustomHeader from '../../component/header/CustomHeader';
+
+const {width} = Dimensions.get('window');
 
 export default function ProfileScreen({}) {
   const navigation = useNavigation('');
@@ -77,217 +82,284 @@ export default function ProfileScreen({}) {
   };
 
   return (
-    <Container
-      statusBarStyle={'dark-content'}
-      statusBarBackgroundColor={COLORS.white}
-      backgroundColor={COLORS.white}>
-      <CustomHeader showIcon={false} title={strings.Profile}/>
-      <ScrollView showsVerticalScrollIndicator={false}>
+    <Container backgroundColor={COLORS.AntiFlashWhite}>
+      {/* <CustomHeader
+        showIcon={false}
+        title={strings.Profile}
+        statusBarStyle="light-content"
+        statusBarBackgroundColor={COLORS.DODGERBLUE}
+      /> */}
+
+      {/* Profile Header with Gradient */}
+      <LinearGradient
+        colors={[COLORS.DODGERBLUE, COLORS.STEELBLUE, COLORS.RobinBlue]}
+        style={styles.profileHeader}>
+        <View style={styles.profileHeaderContent}>
+          <View style={styles.profileAvatarContainer}>
+            <Image
+              source={{uri: profileData?.image || 'https://via.placeholder.com/100'}}
+              style={styles.profileAvatar}
+            />
+            <View style={styles.onlineIndicator} />
+          </View>
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName}>{profileData?.name || 'User'}</Text>
+            <Text style={styles.profileContact}>{profileData?.mobile || 'N/A'}</Text>
+            <Text style={styles.profileEmail}>{profileData?.email || 'N/A'}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.editProfileBtn}
+            onPress={() => navigation.navigate('EditProfile')}>
+            <LinearGradient
+              colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
+              style={styles.editBtnGradient}>
+              <AntDesign name="edit" size={20} color={COLORS.white} />
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollContainer}>
         {loading ? (
-          <ActivityIndicator size="large" color={COLORS.DODGERBLUE} />
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.DODGERBLUE} />
+            <Text style={styles.loadingText}>Loading profile...</Text>
+          </View>
         ) : profileData ? (
-          <View style={styles.PROFILECONTAINERS}>
-            <View style={{flexDirection: 'row', alignItems: 'center'}}>
-              <Image
-                source={{uri: profileData?.image}}
-                style={styles.profileImage}
-              />
-              <View style={{marginLeft: scale(10)}}>
-                <Text style={styles.FRISTNAME}>{profileData?.name}</Text>
-                <Text style={styles.MOBILENUMMBER}>{profileData?.mobile}</Text>
-                <Text style={styles.MOBILENUMMBER}>{profileData?.email}</Text>
+          <>
+            {/* Quick Stats Section */}
+            <View style={styles.statsContainer}>
+              <Text style={styles.sectionTitle}>Quick Stats</Text>
+              <View style={styles.statsGrid}>
+                <View style={styles.statCard}>
+                  <LinearGradient
+                    colors={[COLORS.DODGERBLUE, COLORS.STEELBLUE]}
+                    style={styles.statGradient}>
+                    <Ionicons name="calendar" size={24} color={COLORS.white} />
+                    <Text style={styles.statNumber}>12</Text>
+                    <Text style={styles.statLabel}>Appointments</Text>
+                  </LinearGradient>
+                </View>
+                <View style={styles.statCard}>
+                  <LinearGradient
+                    colors={[COLORS.greenViridian, COLORS.TEAL]}
+                    style={styles.statGradient}>
+                    <FontAwesome5 name="shopping-cart" size={20} color={COLORS.white} />
+                    <Text style={styles.statNumber}>8</Text>
+                    <Text style={styles.statLabel}>Orders</Text>
+                  </LinearGradient>
+                </View>
+                <View style={styles.statCard}>
+                  <LinearGradient
+                    colors={[COLORS.orange, COLORS.BITTERSEWWT]}
+                    style={styles.statGradient}>
+                    <Ionicons name="call" size={24} color={COLORS.white} />
+                    <Text style={styles.statNumber}>24</Text>
+                    <Text style={styles.statLabel}>Calls</Text>
+                  </LinearGradient>
+                </View>
+                <View style={styles.statCard}>
+                  <LinearGradient
+                    colors={[COLORS.RobinBlue, COLORS.TEAL]}
+                    style={styles.statGradient}>
+                    <FontAwesome5 name="wallet" size={20} color={COLORS.white} />
+                    <Text style={styles.statNumber}>₹1250</Text>
+                    <Text style={styles.statLabel}>Balance</Text>
+                  </LinearGradient>
+                </View>
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.EditButton}
-              onPress={() => navigation.navigate('EditProfile')}>
-              <View style={styles.EditButtonSecondView}>
-                <AntDesign name="edit" size={18} color={COLORS.white} />
-                <Text style={styles.EditBtnTxt}>Edit</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
+          </>
         ) : (
-          <View style={{alignItems: 'center', marginTop: verticalScale(20)}}>
-            <Text style={{color: COLORS.gray, fontSize: scale(14)}}>
-              Unable to load profile information.
-            </Text>
+          <View style={styles.errorContainer}>
+            <MaterialIcons name="error-outline" size={48} color={COLORS.VERMILION} />
+            <Text style={styles.errorText}>Unable to load profile information.</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={() => {/* Retry logic */}}>
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
           </View>
         )}
 
-        <View>
-          <Text style={styles.FAMILYFONT}>{strings.FamilyInformation}</Text>
+        {/* Family Information Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>{strings.FamilyInformation}</Text>
           <View style={styles.familyCard}>
-            <View style={styles.familyRow}>
-              <Image
-                source={{
-                  uri: 'https://image.made-in-china.com/318f0j00rQuYWiOMsDqz/IbuprofenTabs-mp4.webp',
-                }}
-                style={styles.profileImage}
-              />
-              <View style={styles.familyDetails}>
-                <Text style={styles.FRISTNAME}>Sanjay</Text>
-                <Text style={styles.MOBILENUMMBER}>709688015</Text>
-                <Text style={styles.MOBILENUMMBER}>vaghasiya@gmail.com</Text>
+            <LinearGradient
+              colors={[COLORS.white, COLORS.AntiFlashWhite]}
+              style={styles.familyCardGradient}>
+              <View style={styles.familyRow}>
+                <View style={styles.familyAvatarContainer}>
+                  <Image
+                    source={{
+                      uri: 'https://via.placeholder.com/60x60/cccccc/666666?text=S',
+                    }}
+                    style={styles.familyAvatar}
+                  />
+                  <View style={styles.familyBadge}>
+                    <Text style={styles.familyBadgeText}>Family</Text>
+                  </View>
+                </View>
+                <View style={styles.familyDetails}>
+                  <Text style={styles.familyName}>Sanjay</Text>
+                  <Text style={styles.familyContact}>709688015</Text>
+                  <Text style={styles.familyEmail}>vaghasiya@gmail.com</Text>
+                </View>
+                <TouchableOpacity style={styles.familyEditBtn}>
+                  <MaterialIcons name="edit" size={20} color={COLORS.DODGERBLUE} />
+                </TouchableOpacity>
               </View>
-            </View>
+            </LinearGradient>
           </View>
 
           <TouchableOpacity
             style={styles.addFamilyBtn}
-            onPress={() => navigation.navigate('Add_FamilyMember')}>
-            <Text style={styles.addFamilyBtnText}>+ {strings.AddFamilyMember}</Text>
+            onPress={() => navigation.navigate('Add_FamilyMember')}
+            activeOpacity={0.8}>
+            <LinearGradient
+              colors={[COLORS.DODGERBLUE, COLORS.STEELBLUE]}
+              style={styles.addFamilyGradient}>
+              <AntDesign name="plus" size={20} color={COLORS.white} />
+              <Text style={styles.addFamilyBtnText}>{strings.AddFamilyMember}</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
-        <View style={{marginTop: scale(10)}}>
-          <View style={styles.BorderBottom}>
-            <TouchableOpacity
-              style={styles.editProfileContainer}
-              onPress={() => navigation.navigate('MyAppointment')}>
-              <View style={styles.profileContent}>
-                <View style={styles.iconContainer}>
-                  <Ionicons
-                    name="calendar-outline"
-                    size={25}
-                    color={COLORS.black}
-                  />
-                </View>
-                <Text style={styles.editProfileText}>{strings.MyAppointment}</Text>
-              </View>
-              <AntDesign
-                name="right"
-                size={20}
-                color={COLORS.black}
-                style={styles.rightIcon}
-              />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.BorderBottom}>
-            <TouchableOpacity
-              style={styles.editProfileContainer}
-              onPress={() => navigation.navigate('OrderHistory')}>
-              <View style={styles.profileContent}>
-                <View style={styles.iconContainer}>
-                  <FontAwesome5 name="receipt" size={25} color={COLORS.black} />
-                </View>
-                <Text style={styles.editProfileText}>{strings.OrderHistory}</Text>
-              </View>
-              <AntDesign
-                name="right"
-                size={20}
-                color={COLORS.black}
-                style={styles.rightIcon}
-              />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.BorderBottom}>
-            <TouchableOpacity
-              style={styles.editProfileContainer}
-              onPress={() => navigation.navigate('ChangeLanguage')}>
-              <View style={styles.profileContent}>
-                <View style={styles.iconContainer}>
-                  <AntDesign name="earth" size={25} color={COLORS.black} />
-                </View>
-                <Text style={styles.editProfileText}>{strings.ChangeLanguage}</Text>
-              </View>
-              <AntDesign
-                name="right"
-                size={20}
-                color={COLORS.black}
-                style={styles.rightIcon}
-              />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.BorderBottom}>
-            <TouchableOpacity
-              style={styles.editProfileContainer}
-              onPress={() => navigation.navigate('PasswordManager')}>
-              <View style={styles.profileContent}>
-                <View style={styles.iconContainer}>
-                  <FontAwesome5 name="key" size={25} color={COLORS.black} />
-                </View>
-                <Text style={styles.editProfileText}>{strings.PasswordManager}</Text>
-              </View>
-              <AntDesign
-                name="right"
-                size={20}
-                color={COLORS.black}
-                style={styles.rightIcon}
-              />
-            </TouchableOpacity>
-          </View>
+        {/* Menu Items Section */}
+        <View style={styles.menuContainer}>
+          <Text style={styles.sectionTitle}>Account Settings</Text>
 
-          <View style={styles.BorderBottom}>
-            <TouchableOpacity
-              style={styles.editProfileContainer}
-              onPress={() => navigation.navigate('HelpCenter')}>
-              <View style={styles.profileContent}>
-                <View style={styles.iconContainer}>
-                  <Ionicons
-                    name="help-buoy-sharp"
-                    size={25}
-                    color={COLORS.black}
-                  />
-                </View>
-                <Text style={styles.editProfileText}>{strings.HelpCenter}</Text>
-              </View>
-              <AntDesign
-                name="right"
-                size={20}
-                color={COLORS.black}
-                style={styles.rightIcon}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-        <View style={styles.BorderBottom}>
           <TouchableOpacity
-            style={styles.editProfileContainer}
-            onPress={() => navigation.navigate('CallHistory')}>
-            <View style={styles.profileContent}>
-              <View style={styles.iconContainer}>
-                <FontAwesome5 name="phone-alt" size={25} color={COLORS.black} />
+            style={styles.menuCard}
+            onPress={() => navigation.navigate('MyAppointment')}
+            activeOpacity={0.8}>
+            <LinearGradient
+              colors={[COLORS.white, COLORS.AntiFlashWhite]}
+              style={styles.menuCardGradient}>
+              <View style={styles.menuContent}>
+                <View style={styles.menuIconContainer}>
+                  <Ionicons name="calendar-outline" size={24} color={COLORS.DODGERBLUE} />
+                </View>
+                <Text style={styles.menuText}>{strings.MyAppointment}</Text>
+                <AntDesign name="right" size={20} color={COLORS.ARSENIC} />
               </View>
-
-              <Text style={styles.editProfileText}>{strings.CallHistory}</Text>
-            </View>
-            <AntDesign
-              name="right"
-              size={20}
-              color={COLORS.black}
-              style={styles.rightIcon}
-            />
+            </LinearGradient>
           </TouchableOpacity>
-        </View>
-        <View style={styles.BorderBottom}>
+
           <TouchableOpacity
-            style={styles.editProfileContainer}
-            onPress={() => navigation.navigate('PrivacyPolicy')}>
-            <View style={styles.profileContent}>
-              <View style={styles.iconContainer}>
-                <FontAwesome5
-                  name="shield-alt"
-                  size={25}
-                  color={COLORS.black}
-                />
+            style={styles.menuCard}
+            onPress={() => navigation.navigate('OrderHistory')}
+            activeOpacity={0.8}>
+            <LinearGradient
+              colors={[COLORS.white, COLORS.AntiFlashWhite]}
+              style={styles.menuCardGradient}>
+              <View style={styles.menuContent}>
+                <View style={styles.menuIconContainer}>
+                  <FontAwesome5 name="receipt" size={22} color={COLORS.greenViridian} />
+                </View>
+                <Text style={styles.menuText}>{strings.OrderHistory}</Text>
+                <AntDesign name="right" size={20} color={COLORS.ARSENIC} />
               </View>
+            </LinearGradient>
+          </TouchableOpacity>
 
-              <Text style={styles.editProfileText}>{strings.PrivacyPolicy}</Text>
-            </View>
-            <AntDesign
-              name="right"
-              size={20}
-              color={COLORS.black}
-              style={styles.rightIcon}
-            />
+          <TouchableOpacity
+            style={styles.menuCard}
+            onPress={() => navigation.navigate('ChangeLanguage')}
+            activeOpacity={0.8}>
+            <LinearGradient
+              colors={[COLORS.white, COLORS.AntiFlashWhite]}
+              style={styles.menuCardGradient}>
+              <View style={styles.menuContent}>
+                <View style={styles.menuIconContainer}>
+                  <AntDesign name="earth" size={24} color={COLORS.orange} />
+                </View>
+                <Text style={styles.menuText}>{strings.ChangeLanguage}</Text>
+                <AntDesign name="right" size={20} color={COLORS.ARSENIC} />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuCard}
+            onPress={() => navigation.navigate('PasswordManager')}
+            activeOpacity={0.8}>
+            <LinearGradient
+              colors={[COLORS.white, COLORS.AntiFlashWhite]}
+              style={styles.menuCardGradient}>
+              <View style={styles.menuContent}>
+                <View style={styles.menuIconContainer}>
+                  <FontAwesome5 name="key" size={22} color={COLORS.RobinBlue} />
+                </View>
+                <Text style={styles.menuText}>{strings.PasswordManager}</Text>
+                <AntDesign name="right" size={20} color={COLORS.ARSENIC} />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuCard}
+            onPress={() => navigation.navigate('HelpCenter')}
+            activeOpacity={0.8}>
+            <LinearGradient
+              colors={[COLORS.white, COLORS.AntiFlashWhite]}
+              style={styles.menuCardGradient}>
+              <View style={styles.menuContent}>
+                <View style={styles.menuIconContainer}>
+                  <Ionicons name="help-buoy-sharp" size={24} color={COLORS.TEAL} />
+                </View>
+                <Text style={styles.menuText}>{strings.HelpCenter}</Text>
+                <AntDesign name="right" size={20} color={COLORS.ARSENIC} />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuCard}
+            onPress={() => navigation.navigate('CallHistory')}
+            activeOpacity={0.8}>
+            <LinearGradient
+              colors={[COLORS.white, COLORS.AntiFlashWhite]}
+              style={styles.menuCardGradient}>
+              <View style={styles.menuContent}>
+                <View style={styles.menuIconContainer}>
+                  <FontAwesome5 name="phone-alt" size={22} color={COLORS.BITTERSEWWT} />
+                </View>
+                <Text style={styles.menuText}>{strings.CallHistory}</Text>
+                <AntDesign name="right" size={20} color={COLORS.ARSENIC} />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuCard}
+            onPress={() => navigation.navigate('PrivacyPolicy')}
+            activeOpacity={0.8}>
+            <LinearGradient
+              colors={[COLORS.white, COLORS.AntiFlashWhite]}
+              style={styles.menuCardGradient}>
+              <View style={styles.menuContent}>
+                <View style={styles.menuIconContainer}>
+                  <FontAwesome5 name="shield-alt" size={22} color={COLORS.midnightblue} />
+                </View>
+                <Text style={styles.menuText}>{strings.PrivacyPolicy}</Text>
+                <AntDesign name="right" size={20} color={COLORS.ARSENIC} />
+              </View>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
+        {/* Logout Section */}
         <View style={styles.logoutContainer}>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <AntDesign name="logout" size={20} color={COLORS.white} />
-            <Text style={styles.logoutText}>{strings.Logout}</Text>
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={handleLogout}
+            activeOpacity={0.8}>
+            <LinearGradient
+              colors={[COLORS.VERMILION, COLORS.orange]}
+              style={styles.logoutGradient}>
+              <AntDesign name="logout" size={20} color={COLORS.white} />
+              <Text style={styles.logoutText}>{strings.Logout}</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -296,172 +368,304 @@ export default function ProfileScreen({}) {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  profileHeader: {
+    paddingTop: verticalScale(20),
+    paddingBottom: verticalScale(30),
+    borderBottomLeftRadius: moderateScale(25),
+    borderBottomRightRadius: moderateScale(25),
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  profileHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: scale(20),
+  },
+  profileAvatarContainer: {
+    position: 'relative',
+  },
+  profileAvatar: {
+    width: scale(80),
+    height: scale(80),
+    borderRadius: moderateScale(40),
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  onlineIndicator: {
+    position: 'absolute',
+    bottom: scale(5),
+    right: scale(5),
+    width: scale(16),
+    height: scale(16),
+    borderRadius: scale(8),
+    backgroundColor: COLORS.green,
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
+  profileInfo: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    marginLeft: scale(15),
   },
-  Header: {
-    elevation: 10,
-    backgroundColor: COLORS.white,
-    paddingVertical: verticalScale(15),
-    borderBottomLeftRadius: moderateScale(15),
-    borderBottomRightRadius: moderateScale(15),
-  },
-  HeaderFonts: {
+  profileName: {
+    fontSize: moderateScale(22),
     fontFamily: Fonts.Bold,
-    color: COLORS.black,
-    fontSize: moderateScale(18),
-    paddingLeft: scale(15),
+    color: COLORS.white,
+    marginBottom: verticalScale(4),
   },
-  FRISTNAME: {
-    color: COLORS.black,
-    fontSize: moderateScale(18),
-    fontFamily: Fonts.Light,
+  profileContact: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Medium,
+    color: 'rgba(255,255,255,0.9)',
+    marginBottom: verticalScale(2),
   },
-  MOBILENUMMBER: {
-    color: COLORS.grey,
+  profileEmail: {
     fontSize: moderateScale(12),
-    fontFamily: Fonts.Light,
+    fontFamily: Fonts.Regular,
+    color: 'rgba(255,255,255,0.8)',
   },
-  profileImage: {
-    height: scale(65),
-    width: scale(65),
-    borderRadius: moderateScale(100),
-    borderWidth: 1,
-    borderColor: COLORS.gray,
+  editProfileBtn: {
+    padding: scale(10),
   },
-  EditButton: {
-    alignSelf: 'center',
+  editBtnGradient: {
+    width: scale(40),
+    height: scale(40),
+    borderRadius: moderateScale(20),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: verticalScale(50),
+  },
+  loadingText: {
+    marginTop: verticalScale(10),
+    fontSize: moderateScale(16),
+    color: COLORS.ARSENIC,
+    fontFamily: Fonts.Medium,
+  },
+  errorContainer: {
+    alignItems: 'center',
+    paddingVertical: verticalScale(50),
+    paddingHorizontal: scale(20),
+  },
+  errorText: {
+    fontSize: moderateScale(16),
+    color: COLORS.ARSENIC,
+    fontFamily: Fonts.Medium,
+    textAlign: 'center',
+    marginTop: verticalScale(10),
+    marginBottom: verticalScale(20),
+  },
+  retryBtn: {
     backgroundColor: COLORS.DODGERBLUE,
-    paddingVertical: verticalScale(7),
-    paddingHorizontal: scale(10),
+    paddingVertical: verticalScale(10),
+    paddingHorizontal: scale(20),
     borderRadius: moderateScale(20),
   },
-  EditButtonSecondView: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  EditBtnTxt: {
+  retryText: {
     color: COLORS.white,
-    marginLeft: scale(5),
     fontFamily: Fonts.Bold,
+    fontSize: moderateScale(14),
   },
-  PROFILECONTAINERS: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: scale(15),
-    marginVertical: verticalScale(15),
-    paddingBottom: scale(15),
-    borderBottomWidth: 0.5,
-  },
-  FAMILYCONTAINERS: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: scale(15),
-    marginVertical: verticalScale(5),
-    paddingBottom: scale(5),
-  },
-  FAMILYFONT: {
-    marginHorizontal: scale(15),
-    fontFamily: Fonts.Medium,
-    color: COLORS.black,
-    fontSize: moderateScale(15),
-  },
-  BorderBottom: {
-    borderBottomWidth: 0.8,
-    borderBottomColor: COLORS.black,
-  },
-  editProfileContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: scale(10),
-    width: '100%',
+  statsContainer: {
+    marginTop: verticalScale(20),
     paddingHorizontal: scale(20),
-    paddingVertical: verticalScale(15),
   },
-  profileContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  iconContainer: {
-    marginRight: moderateScale(16),
-  },
-  editProfileText: {
-    color: COLORS.black,
-    fontSize: moderateScale(15),
-    marginLeft: scale(10),
-    fontFamily: Fonts.Medium,
-    top: scale(2),
-  },
-  rightIcon: {
-    marginLeft: 'auto',
-  },
-  logoutContainer: {
-    marginTop: scale(20),
-    padding: scale(15),
-    backgroundColor: COLORS.white,
-    borderTopColor: COLORS.grey,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.red,
-    padding: scale(5),
-    borderRadius: moderateScale(8),
-    justifyContent: 'center',
-    width: scale(100),
-    alignSelf: 'center',
-  },
-  logoutText: {
-    color: COLORS.white,
+  sectionTitle: {
     fontSize: moderateScale(18),
-    marginLeft: scale(10),
-    fontFamily: Fonts.Light,
-    bottom: scale(2),
-    top: 1,
+    fontFamily: Fonts.Bold,
+    color: COLORS.ARSENIC,
+    marginBottom: verticalScale(15),
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  statCard: {
+    width: (width - scale(50)) / 2,
+    marginBottom: verticalScale(15),
+    borderRadius: moderateScale(15),
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  statGradient: {
+    borderRadius: moderateScale(15),
+    padding: scale(20),
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: moderateScale(20),
+    fontFamily: Fonts.Bold,
+    color: COLORS.white,
+    marginTop: verticalScale(8),
+  },
+  statLabel: {
+    fontSize: moderateScale(12),
+    fontFamily: Fonts.Medium,
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: verticalScale(4),
+  },
+  sectionContainer: {
+    marginTop: verticalScale(25),
+    paddingHorizontal: scale(20),
   },
   familyCard: {
-    backgroundColor: COLORS.white,
-    marginHorizontal: scale(15),
-    marginVertical: verticalScale(10),
-    padding: scale(10),
-    borderRadius: moderateScale(10),
+    marginBottom: verticalScale(15),
+    borderRadius: moderateScale(15),
+    elevation: 3,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowRadius: 4,
+  },
+  familyCardGradient: {
+    borderRadius: moderateScale(15),
+    padding: scale(15),
   },
   familyRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+  familyAvatarContainer: {
+    position: 'relative',
+  },
+  familyAvatar: {
+    width: scale(50),
+    height: scale(50),
+    borderRadius: moderateScale(25),
+  },
+  familyBadge: {
+    position: 'absolute',
+    top: scale(-5),
+    left: scale(-5),
+    backgroundColor: COLORS.DODGERBLUE,
+    paddingHorizontal: scale(6),
+    paddingVertical: verticalScale(2),
+    borderRadius: moderateScale(8),
+  },
+  familyBadgeText: {
+    color: COLORS.white,
+    fontSize: moderateScale(8),
+    fontFamily: Fonts.Bold,
+  },
   familyDetails: {
-    marginLeft: scale(10),
     flex: 1,
+    marginLeft: scale(12),
+  },
+  familyName: {
+    fontSize: moderateScale(16),
+    fontFamily: Fonts.Bold,
+    color: COLORS.ARSENIC,
+    marginBottom: verticalScale(2),
+  },
+  familyContact: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Medium,
+    color: COLORS.ARSENIC,
+  },
+  familyEmail: {
+    fontSize: moderateScale(12),
+    fontFamily: Fonts.Regular,
+    color: COLORS.lineBlack,
   },
   familyEditBtn: {
-    marginTop: verticalScale(10),
-    alignSelf: 'flex-end',
-    backgroundColor: COLORS.DODGERBLUE,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: verticalScale(5),
-    paddingHorizontal: scale(10),
-    borderRadius: moderateScale(20),
+    padding: scale(8),
   },
   addFamilyBtn: {
-    alignSelf: 'center',
-    marginTop: verticalScale(5),
-    paddingVertical: verticalScale(8),
-    paddingHorizontal: scale(20),
-    backgroundColor: COLORS.DODGERBLUE,
-    borderRadius: moderateScale(20),
+    marginTop: verticalScale(10),
+    borderRadius: moderateScale(25),
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  addFamilyGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: verticalScale(12),
+    paddingHorizontal: scale(25),
+    borderRadius: moderateScale(25),
   },
   addFamilyBtnText: {
     color: COLORS.white,
     fontFamily: Fonts.Bold,
     fontSize: moderateScale(14),
+    marginLeft: scale(8),
+  },
+  menuContainer: {
+    marginTop: verticalScale(25),
+    paddingHorizontal: scale(20),
+  },
+  menuCard: {
+    marginBottom: verticalScale(8),
+    borderRadius: moderateScale(12),
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+  },
+  menuCardGradient: {
+    borderRadius: moderateScale(12),
+  },
+  menuContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: scale(18),
+  },
+  menuIconContainer: {
+    width: scale(40),
+    height: scale(40),
+    borderRadius: moderateScale(20),
+    backgroundColor: 'rgba(40, 127, 240, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: scale(15),
+  },
+  menuText: {
+    flex: 1,
+    fontSize: moderateScale(16),
+    fontFamily: Fonts.Medium,
+    color: COLORS.ARSENIC,
+  },
+  logoutContainer: {
+    marginTop: verticalScale(30),
+    marginBottom: verticalScale(30),
+    paddingHorizontal: scale(20),
+  },
+  logoutButton: {
+    borderRadius: moderateScale(25),
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  logoutGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: verticalScale(15),
+    paddingHorizontal: scale(30),
+    borderRadius: moderateScale(25),
+  },
+  logoutText: {
+    color: COLORS.white,
+    fontSize: moderateScale(16),
+    fontFamily: Fonts.Bold,
+    marginLeft: scale(10),
   },
 });

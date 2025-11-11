@@ -21,65 +21,84 @@ export const useAgoraCall = ({channel, uid, withVideo, token}) => {
   const engineRef = useRef(null)
   const [joined, setJoined] = useState(false)
   const [remoteUsers, setRemoteUsers] = useState([])
+  console.log('🎯 useAgoraCall initialized with:', { channel, uid, withVideo, hasToken: !!token });
 
   useEffect(() => {
     let mounted = true
     ;(async () => {
+      console.log('🎯 Starting Agora call setup...');
       const ok = await requestPermissions(withVideo)
-      if (!ok) return
+      console.log('🎯 Permissions granted:', ok);
+      if (!ok) {
+        console.error('🎯 Permissions denied - cannot proceed with call');
+        return;
+      }
+
       const engine = await getAgoraEngine()
+      console.log('🎯 Agora engine obtained:', !!engine);
       if (!mounted) return
       engineRef.current = engine
 
       // Add mock event listeners for development
       engine.addListener('JoinChannelSuccess', () => {
-        console.log('🔧 Mock JoinChannelSuccess event');
+        console.log('🎯 JoinChannelSuccess event fired');
         setJoined(true);
       })
       engine.addListener('UserJoined', (newUid) => {
-        console.log('🔧 Mock UserJoined event:', newUid);
+        console.log('🎯 UserJoined event:', newUid);
         setRemoteUsers((prev) => Array.from(new Set([...prev, newUid])))
       })
       engine.addListener('UserOffline', (offUid) => {
-        console.log('🔧 Mock UserOffline event:', offUid);
+        console.log('🎯 UserOffline event:', offUid);
         setRemoteUsers((prev) => prev.filter((u) => u !== offUid))
       })
 
       // Enable audio/video based on call type
+      console.log('🎯 Enabling audio/video...');
       if (!withVideo) {
         await engine.enableAudio()
+        console.log('🎯 Audio enabled');
       } else {
         await engine.enableVideo()
+        console.log('🎯 Video enabled');
       }
 
       // Use provided token or mock token for development
       let agoraToken = token;
       if (!agoraToken) {
-        console.log('🔧 Using mock token for development');
+        console.log('🎯 No token provided, using mock token');
         agoraToken = 'mock_token_' + Date.now();
+      } else {
+        console.log('🎯 Using provided token');
       }
 
       // Skip actual token fetching for mock implementation
-      console.log('🔧 Skipping actual token fetch for development');
+      console.log('🎯 Attempting to join channel:', { channel, uid, tokenLength: agoraToken.length });
 
       try {
         await engine.joinChannel(agoraToken, channel, null, uid);
-        console.log('🔧 Successfully joined Agora channel (mock):', channel);
+        console.log('🎯 Successfully joined Agora channel (mock):', channel);
         setJoined(true); // Set joined for mock
       } catch (joinError) {
-        console.error('Failed to join Agora channel:', joinError);
+        console.error('🎯 Failed to join Agora channel:', joinError);
         // For mock, still set as joined after a delay
+        console.log('🎯 Setting joined=true after delay for mock implementation');
         setTimeout(() => setJoined(true), 1000);
       }
     })()
 
     return () => {
+      console.log('🎯 Cleaning up Agora call...');
       mounted = false
       ;(async () => {
         try {
           await engineRef.current?.leaveChannel()
+          console.log('🎯 Left channel successfully');
+        } catch (leaveError) {
+          console.error('🎯 Error leaving channel:', leaveError);
         } finally {
           await destroyAgoraEngine()
+          console.log('🎯 Agora engine destroyed');
         }
       })()
     }

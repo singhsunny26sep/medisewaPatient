@@ -1,27 +1,33 @@
 import React from 'react';
-import {StyleSheet, Text, View, TouchableOpacity} from 'react-native';
-import {COLORS} from '../../Theme/Colors';
+import { StyleSheet, Text, View, TouchableOpacity, StatusBar } from 'react-native';
+import { COLORS } from '../../Theme/Colors';
 import Icon from 'react-native-vector-icons/AntDesign';
-import {moderateScale, scale, verticalScale} from '../../utils/Scaling';
-import {Fonts} from '../../Theme/Fonts';
+import { moderateScale, scale, verticalScale } from '../../utils/Scaling';
+import { Fonts } from '../../Theme/Fonts';
 
-const  CustomHeader = ({navigation, title, showIcon = true}) => {
+const CustomHeader = ({ navigation, title, showIcon = true, statusBarStyle = 'dark-content', statusBarBackgroundColor = COLORS.white }) => {
   return (
-    <View style={styles.header}>
-      {showIcon && (
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() => navigation.goBack('')}>
-          <Icon name="arrowleft" size={25} color={COLORS.black} />
-        </TouchableOpacity>
-      )}
-      <Text
-        style={[
-          styles.headerText,
-          !showIcon && {textAlign: 'center', marginRight: scale(5)},
-        ]}>
-        {title}
-      </Text>
+    <View>
+      <StatusBar
+        backgroundColor={statusBarBackgroundColor}
+        barStyle={statusBarStyle}
+      />
+      <View style={styles.header}>
+        {showIcon && (
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => navigation.goBack('')}>
+            <Icon name="arrowleft" size={25} color={COLORS.black} />
+          </TouchableOpacity>
+        )}
+        <Text
+          style={[
+            styles.headerText,
+            !showIcon && { textAlign: 'center', marginRight: scale(5) },
+          ]}>
+          {title}
+        </Text>
+      </View>
     </View>
   );
 };
@@ -34,11 +40,12 @@ const styles = StyleSheet.create({
     paddingVertical: verticalScale(3),
     elevation: 5,
     shadowColor: COLORS.black,
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     borderBottomLeftRadius: moderateScale(15),
     borderBottomRightRadius: moderateScale(15),
+    marginTop: 24
   },
   iconButton: {
     padding: scale(10),
