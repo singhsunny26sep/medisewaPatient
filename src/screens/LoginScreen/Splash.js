@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { 
-  Animated, 
-  Image, 
-  StyleSheet, 
-  Text, 
-  View, 
+import {
+  Animated,
+  Image,
+  StyleSheet,
+  Text,
+  View,
   Dimensions,
-  ActivityIndicator 
+  ActivityIndicator
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,6 +15,7 @@ import { COLORS } from '../../Theme/Colors';
 import { moderateScale, scale } from '../../utils/Scaling';
 import { Fonts } from '../../Theme/Fonts';
 import fcmService from '../../utils/fcmService';
+import LinearGradient from 'react-native-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
 
@@ -151,10 +152,13 @@ export default function Splash() {
   return (
     <Container
       statusBarStyle={'light-content'}
-      statusBarBackgroundColor={COLORS.BITTERSEWWT}
-      backgroundColor={COLORS.BITTERSEWWT}>
-      <View style={styles.container}>
-        <View style={styles.backgroundGradient} />  
+      statusBarBackgroundColor={COLORS.DODGERBLUE}
+      backgroundColor={COLORS.DODGERBLUE}>
+      <LinearGradient
+        colors={[COLORS.DODGERBLUE, COLORS.STEELBLUE, COLORS.RobinBlue, COLORS.TEAL, COLORS.greenViridian]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.container}>
         <Animated.View 
           style={[
             styles.logoContainer,
@@ -188,7 +192,7 @@ export default function Splash() {
         <View style={styles.versionContainer}>
           <Text style={styles.versionText}>Version 1.0.0</Text>
         </View>
-      </View>
+      </LinearGradient>
     </Container>
   );
 }
@@ -199,14 +203,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-  },
-  backgroundGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: COLORS.BITTERSEWWT,
   },
   logoContainer: {
     alignItems: 'center',
