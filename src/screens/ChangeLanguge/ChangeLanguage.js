@@ -61,11 +61,7 @@ export default function ChangeLanguage({ navigation }) {
 
   return (
     <Container backgroundColor={COLORS.AntiFlashWhite}>
-      <CustomHeader
-        title={strings.ChangeLanguage}
-        statusBarStyle="light-content"
-        statusBarBackgroundColor={COLORS.DODGERBLUE}
-      />
+     
 
       {/* Hero Section with Gradient */}
       <LinearGradient
