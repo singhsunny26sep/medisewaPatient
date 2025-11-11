@@ -233,7 +233,7 @@ export default function Home({ navigation }) {
       backgroundColor={COLORS.white}>
       <View style={styles.container}>
         <LinearGradient
-          colors={['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe']}
+          colors={[COLORS.DODGERBLUE, COLORS.STEELBLUE, COLORS.RobinBlue, COLORS.TEAL, COLORS.greenViridian]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.headerGradient}>

@@ -99,23 +99,24 @@ export default function MainStack() {
 const styles = StyleSheet.create({
   tabBarContainer: {
     position: 'relative',
-    borderTopLeftRadius: moderateScale(20),
-    borderTopRightRadius: moderateScale(20),
-    elevation: 12,
-    shadowColor: '#667eea',
+    borderTopLeftRadius: moderateScale(25),
+    borderTopRightRadius: moderateScale(25),
+    elevation: 20,
+    shadowColor: COLORS.DODGERBLUE,
     shadowOffset: {
       width: 0,
-      height: -3,
+      height: -5,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    marginHorizontal: scale(15),
-    marginBottom: verticalScale(8),
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    minHeight: verticalScale(60),
-    maxHeight: verticalScale(70),
+    shadowOpacity: 0.4,
+    shadowRadius: 15,
+    marginHorizontal: scale(10),
+    marginBottom: verticalScale(15),
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.3)',
+    minHeight: verticalScale(70),
+    maxHeight: verticalScale(80),
+    overflow: 'hidden',
   },
   tabBar: {
     flexDirection: 'row',
@@ -137,18 +138,19 @@ const styles = StyleSheet.create({
     maxWidth: scale(80),
   },
   iconContainer: {
-    width: isSmallScreen ? scale(35) : scale(40),
-    height: isSmallScreen ? scale(35) : scale(40),
-    minWidth: scale(30),
-    minHeight: scale(30),
-    maxWidth: scale(50),
-    maxHeight: scale(50),
-    borderRadius: moderateScale(isSmallScreen ? 17.5 : 20),
+    width: isSmallScreen ? scale(42) : scale(48),
+    height: isSmallScreen ? scale(42) : scale(48),
+    minWidth: scale(35),
+    minHeight: scale(35),
+    maxWidth: scale(55),
+    maxHeight: scale(55),
+    borderRadius: moderateScale(isSmallScreen ? 21 : 24),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: verticalScale(2),
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.15)',
+    marginBottom: verticalScale(4),
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.25)',
+    position: 'relative',
   },
   tabLabel: {
     fontFamily: Fonts.Bold,
@@ -169,55 +171,71 @@ const styles = StyleSheet.create({
   },
   animatedIndicator: {
     position: 'absolute',
-    bottom: verticalScale(10),
-    width: scale(25),
-    height: scale(3),
+    bottom: verticalScale(12),
+    width: scale(30),
+    height: scale(4),
     backgroundColor: COLORS.white,
     borderRadius: moderateScale(2),
-    shadowColor: '#4facfe',
+    shadowColor: COLORS.DODGERBLUE,
     shadowOffset: {
       width: 0,
-      height: 0,
+      height: 2,
     },
-    shadowOpacity: 1,
-    shadowRadius: 6,
-    elevation: 8,
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 10,
   },
   badgeContainer: {
     position: 'absolute',
-    top: scale(-3),
-    right: scale(-3),
-    backgroundColor: '#FF3B30',
-    borderRadius: moderateScale(8),
-    minWidth: scale(14),
-    height: scale(14),
-    maxWidth: scale(20),
-    maxHeight: scale(20),
+    top: scale(-5),
+    right: scale(-5),
+    backgroundColor: COLORS.VERMILION,
+    borderRadius: moderateScale(10),
+    minWidth: scale(18),
+    height: scale(18),
+    maxWidth: scale(25),
+    maxHeight: scale(25),
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: scale(3),
-    borderWidth: 1.5,
+    paddingHorizontal: scale(4),
+    borderWidth: 2,
     borderColor: COLORS.white,
-    shadowColor: '#000',
+    shadowColor: COLORS.VERMILION,
     shadowOffset: {
       width: 0,
-      height: 1,
+      height: 2,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 2,
-    elevation: 3,
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 5,
   },
   badgeText: {
     color: COLORS.white,
-    fontSize: moderateScale(8),
+    fontSize: moderateScale(9),
     fontFamily: Fonts.Bold,
     textAlign: 'center',
+    includeFontPadding: false,
+  },
+  glowEffect: {
+    position: 'absolute',
+    top: -2,
+    left: -2,
+    right: -2,
+    bottom: -2,
+    borderRadius: moderateScale(26),
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    shadowColor: COLORS.DODGERBLUE,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 10,
   },
 });
 
 function CustomTabBar({state, descriptors, navigation}) {
   const animationValue = useRef(new Animated.Value(0)).current;
   const pulseAnimation = useRef(new Animated.Value(1)).current;
+  const floatingAnimation = useRef(new Animated.Value(0)).current;
   const cartItems = useSelector(state => state.cart?.cartItems?.length || 0);
 
   useEffect(() => {
@@ -229,18 +247,46 @@ function CustomTabBar({state, descriptors, navigation}) {
     }).start();
   }, [state.index, animationValue]);
 
+  // Floating animation for the entire tab bar
+  useEffect(() => {
+    const floatingAnimationLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatingAnimation, {
+          toValue: -2,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatingAnimation, {
+          toValue: 2,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatingAnimation, {
+          toValue: 0,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    floatingAnimationLoop.start();
+
+    return () => {
+      floatingAnimationLoop.stop();
+    };
+  }, [floatingAnimation]);
+
   // Pulse animation for active tab
   useEffect(() => {
     const pulseAnimationLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnimation, {
-          toValue: 1.15,
-          duration: 1000,
+          toValue: 1.2,
+          duration: 1200,
           useNativeDriver: true,
         }),
         Animated.timing(pulseAnimation, {
           toValue: 1,
-          duration: 1000,
+          duration: 1200,
           useNativeDriver: true,
         }),
       ])
@@ -253,11 +299,12 @@ function CustomTabBar({state, descriptors, navigation}) {
   }, [pulseAnimation]);
 
   return (
-    <LinearGradient
-      colors={['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe']}
-      start={{x: 0, y: 0}}
-      end={{x: 1, y: 1}}
-      style={styles.tabBarContainer}>
+    <Animated.View style={{transform: [{translateY: floatingAnimation}]}}>
+      <LinearGradient
+        colors={[COLORS.DODGERBLUE, COLORS.STEELBLUE, COLORS.RobinBlue, COLORS.TEAL, COLORS.greenViridian]}
+        start={{x: 0, y: 0}}
+        end={{x: 1, y: 1}}
+        style={styles.tabBarContainer}>
       <View style={styles.tabBar}>
         {state.routes.map((route, index) => {
           const {options} = descriptors[route.key];
@@ -347,7 +394,7 @@ function CustomTabBar({state, descriptors, navigation}) {
               onPress={onPress}
               onLongPress={onLongPress}
               style={styles.tabItem}
-              activeOpacity={0.7}>
+              activeOpacity={0.5}>
               <Animated.View style={[
                 styles.iconContainer,
                 {
@@ -356,21 +403,24 @@ function CustomTabBar({state, descriptors, navigation}) {
                     {translateY: bounceValue}
                   ],
                   backgroundColor: isFocused
-                    ? 'rgba(255,255,255,0.25)'
-                    : 'rgba(255,255,255,0.05)',
+                    ? 'rgba(255,255,255,0.3)'
+                    : 'rgba(255,255,255,0.08)',
                   borderColor: isFocused
-                    ? 'rgba(255,255,255,0.4)'
-                    : 'rgba(255,255,255,0.1)',
-                  shadowColor: isFocused ? '#4facfe' : 'transparent',
+                    ? 'rgba(255,255,255,0.5)'
+                    : 'rgba(255,255,255,0.2)',
+                  shadowColor: isFocused ? COLORS.DODGERBLUE : 'transparent',
                   shadowOffset: {
                     width: 0,
-                    height: isFocused ? 4 : 0,
+                    height: isFocused ? 6 : 0,
                   },
-                  shadowOpacity: isFocused ? 0.8 : 0,
-                  shadowRadius: isFocused ? 8 : 0,
-                  elevation: isFocused ? 8 : 0,
+                  shadowOpacity: isFocused ? 0.9 : 0,
+                  shadowRadius: isFocused ? 12 : 0,
+                  elevation: isFocused ? 12 : 0,
                 }
               ]}>
+                {isFocused && (
+                  <View style={styles.glowEffect} />
+                )}
                 {options.tabBarIcon({
                   color: isFocused ? COLORS.white : 'rgba(255,255,255,0.7)',
                   size: isFocused ? 22 : 20,
@@ -423,6 +473,7 @@ function CustomTabBar({state, descriptors, navigation}) {
           },
         ]}
       />
-    </LinearGradient>
+      </LinearGradient>
+    </Animated.View>
   );
 }
