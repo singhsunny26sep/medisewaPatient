@@ -106,12 +106,12 @@ export default function Wallet({navigation}) {
 
   return (
     <Container backgroundColor={COLORS.AntiFlashWhite}>
-      <CustomHeader
+      {/* <CustomHeader
         showIcon={false}
         title={strings.Wallet}
         statusBarStyle="dark-content"
         statusBarBackgroundColor={COLORS.white}
-      />
+      /> */}
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>
         {/* Enhanced Balance Card */}
@@ -212,6 +212,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.AntiFlashWhite,
+    marginTop:24
   },
   balanceCard: {
     marginHorizontal: scale(20),
