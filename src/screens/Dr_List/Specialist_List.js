@@ -318,8 +318,12 @@ export default function Specialist_List({route,navigation}) {
         }}
         onShow={() => console.log('Modal onShow called - modal is now visible at bottom!')}
         onDismiss={() => console.log('Modal onDismiss called - modal is now hidden')}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setIsModalVisible(false)}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalContainer}>
             <View style={styles.modalButtonsRow}>
               <TouchableOpacity
                 style={styles.callOption}
@@ -374,6 +378,7 @@ export default function Specialist_List({route,navigation}) {
             </TouchableOpacity>
           </View>
         </View>
+        </TouchableOpacity>
       </Modal>
     </Container>
   );
@@ -545,13 +550,10 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  modalContent: {
+    flex: 1,
     justifyContent: 'flex-end',
-    zIndex: 9999,
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
   },
   modalContainer: {
     backgroundColor: COLORS.white,

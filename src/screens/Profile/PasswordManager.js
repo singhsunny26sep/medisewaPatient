@@ -12,7 +12,7 @@ import {COLORS} from '../../Theme/Colors';
 import CustomHeader from '../../component/header/CustomHeader';
 import CustomTextInput from '../../component/texinput/CustomTextInput';
 import {moderateScale, scale, verticalScale} from '../../utils/Scaling';
-import { Fonts } from '../../Theme/Fonts';
+import { Fonts } from '../../Theme/Fonts'; 
 import strings from '../../../localization';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -69,12 +69,7 @@ export default function PasswordManager({navigation}) {
 
   return (
     <Container backgroundColor={COLORS.AntiFlashWhite}>
-      <CustomHeader
-        title={strings.PasswordManager}
-        navigation={navigation}
-        statusBarStyle="light-content"
-        statusBarBackgroundColor={COLORS.DODGERBLUE}
-      />
+ 
 
       {/* Hero Section */}
       <LinearGradient
