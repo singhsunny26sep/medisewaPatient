@@ -38,14 +38,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.white,
     paddingVertical: verticalScale(3),
-    elevation: 5,
+  
     shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     borderBottomLeftRadius: moderateScale(15),
     borderBottomRightRadius: moderateScale(15),
-    marginTop: 24
+    marginTop: 30,
+    
   },
   iconButton: {
     padding: scale(10),

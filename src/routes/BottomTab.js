@@ -1,6 +1,5 @@
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import {NavigationContainer} from '@react-navigation/native';
-import React, {useRef, useEffect} from 'react';
+import React, {useRef} from 'react';
 import Home from '../screens/Main/Home';
 import ProfileScreen from '../screens/Main/Profile';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -20,10 +19,8 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
-const {width, height} = Dimensions.get('window');
+const {width} = Dimensions.get('window');
 const isSmallScreen = width < 380;
-const isLargeScreen = width > 420;
-
 
 const Tab = createBottomTabNavigator();
 
@@ -99,213 +96,128 @@ export default function MainStack() {
 const styles = StyleSheet.create({
   tabBarContainer: {
     position: 'relative',
-    borderTopLeftRadius: moderateScale(25),
-    borderTopRightRadius: moderateScale(25),
-    elevation: 20,
+    borderTopLeftRadius: moderateScale(20),
+    borderTopRightRadius: moderateScale(20),
+    elevation: 15,
     shadowColor: COLORS.DODGERBLUE,
     shadowOffset: {
       width: 0,
-      height: -5,
+      height: -4,
     },
-    shadowOpacity: 0.4,
-    shadowRadius: 15,
-    marginHorizontal: scale(10),
-    marginBottom: verticalScale(15),
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.3)',
-    minHeight: verticalScale(70),
-    maxHeight: verticalScale(80),
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    marginHorizontal: scale(8),
+    marginBottom: verticalScale(12),
+    backgroundColor: COLORS.white,
+    minHeight: verticalScale(65),
+    maxHeight: verticalScale(75),
     overflow: 'hidden',
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: 'transparent',
-    height: isSmallScreen ? verticalScale(60) : verticalScale(65),
-    minHeight: verticalScale(55),
-    maxHeight: verticalScale(75),
-    paddingTop: verticalScale(8),
-    paddingBottom: verticalScale(5),
-    paddingHorizontal: isSmallScreen ? scale(2) : scale(5),
+    backgroundColor: COLORS.white,
+    height: verticalScale(60),
+    paddingTop: verticalScale(6),
+    paddingBottom: verticalScale(6),
+    paddingHorizontal: scale(8),
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: verticalScale(5),
-    paddingHorizontal: scale(2),
-    minWidth: scale(50),
-    maxWidth: scale(80),
+    paddingVertical: verticalScale(4),
   },
   iconContainer: {
-    width: isSmallScreen ? scale(42) : scale(48),
-    height: isSmallScreen ? scale(42) : scale(48),
-    minWidth: scale(35),
-    minHeight: scale(35),
-    maxWidth: scale(55),
-    maxHeight: scale(55),
-    borderRadius: moderateScale(isSmallScreen ? 21 : 24),
+    width: isSmallScreen ? scale(40) : scale(44),
+    height: isSmallScreen ? scale(40) : scale(44),
+    borderRadius: moderateScale(22),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: verticalScale(4),
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.25)',
-    position: 'relative',
+    marginBottom: verticalScale(2),
   },
   tabLabel: {
-    fontFamily: Fonts.Bold,
+    fontFamily: Fonts.Medium,
+    fontSize: moderateScale(11),
     textAlign: 'center',
-    marginTop: verticalScale(2),
-    marginBottom: verticalScale(2),
-    backgroundColor: 'transparent',
-    includeFontPadding: false,
-    textAlignVertical: 'center',
+    marginTop: verticalScale(1),
   },
-  activeIndicator: {
+  activeTabBackground: {
     position: 'absolute',
-    bottom: verticalScale(5),
-    width: scale(16),
-    height: scale(2),
-    backgroundColor: COLORS.white,
-    borderRadius: moderateScale(1),
-  },
-  animatedIndicator: {
-    position: 'absolute',
-    bottom: verticalScale(12),
-    width: scale(30),
-    height: scale(4),
-    backgroundColor: COLORS.white,
-    borderRadius: moderateScale(2),
-    shadowColor: COLORS.DODGERBLUE,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
-    elevation: 10,
+    top: verticalScale(4),
+    width: isSmallScreen ? scale(44) : scale(48),
+    height: verticalScale(32),
+    borderRadius: moderateScale(16),
+    backgroundColor: COLORS.DODGERBLUE,
   },
   badgeContainer: {
     position: 'absolute',
-    top: scale(-5),
-    right: scale(-5),
+    top: scale(-4),
+    right: scale(-4),
     backgroundColor: COLORS.VERMILION,
     borderRadius: moderateScale(10),
     minWidth: scale(18),
     height: scale(18),
-    maxWidth: scale(25),
-    maxHeight: scale(25),
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: scale(4),
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: COLORS.white,
-    shadowColor: COLORS.VERMILION,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 5,
   },
   badgeText: {
     color: COLORS.white,
-    fontSize: moderateScale(9),
+    fontSize: moderateScale(10),
     fontFamily: Fonts.Bold,
     textAlign: 'center',
-    includeFontPadding: false,
-  },
-  glowEffect: {
-    position: 'absolute',
-    top: -2,
-    left: -2,
-    right: -2,
-    bottom: -2,
-    borderRadius: moderateScale(26),
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    shadowColor: COLORS.DODGERBLUE,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
-    elevation: 10,
   },
 });
 
 function CustomTabBar({state, descriptors, navigation}) {
-  const animationValue = useRef(new Animated.Value(0)).current;
-  const pulseAnimation = useRef(new Animated.Value(1)).current;
-  const floatingAnimation = useRef(new Animated.Value(0)).current;
   const cartItems = useSelector(state => state.cart?.cartItems?.length || 0);
+  const animatedValue = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    Animated.spring(animationValue, {
-      toValue: state.index,
+  // Smooth indicator animation
+  const animateIndicator = (index) => {
+    Animated.spring(animatedValue, {
+      toValue: index,
       useNativeDriver: true,
-      tension: 80,
-      friction: 8,
+      tension: 100,
+      friction: 10,
     }).start();
-  }, [state.index, animationValue]);
+  };
 
-  // Floating animation for the entire tab bar
-  useEffect(() => {
-    const floatingAnimationLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatingAnimation, {
-          toValue: -2,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(floatingAnimation, {
-          toValue: 2,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(floatingAnimation, {
-          toValue: 0,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    floatingAnimationLoop.start();
-
-    return () => {
-      floatingAnimationLoop.stop();
-    };
-  }, [floatingAnimation]);
-
-  // Pulse animation for active tab
-  useEffect(() => {
-    const pulseAnimationLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnimation, {
-          toValue: 1.2,
-          duration: 1200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnimation, {
-          toValue: 1,
-          duration: 1200,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    pulseAnimationLoop.start();
-
-    return () => {
-      pulseAnimationLoop.stop();
-    };
-  }, [pulseAnimation]);
+  // Calculate indicator position
+  const getIndicatorPosition = (index) => {
+    const tabWidth = (width - scale(16)) / 4;
+    return index * tabWidth + (tabWidth - scale(40)) / 2;
+  };
 
   return (
-    <Animated.View style={{transform: [{translateY: floatingAnimation}]}}>
+    <View style={styles.tabBarContainer}>
       <LinearGradient
-        colors={[COLORS.DODGERBLUE, COLORS.STEELBLUE, COLORS.RobinBlue, COLORS.TEAL, COLORS.greenViridian]}
-        start={{x: 0, y: 0}}
-        end={{x: 1, y: 1}}
-        style={styles.tabBarContainer}>
-      <View style={styles.tabBar}>
+        colors={['#ffffff', '#f8f9fa']}
+        style={styles.tabBar}>
+        {/* Animated indicator background */}
+        <Animated.View
+          style={[
+            styles.activeTabBackground,
+            {
+              transform: [
+                {
+                  translateX: animatedValue.interpolate({
+                    inputRange: [0, 1, 2, 3],
+                    outputRange: [
+                      getIndicatorPosition(0),
+                      getIndicatorPosition(1),
+                      getIndicatorPosition(2),
+                      getIndicatorPosition(3),
+                    ],
+                  }),
+                },
+              ],
+            },
+          ]}
+        />
+        
         {state.routes.map((route, index) => {
           const {options} = descriptors[route.key];
           const label =
@@ -318,6 +230,7 @@ function CustomTabBar({state, descriptors, navigation}) {
           const isFocused = state.index === index;
 
           const onPress = () => {
+            animateIndicator(index);
             const event = navigation.emit({
               type: 'tabPress',
               target: route.key,
@@ -336,54 +249,6 @@ function CustomTabBar({state, descriptors, navigation}) {
             });
           };
 
-          // Animated icon scale and pulse
-          const scaleValue = useRef(new Animated.Value(1)).current;
-          const bounceValue = useRef(new Animated.Value(0)).current;
-
-          useEffect(() => {
-            if (isFocused) {
-              // Pulse animation for active tab
-              Animated.spring(scaleValue, {
-                toValue: 1.3,
-                useNativeDriver: true,
-                tension: 100,
-                friction: 3,
-              }).start();
-
-              // Bounce animation - only for active tab
-              const bounceAnimation = Animated.loop(
-                Animated.sequence([
-                  Animated.timing(bounceValue, {
-                    toValue: -3,
-                    duration: 800,
-                    useNativeDriver: true,
-                  }),
-                  Animated.timing(bounceValue, {
-                    toValue: 0,
-                    duration: 800,
-                    useNativeDriver: true,
-                  }),
-                ])
-              );
-              bounceAnimation.start();
-
-              return () => bounceAnimation.stop();
-            } else {
-              Animated.spring(scaleValue, {
-                toValue: 1,
-                useNativeDriver: true,
-                tension: 100,
-                friction: 3,
-              }).start();
-
-              Animated.timing(bounceValue, {
-                toValue: 0,
-                duration: 300,
-                useNativeDriver: true,
-              }).start();
-            }
-          }, [isFocused, scaleValue, bounceValue]);
-
           return (
             <TouchableOpacity
               key={route.key}
@@ -394,36 +259,11 @@ function CustomTabBar({state, descriptors, navigation}) {
               onPress={onPress}
               onLongPress={onLongPress}
               style={styles.tabItem}
-              activeOpacity={0.5}>
-              <Animated.View style={[
-                styles.iconContainer,
-                {
-                  transform: [
-                    {scale: isFocused ? pulseAnimation : scaleValue},
-                    {translateY: bounceValue}
-                  ],
-                  backgroundColor: isFocused
-                    ? 'rgba(255,255,255,0.3)'
-                    : 'rgba(255,255,255,0.08)',
-                  borderColor: isFocused
-                    ? 'rgba(255,255,255,0.5)'
-                    : 'rgba(255,255,255,0.2)',
-                  shadowColor: isFocused ? COLORS.DODGERBLUE : 'transparent',
-                  shadowOffset: {
-                    width: 0,
-                    height: isFocused ? 6 : 0,
-                  },
-                  shadowOpacity: isFocused ? 0.9 : 0,
-                  shadowRadius: isFocused ? 12 : 0,
-                  elevation: isFocused ? 12 : 0,
-                }
-              ]}>
-                {isFocused && (
-                  <View style={styles.glowEffect} />
-                )}
+              activeOpacity={0.7}>
+              <View style={styles.iconContainer}>
                 {options.tabBarIcon({
-                  color: isFocused ? COLORS.white : 'rgba(255,255,255,0.7)',
-                  size: isFocused ? 22 : 20,
+                  color: isFocused ? COLORS.white : COLORS.lightGrey,
+                  size: 22,
                   focused: isFocused,
                 })}
                 {route.name === strings.Cart && cartItems > 0 && (
@@ -433,47 +273,21 @@ function CustomTabBar({state, descriptors, navigation}) {
                     </Animated.Text>
                   </View>
                 )}
-              </Animated.View>
-              <Animated.Text style={[
-                styles.tabLabel,
-                {
-                  color: isFocused ? COLORS.white : 'rgba(255,255,255,0.7)',
-                  fontSize: isFocused ? moderateScale(13) : moderateScale(12),
-                  textShadowColor: isFocused ? 'rgba(79, 172, 254, 0.8)' : 'transparent',
-                  textShadowOffset: {width: 0, height: 0},
-                  textShadowRadius: isFocused ? 4 : 0,
-                }
-              ]}>
+              </View>
+              <Animated.Text
+                style={[
+                  styles.tabLabel,
+                  {
+                    color: isFocused ? COLORS.DODGERBLUE : COLORS.lightGrey,
+                    fontWeight: isFocused ? '600' : '400',
+                  },
+                ]}>
                 {label}
               </Animated.Text>
-              {isFocused && <View style={styles.activeIndicator} />}
             </TouchableOpacity>
           );
         })}
-      </View>
-
-      {/* Animated indicator */}
-      <Animated.View
-        style={[
-          styles.animatedIndicator,
-          {
-            transform: [
-              {
-                translateX: animationValue.interpolate({
-                  inputRange: [0, 1, 2, 3],
-                  outputRange: [
-                    scale(20),
-                    scale(20) + scale(55),
-                    scale(20) + scale(110),
-                    scale(20) + scale(165),
-                  ],
-                }),
-              },
-            ],
-          },
-        ]}
-      />
       </LinearGradient>
-    </Animated.View>
+    </View>
   );
 }

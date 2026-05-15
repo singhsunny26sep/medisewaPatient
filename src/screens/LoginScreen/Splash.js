@@ -6,16 +6,16 @@ import {
   Text,
   View,
   Dimensions,
-  ActivityIndicator
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Container } from '../../component/Container/Container';
 import { COLORS } from '../../Theme/Colors';
 import { moderateScale, scale } from '../../utils/Scaling';
 import { Fonts } from '../../Theme/Fonts';
 import fcmService from '../../utils/fcmService';
 import LinearGradient from 'react-native-linear-gradient';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -23,9 +23,8 @@ export default function Splash() {
   const navigation = useNavigation();
   const [isLoading, setIsLoading] = useState(true);
   const [fcmToken, setFcmToken] = useState(null);
-  const [debugInfo, setDebugInfo] = useState(''); 
 
-  const logoScale = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.3)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const textOpacity = useRef(new Animated.Value(0)).current;
   const textTranslateY = useRef(new Animated.Value(50)).current;
@@ -35,9 +34,10 @@ export default function Splash() {
     const animationSequence = async () => {
       // Logo animation
       Animated.parallel([
-        Animated.timing(logoScale, {
+        Animated.spring(logoScale, {
           toValue: 1,
-          duration: 800,
+          friction: 8,
+          tension: 40,
           useNativeDriver: true,
         }),
         Animated.timing(logoOpacity, {
@@ -80,58 +80,10 @@ export default function Splash() {
 
   const checkUserAuth = async () => {
     try {
-      setDebugInfo('Requesting FCM permission...');
-      
       const token = await fcmService.requestUserPermission();
       setFcmToken(token);
-      
-      setDebugInfo(`FCM Token: ${token ? 'Received' : 'Failed'}`);
 
       const userToken = await AsyncStorage.getItem('userToken');
-      
-      console.log("JWT Token Details:");
-      console.log("====================");
-
-      if (userToken) {
-        console.log("JWT Token Found");
-        console.log("Token Length:", userToken.length, "characters");
-        console.log("Token Value:", userToken);
-        
-        try {
-          const tokenParts = userToken.split('.');
-          if (tokenParts.length === 3) {
-            console.log("Token Format: JWT (3 parts detected)");
-            
-            const header = JSON.parse(atob(tokenParts[0]));
-            
-            const payload = JSON.parse(atob(tokenParts[1]));
-            console.log("Token Payload:", payload);
-            
-            if (payload.exp) {
-              const expirationDate = new Date(payload.exp * 1000);
-              const now = new Date();
-              
-              if (payload.userId) {
-                console.log("User ID:", payload.userId);
-              }
-              if (payload.email) {
-                console.log("User Email:", payload.email);
-              }
-            }
-          } else {
-            console.log("ℹ Token Format: Not a standard JWT");
-          }
-        } catch (decodeError) {
-          console.log("Cannot decode token - may not be a JWT:", decodeError.message);
-        }
-      } else {
-        console.log("No JWT Token Found in AsyncStorage");
-        console.log("Available keys in AsyncStorage:", await AsyncStorage.getAllKeys());
-      }
-      
-      console.log("====================");
-      
-      setDebugInfo(`User Auth: ${userToken ? 'Logged In' : 'Not Logged In'}`);
       
       setTimeout(() => {
         setIsLoading(false);
@@ -143,57 +95,61 @@ export default function Splash() {
       }, 2000);
     } catch (error) {
       console.error('Error checking auth status:', error);
-      setDebugInfo(`Error: ${error.message}`);
       setIsLoading(false);
       navigation.replace('Login');
     }
   };
 
   return (
-    <Container
-      statusBarStyle={'light-content'}
-      statusBarBackgroundColor={COLORS.DODGERBLUE}
-      backgroundColor={COLORS.DODGERBLUE}>
-      <LinearGradient
-        colors={[COLORS.DODGERBLUE, COLORS.STEELBLUE, COLORS.RobinBlue, COLORS.TEAL, COLORS.greenViridian]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.container}>
-        <Animated.View 
-          style={[
-            styles.logoContainer,
-            {
-              opacity: logoOpacity,
-              transform: [{ scale: logoScale }]
-            }
-          ]}>
-          <View style={styles.logoWrapper}>
-            <Image
-              style={styles.logo}
-              source={{
-                uri: 'https://static.vecteezy.com/system/resources/previews/020/487/373/non_2x/clipboard-with-stethoscope-medical-check-form-report-health-checkup-concept-metaphor-illustration-flat-design-eps10-simple-and-modern-style-vector.jpg',
-              }}
-            />
-          </View>
-        </Animated.View>
-
-        <Animated.View 
-          style={[
-            styles.textContainer,
-            {
-              opacity: textOpacity,
-              transform: [{ translateY: textTranslateY }]
-            }
-          ]}>
-          <Text style={styles.appName}>Medisewa-Patient</Text>
-          <Text style={styles.tagline}>Your Health, Our Priority</Text>
-        </Animated.View>
-
-        <View style={styles.versionContainer}>
-          <Text style={styles.versionText}>Version 1.0.0</Text>
+    <LinearGradient
+      colors={['#3B82F6', '#2563EB']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 0.7 }}
+      style={styles.container}
+    >
+      <Animated.View 
+        style={[
+          styles.logoContainer,
+          {
+            opacity: logoOpacity,
+            transform: [{ scale: logoScale }]
+          }
+        ]}>
+        <View style={styles.logoWrapper}>
+          <LinearGradient
+            colors={['#FFF', '#F3F4F6']}
+            style={styles.logoGradient}
+          >
+            <Ionicons name="medkit-outline" size={80} color="#3B82F6" />
+          </LinearGradient>
         </View>
-      </LinearGradient>
-    </Container>
+      </Animated.View>
+
+      <Animated.View 
+        style={[
+          styles.textContainer,
+          {
+            opacity: textOpacity,
+            transform: [{ translateY: textTranslateY }]
+          }
+        ]}>
+        <Text style={styles.appName}>MediSewa</Text>
+        <Text style={styles.tagline}>Your Health, Our Priority</Text>
+      </Animated.View>
+
+      <Animated.View style={[styles.loadingContainer, { opacity: loadingOpacity }]}>
+        <View style={styles.loadingDots}>
+          <View style={[styles.dot, styles.dot1]} />
+          <View style={[styles.dot, styles.dot2]} />
+          <View style={[styles.dot, styles.dot3]} />
+        </View>
+        <Text style={styles.loadingText}>Loading...</Text>
+      </Animated.View>
+
+      <View style={styles.versionContainer}>
+        <Text style={styles.versionText}>Version 2.0.0</Text>
+      </View>
+    </LinearGradient>
   );
 }
 
@@ -202,79 +158,86 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: scale(40),
+    marginBottom: scale(30),
   },
   logoWrapper: {
-    width: scale(180),
-    height: scale(180),
-    borderRadius: scale(90),
-    backgroundColor: COLORS.white,
+    width: scale(140),
+    height: scale(140),
+    borderRadius: scale(70),
+    shadowColor: '#FFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  logoGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: scale(70),
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 8,
-  },
-  logo: {
-    width: scale(140),
-    height: scale(140),
-    resizeMode: 'contain',
-    borderRadius: scale(70),
+    elevation: 6,
   },
   textContainer: {
     alignItems: 'center',
-    marginBottom: scale(20),
+    marginBottom: scale(40),
   },
   appName: {
-    color: COLORS.white,
+    color: '#FFF',
     fontFamily: Fonts.Bold,
-    fontSize: moderateScale(25),
+    fontSize: moderateScale(32),
     marginBottom: scale(8),
     textAlign: 'center',
     letterSpacing: 1,
   },
   tagline: {
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(255, 255, 255, 0.85)',
     fontFamily: Fonts.Regular,
-    fontSize: moderateScale(16),
+    fontSize: moderateScale(14),
     textAlign: 'center',
     letterSpacing: 0.5,
   },
-  debugContainer: {
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    padding: scale(10),
-    borderRadius: scale(8),
-    marginBottom: scale(20),
-    alignItems: 'center',
-    minWidth: width * 0.8,
-  },
-  debugText: {
-    color: COLORS.white,
-    fontSize: moderateScale(10),
-    fontFamily: Fonts.Medium,
-    textAlign: 'center',
-    marginBottom: scale(2),
-  },
   loadingContainer: {
     alignItems: 'center',
-    marginBottom: scale(40),
+    position: 'absolute',
+    bottom: height * 0.25,
   },
-  loadingIndicator: {
-    marginBottom: scale(12),
+  loadingDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FFF',
+    marginHorizontal: 4,
+  },
+  dot1: {
+    opacity: 0.6,
+  },
+  dot2: {
+    opacity: 1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  dot3: {
+    opacity: 0.6,
   },
   loadingText: {
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(255, 255, 255, 0.8)',
     fontFamily: Fonts.Medium,
-    fontSize: moderateScale(14),
+    fontSize: moderateScale(12),
   },
   versionContainer: {
     position: 'absolute',
@@ -284,6 +247,6 @@ const styles = StyleSheet.create({
   versionText: {
     color: 'rgba(255, 255, 255, 0.5)',
     fontFamily: Fonts.Regular,
-    fontSize: moderateScale(12),
+    fontSize: moderateScale(11),
   },
 });

@@ -10,13 +10,20 @@ import {
   ActivityIndicator,
   Modal,
   StatusBar,
+  Dimensions,
+  Platform,
+  Animated,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { Container } from '../../component/Container/Container';
 import { COLORS } from '../../Theme/Colors';
 import { moderateScale, scale, verticalScale } from '../../utils/Scaling';
 import { Fonts } from '../../Theme/Fonts';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Instance } from '../../api/Instance';
+
+const { width, height } = Dimensions.get('window');
+const isSmallScreen = width < 380;
 
 export default function Department_List({ route, navigation }) {
   const { departmentId } = route.params;
@@ -26,10 +33,6 @@ export default function Department_List({ route, navigation }) {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    console.log('Modal visibility changed:', isModalVisible);
-  }, [isModalVisible]);
 
   useEffect(() => {
     const fetchDoctorsByDepartment = async () => {
@@ -47,6 +50,7 @@ export default function Department_List({ route, navigation }) {
     };
     fetchDoctorsByDepartment();
   }, [departmentId]);
+
   const handleSearch = text => {
     setSearchQuery(text);
     if (text.trim() === '') {
@@ -65,12 +69,137 @@ export default function Department_List({ route, navigation }) {
   };
 
   const handleMobilePress = doctor => {
-    console.log('Call icon pressed for doctor:', doctor?.name);
-    console.log('Modal state before:', isModalVisible);
     setSelectedDoctor(doctor);
     setIsModalVisible(true);
-    console.log('Modal should be visible now, state after:', true);
   };
+
+  const renderDoctorCard = ({ item, index }) => {
+    const scaleValue = new Animated.Value(0);
+    Animated.spring(scaleValue, {
+      toValue: 1,
+      tension: 50,
+      friction: 7,
+      useNativeDriver: true,
+      delay: index * 100,
+    }).start();
+
+    return (
+      <Animated.View style={[styles.cardWrapper, { transform: [{ scale: scaleValue }] }]}>
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.doctorInfo}>
+              <View style={styles.imageContainer}>
+                {item.image ? (
+                  <Image source={{ uri: item.image }} style={styles.cardImage} />
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <Ionicons name="person" size={30} color={COLORS.DODGERBLUE} />
+                  </View>
+                )}
+                <View style={[
+                  styles.onlineIndicator,
+                  { backgroundColor: item.isOnline ? '#4CAF50' : '#9E9E9E' }
+                ]} />
+              </View>
+              <View style={styles.doctorDetails}>
+                <Text style={styles.drName} numberOfLines={1}>{item.name}</Text>
+                <View style={styles.departmentBadge}>
+                  <Text style={styles.drType}>
+                    {item.department?.name || 'Not Available'}
+                  </Text>
+                </View>
+                <View style={styles.specializationBadge}>
+                  <Ionicons name="medical" size={12} color={COLORS.DODGERBLUE} />
+                  <Text style={styles.specialization} numberOfLines={1}>
+                    {item.specialization?.name || 'General'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.cardBody}>
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconContainer}>
+                <Ionicons name="briefcase-outline" size={14} color={COLORS.DODGERBLUE} />
+              </View>
+              <Text style={styles.infoText}>
+                {item.doctorId?.experience || '0'} years experience
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconContainer}>
+                <Ionicons name="star" size={14} color="#FFD700" />
+              </View>
+              <Text style={styles.infoText}>
+                {item.doctorId?.rating || '4.5'} ({item.doctorId?.reviews || '500'} reviews)
+              </Text>
+            </View>
+            <View style={[styles.statusContainer, item.isOnline ? styles.onlineStatus : styles.offlineStatus]}>
+              <View style={[styles.statusDot, { backgroundColor: item.isOnline ? '#4CAF50' : '#9E9E9E' }]} />
+              <Text style={[styles.statusText, { color: item.isOnline ? '#4CAF50' : '#9E9E9E' }]}>
+                {item.isOnline ? 'Online' : 'Offline'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.cardFooter}>
+            <TouchableOpacity
+              style={styles.contactButton}
+              onPress={() => handleMobilePress(item)}>
+              <View style={styles.contactButtonContent}>
+                <Ionicons name="call-outline" size={18} color={COLORS.DODGERBLUE} />
+                <Text style={styles.contactText}>Call Now</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.bookingButton}
+              onPress={() =>
+                navigation.navigate('Dr_AppointmentBook', {
+                  doctorId: item.userId,
+                })
+              }>
+              <LinearGradient
+                colors={['#667eea', '#764ba2']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.bookingButtonGradient}>
+                <Text style={styles.bookingText}>Book Appointment</Text>
+                <Ionicons name="arrow-forward" size={14} color={COLORS.white} />
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Animated.View>
+    );
+  };
+
+  const renderEmptyList = () => (
+    <View style={styles.emptyContainer}>
+      <View style={styles.emptyIconContainer}>
+        <Ionicons name="search" size={50} color={COLORS.DODGERBLUE} />
+      </View>
+      <Text style={styles.emptyText}>No doctors found</Text>
+      <Text style={styles.emptySubText}>
+        Try searching with different keywords
+      </Text>
+    </View>
+  );
+
+  if (isLoading) {
+    return (
+      <Container
+        statusBarStyle={'light-content'}
+        statusBarBackgroundColor={COLORS.DODGERBLUE}
+        backgroundColor={COLORS.white}>
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color={COLORS.DODGERBLUE} />
+          <Text style={styles.loaderText}>Loading doctors...</Text>
+        </View>
+      </Container>
+    );
+  }
 
   return (
     <View style={styles.mainContainer}>
@@ -78,140 +207,120 @@ export default function Department_List({ route, navigation }) {
         backgroundColor={COLORS.DODGERBLUE}
         barStyle="light-content"
       />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={25} color={COLORS.white} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.LocationView}>
-          <Text numberOfLines={1} style={styles.locationText}>
-            Dr List
-          </Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.searchHeader}>
-        <View style={styles.searchTouch}>
-          <TextInput
-            placeholder="Search...."
-            style={styles.searchInput}
-            value={searchQuery}
-            onChangeText={handleSearch}
-          />
-          <Ionicons
-            name="search-circle-sharp"
-            size={40}
-            color={COLORS.DODGERBLUE}
-          />
+      <LinearGradient
+        colors={['#667eea', '#764ba2']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={COLORS.white} />
+          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>Department Doctors</Text>
+            <Text style={styles.headerSubtitle}>
+              {filteredDoctors.length} doctors available
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.filterButton}>
+            <Ionicons name="options-outline" size={22} color={COLORS.white} />
+          </TouchableOpacity>
         </View>
-      </View>
+
+        <View style={styles.searchContainer}>
+          <View style={styles.searchWrapper}>
+            <Ionicons name="search-outline" size={20} color={COLORS.DODGERBLUE} />
+            <TextInput
+              placeholder="Search doctors..."
+              placeholderTextColor={COLORS.lightGrey}
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={handleSearch}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => handleSearch('')}>
+                <Ionicons name="close-circle" size={20} color={COLORS.lightGrey} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </LinearGradient>
+
       <FlatList
         data={filteredDoctors}
         showsVerticalScrollIndicator={false}
         keyExtractor={item => item._id.toString()}
-        pointerEvents="box-none"
-        ListEmptyComponent={() => (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="search" size={50} color={COLORS.gray} />
-            <Text style={styles.emptyText}>No doctors found</Text>
-            <Text style={styles.emptySubText}>
-              Try searching with different keywords
-            </Text>
-          </View>
-        )}
-        renderItem={({ item }) => {
-          return (
-            <View style={styles.card} pointerEvents="box-none">
-              <View style={styles.cardContent}>
-                <Image source={{ uri: item.image }} style={styles.cardImage} />
-                <View style={styles.cardText}>
-                  <Text style={styles.drName}>{item.name}</Text>
-                  <Text style={styles.drType}>
-                    {item.department?.name || 'Not Available'}
-                  </Text>
-                  <Text style={styles.experience}>
-                    {item.doctorId?.experience || '0'} years experience
-                  </Text>
-                  <Text style={styles.specialization}>
-                    {item.specialization?.name || 'Not Available'}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.contact}
-                    onPress={() => handleMobilePress(item)}
-                    activeOpacity={0.7}>
-                    <Ionicons name="call" size={23} color={COLORS.DODGERBLUE} />
-                    <Text style={styles.mobile}>{item.contactNumber}</Text>
-                  </TouchableOpacity>
-                  <View style={styles.statusContainer}>
-                    <View
-                      style={[
-                        styles.statusDot,
-                        { backgroundColor: item.isOnline ? 'green' : 'red' },
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        styles.statusText,
-                        { color: item.isOnline ? 'green' : 'red' },
-                      ]}>
-                      {item.isOnline ? 'Online' : 'Offline'}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={styles.bookingButton}
-                onPress={() =>
-                  navigation.navigate('Dr_AppointmentBook', {
-                    doctorId: item.userId,
-                  })
-                }>
-                <Text style={styles.bookingText}>Booking Appointment</Text>
-              </TouchableOpacity>
-            </View>
-          );
-        }}
+        ListEmptyComponent={renderEmptyList}
+        renderItem={renderDoctorCard}
+        contentContainerStyle={styles.listContainer}
       />
+
       <Modal
         transparent={true}
         visible={isModalVisible}
         animationType="slide"
-        presentationStyle="overFullScreen"
-        onRequestClose={() => {
-          console.log('Modal close requested');
-          setIsModalVisible(false);
-        }}>
+        onRequestClose={() => setIsModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            <View style={styles.modalButtonsRow}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Contact Dr. {selectedDoctor?.name}</Text>
+              <TouchableOpacity 
+                style={styles.modalCloseButton}
+                onPress={() => setIsModalVisible(false)}>
+                <Ionicons name="close" size={24} color={COLORS.black} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalContent}>
               <TouchableOpacity
-                style={styles.callOption}
+                style={styles.modalOption}
                 onPress={() => {
-                  console.log('Audio call button pressed for doctor:', selectedDoctor?.name);
                   setIsModalVisible(false);
                   navigation.navigate('AudioCall', { doctor: selectedDoctor });
                 }}>
-                <Ionicons name="call" size={30} color={COLORS.DODGERBLUE} />
-                <Text style={styles.callOptionText}>Audio Call</Text>
+                <View style={[styles.modalIconContainer, { backgroundColor: '#E3F2FD' }]}>
+                  <Ionicons name="call" size={28} color={COLORS.DODGERBLUE} />
+                </View>
+                <View style={styles.modalOptionText}>
+                  <Text style={styles.modalOptionTitle}>Audio Call</Text>
+                  <Text style={styles.modalOptionDescription}>Voice consultation</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color={COLORS.lightGrey} />
               </TouchableOpacity>
+
               <TouchableOpacity
-                style={styles.callOption}
+                style={styles.modalOption}
                 onPress={() => {
-                  console.log('Video call button pressed for doctor:', selectedDoctor?.name);
                   setIsModalVisible(false);
                   navigation.navigate('VideoCall', { doctor: selectedDoctor });
                 }}>
-                <Ionicons name="videocam" size={30} color={COLORS.DODGERBLUE} />
-                <Text style={styles.callOptionText}>Video Call</Text>
+                <View style={[styles.modalIconContainer, { backgroundColor: '#E8F5E9' }]}>
+                  <Ionicons name="videocam" size={28} color="#4CAF50" />
+                </View>
+                <View style={styles.modalOptionText}>
+                  <Text style={styles.modalOptionTitle}>Video Call</Text>
+                  <Text style={styles.modalOptionDescription}>Face to face</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color={COLORS.lightGrey} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={() => {
+                  setIsModalVisible(false);
+                }}>
+                <View style={[styles.modalIconContainer, { backgroundColor: '#FFF3E0' }]}>
+                  <Ionicons name="chatbubbles" size={28} color="#FF9800" />
+                </View>
+                <View style={styles.modalOptionText}>
+                  <Text style={styles.modalOptionTitle}>Text Chat</Text>
+                  <Text style={styles.modalOptionDescription}>Send messages</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color={COLORS.lightGrey} />
               </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => {
-                console.log('Cancel button pressed');
-                setIsModalVisible(false);
-              }}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -222,125 +331,271 @@ export default function Department_List({ route, navigation }) {
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: '#F5F6FA',
+  },
+  headerGradient: {
+    paddingTop: verticalScale(10),
+    paddingBottom: verticalScale(15),
+    borderBottomLeftRadius: moderateScale(25),
+    borderBottomRightRadius: moderateScale(25),
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: scale(16),
     paddingVertical: verticalScale(8),
-    backgroundColor: COLORS.DODGERBLUE,
   },
-  locationText: {
-    fontSize: moderateScale(18),
-    color: COLORS.white,
-    paddingLeft: scale(10),
-    fontFamily: Fonts.Light,
+  backButton: {
+    padding: scale(8),
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: moderateScale(12),
   },
-  LocationView: {
+  headerTitleContainer: {
     flex: 1,
+    marginLeft: scale(12),
   },
-  searchHeader: {
-    height: verticalScale(70),
-    backgroundColor: COLORS.DODGERBLUE,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderBottomLeftRadius: moderateScale(10),
-    borderBottomRightRadius: moderateScale(10),
+  headerTitle: {
+    fontSize: moderateScale(20),
+    color: COLORS.white,
+    fontFamily: Fonts.Bold,
   },
-  searchTouch: {
+  headerSubtitle: {
+    fontSize: moderateScale(12),
+    color: 'rgba(255,255,255,0.8)',
+    fontFamily: Fonts.Regular,
+    marginTop: verticalScale(2),
+  },
+  filterButton: {
+    padding: scale(8),
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: moderateScale(12),
+  },
+  searchContainer: {
+    paddingHorizontal: scale(16),
+    paddingTop: verticalScale(10),
+  },
+  searchWrapper: {
     flexDirection: 'row',
-    width: '90%',
-    backgroundColor: COLORS.white,
-    borderColor: COLORS.AntiFlashWhite,
-    borderWidth: moderateScale(1),
-    borderRadius: moderateScale(10),
-    paddingHorizontal: scale(15),
-    elevation: 3,
-    justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: moderateScale(15),
+    paddingHorizontal: scale(15),
+    paddingVertical: verticalScale(4),
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   searchInput: {
     flex: 1,
+    marginLeft: scale(10),
+    fontSize: moderateScale(14),
+    color: COLORS.black,
+    fontFamily: Fonts.Regular,
     height: verticalScale(40),
   },
-  card: {
-    marginVertical: verticalScale(7),
-    marginHorizontal: scale(15),
-    backgroundColor: COLORS.white,
-    borderRadius: moderateScale(8),
-    elevation: 5,
-    shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: moderateScale(4),
-    paddingBottom: verticalScale(5),
+  listContainer: {
+    paddingHorizontal: scale(16),
+    paddingTop: verticalScale(15),
+    paddingBottom: verticalScale(20),
   },
-  cardContent: {
+  cardWrapper: {
+    marginBottom: verticalScale(12),
+  },
+  card: {
+    backgroundColor: COLORS.white,
+    borderRadius: moderateScale(20),
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+  cardHeader: {
+    padding: scale(15),
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  doctorInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: scale(15),
-    paddingVertical: verticalScale(10),
+  },
+  imageContainer: {
+    position: 'relative',
   },
   cardImage: {
-    width: scale(85),
-    height: scale(85),
-    borderRadius: moderateScale(45),
-    marginRight: scale(16),
-    borderWidth: 0.5,
-    borderColor: COLORS.black,
+    width: scale(65),
+    height: scale(65),
+    borderRadius: moderateScale(35),
+    borderWidth: 3,
+    borderColor: COLORS.white,
   },
-  cardText: {
+  imagePlaceholder: {
+    width: scale(65),
+    height: scale(65),
+    borderRadius: moderateScale(35),
+    backgroundColor: '#F5F6FA',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#F5F6FA',
+  },
+  onlineIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: scale(16),
+    height: scale(16),
+    borderRadius: scale(8),
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
+  doctorDetails: {
+    marginLeft: scale(12),
     flex: 1,
   },
   drName: {
-    fontSize: moderateScale(16),
+    fontSize: moderateScale(17),
     fontFamily: Fonts.Bold,
     color: COLORS.black,
+    marginBottom: verticalScale(3),
+  },
+  departmentBadge: {
+    backgroundColor: 'rgba(102,126,234,0.1)',
+    paddingHorizontal: scale(10),
+    paddingVertical: verticalScale(3),
+    borderRadius: moderateScale(8),
+    alignSelf: 'flex-start',
+    marginBottom: verticalScale(5),
   },
   drType: {
-    fontSize: moderateScale(14),
+    fontSize: moderateScale(12),
     color: COLORS.DODGERBLUE,
-    marginVertical: verticalScale(1),
-    fontFamily: Fonts.Light,
+    fontFamily: Fonts.SemiBold,
   },
-  experience: {
-    fontSize: moderateScale(13),
-    color: COLORS.gray,
-    fontFamily: Fonts.Regular,
-  },
-  specialization: {
-    fontSize: moderateScale(13),
-    color: COLORS.DODGERBLUE,
-    fontFamily: Fonts.Regular,
-    marginVertical: verticalScale(3),
-  },
-  contact: {
+  specializationBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: verticalScale(5),
-    paddingVertical: verticalScale(5),
-    paddingHorizontal: scale(8),
-    borderRadius: moderateScale(5),
-    backgroundColor: 'rgba(3, 133, 234, 0.1)',
   },
-  mobile: {
-    fontSize: moderateScale(14),
-    color: COLORS.black,
-    marginLeft: scale(5),
+  specialization: {
+    fontSize: moderateScale(12),
+    color: COLORS.lightGrey,
+    fontFamily: Fonts.Regular,
+    marginLeft: scale(4),
+    flex: 1,
+  },
+  cardBody: {
+    padding: scale(15),
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: verticalScale(6),
+  },
+  infoIconContainer: {
+    width: scale(26),
+    height: scale(26),
+    borderRadius: scale(13),
+    backgroundColor: 'rgba(102,126,234,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: scale(8),
+  },
+  infoText: {
+    fontSize: moderateScale(12),
+    color: COLORS.ARSENIC,
     fontFamily: Fonts.Medium,
   },
-  bookingButton: {
-    marginTop: verticalScale(3),
+  statusContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderColor: COLORS.AshGray,
+    alignSelf: 'flex-start',
+    paddingHorizontal: scale(10),
+    paddingVertical: verticalScale(4),
+    borderRadius: moderateScale(12),
+    marginTop: verticalScale(4),
+  },
+  onlineStatus: {
+    backgroundColor: 'rgba(76,175,80,0.1)',
+  },
+  offlineStatus: {
+    backgroundColor: 'rgba(158,158,158,0.1)',
+  },
+  statusDot: {
+    width: scale(8),
+    height: scale(8),
+    borderRadius: scale(4),
+    marginRight: scale(6),
+  },
+  statusText: {
+    fontSize: moderateScale(12),
+    fontFamily: Fonts.Medium,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    padding: scale(15),
+    paddingTop: 0,
+  },
+  contactButton: {
+    flex: 1,
+    marginRight: scale(10),
+  },
+  contactButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(102,126,234,0.1)',
+    borderRadius: moderateScale(12),
+    paddingVertical: verticalScale(12),
+  },
+  contactText: {
+    fontSize: moderateScale(13),
+    color: COLORS.DODGERBLUE,
+    fontFamily: Fonts.SemiBold,
+    marginLeft: scale(8),
+  },
+  bookingButton: {
+    flex: 1.5,
+    borderRadius: moderateScale(12),
+    overflow: 'hidden',
+  },
+  bookingButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: verticalScale(12),
+    paddingHorizontal: scale(15),
   },
   bookingText: {
-    color: COLORS.DODGERBLUE,
-    fontSize: moderateScale(16),
-    fontFamily: Fonts.Light,
-    paddingTop: scale(5),
+    fontSize: moderateScale(13),
+    color: COLORS.white,
+    fontFamily: Fonts.SemiBold,
+    marginRight: scale(6),
   },
   loaderContainer: {
     flex: 1,
@@ -348,75 +603,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loaderText: {
-    marginTop: 10,
-    fontSize: moderateScale(16),
-    color: COLORS.DODGERBLUE,
-    fontFamily: Fonts.Medium,
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: verticalScale(5),
-  },
-  statusDot: {
-    width: scale(10),
-    height: scale(10),
-    borderRadius: scale(5),
-    marginRight: scale(6),
-  },
-  statusText: {
-    fontSize: moderateScale(13),
-    color: COLORS.gray,
-    fontFamily: Fonts.Medium,
-    top: 2,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-    zIndex: 1000,
-  },
-  modalContainer: {
-    backgroundColor: COLORS.white,
-    padding: scale(20),
-    borderTopLeftRadius: scale(20),
-    borderTopRightRadius: scale(20),
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  modalButtonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-  },
-  callOption: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: scale(15),
-  },
-  callOptionText: {
-    marginTop: verticalScale(8),
+    marginTop: verticalScale(10),
     fontSize: moderateScale(14),
     color: COLORS.DODGERBLUE,
-    fontFamily: Fonts.Medium,
-  },
-  cancelButton: {
-    marginTop: verticalScale(20),
-    backgroundColor: COLORS.red,
-    paddingVertical: verticalScale(8),
-    borderRadius: moderateScale(10),
-    alignItems: 'center',
-  },
-
-  cancelButtonText: {
-    fontSize: moderateScale(16),
-    color: COLORS.white,
     fontFamily: Fonts.Medium,
   },
   emptyContainer: {
@@ -425,16 +614,85 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: verticalScale(50),
   },
+  emptyIconContainer: {
+    width: scale(100),
+    height: scale(100),
+    borderRadius: scale(50),
+    backgroundColor: 'rgba(102,126,234,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: verticalScale(20),
+  },
   emptyText: {
     fontSize: moderateScale(18),
+    fontFamily: Fonts.Bold,
     color: COLORS.black,
-    fontFamily: Fonts.Medium,
-    marginTop: verticalScale(10),
+    marginBottom: verticalScale(8),
   },
   emptySubText: {
     fontSize: moderateScale(14),
-    color: COLORS.gray,
+    color: COLORS.lightGrey,
     fontFamily: Fonts.Regular,
-    marginTop: verticalScale(5),
+    textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: moderateScale(25),
+    borderTopRightRadius: moderateScale(25),
+    paddingBottom: verticalScale(30),
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: scale(20),
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  modalTitle: {
+    fontSize: moderateScale(18),
+    fontFamily: Fonts.Bold,
+    color: COLORS.black,
+  },
+  modalCloseButton: {
+    padding: scale(5),
+  },
+  modalContent: {
+    padding: scale(20),
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: scale(15),
+    backgroundColor: '#F8F9FA',
+    borderRadius: moderateScale(15),
+    marginBottom: scale(12),
+  },
+  modalIconContainer: {
+    width: scale(55),
+    height: scale(55),
+    borderRadius: moderateScale(15),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalOptionText: {
+    flex: 1,
+    marginLeft: scale(15),
+  },
+  modalOptionTitle: {
+    fontSize: moderateScale(16),
+    fontFamily: Fonts.SemiBold,
+    color: COLORS.black,
+  },
+  modalOptionDescription: {
+    fontSize: moderateScale(13),
+    color: COLORS.lightGrey,
+    fontFamily: Fonts.Regular,
+    marginTop: verticalScale(2),
   },
 });

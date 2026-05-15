@@ -1,42 +1,74 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   TextInput,
   StyleSheet,
   TouchableOpacity,
-  StatusBar,
   Text,
   FlatList,
   ActivityIndicator,
   Alert,
   Image,
   Modal,
+  Dimensions,
+  Platform,
+  Animated,
+  RefreshControl,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import {COLORS} from '../../../Theme/Colors';
-import {scale, verticalScale, moderateScale} from '../../../utils/Scaling';
-import {Instance} from '../../../api/Instance';
+import { COLORS } from '../../../Theme/Colors';
+import { scale, verticalScale, moderateScale } from '../../../utils/Scaling';
+import { Instance } from '../../../api/Instance';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import RNFS from 'react-native-fs';
-import {PermissionsAndroid, Platform} from 'react-native';
+import { PermissionsAndroid, Platform as RNPlatform } from 'react-native';
 import FileViewer from 'react-native-file-viewer';
 
-export default function Reports({navigation}) {
+const { width, height } = Dimensions.get('window');
+
+export default function Reports({ navigation }) {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [downloadDest, setDownloadDest] = useState('');
+  const [selectedReport, setSelectedReport] = useState(null);
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    fetchReports();
+  }, []);
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [reports]);
 
   const requestStoragePermission = async () => {
-    if (Platform.OS === 'android') {
+    if (RNPlatform.OS === 'android') {
       try {
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
           {
             title: 'Storage Permission Required',
             message: 'This app needs access to your storage to download files',
-          },
+          }
         );
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
@@ -47,32 +79,43 @@ export default function Reports({navigation}) {
     return true;
   };
 
-  useEffect(() => {
-    const fetchReports = async () => {
-      try {
-        const token = await AsyncStorage.getItem('userToken');
-        if (token) {
-          const response = await Instance.get('/reports/user', {
-            headers: {
-              Authorization: token,
-            },
-          });
-          setReports(response.data);
-          // console.log(response.data, 'your responce');
-        } else {
-          setError('No token found');
-        }
-      } catch (err) {
-        setError('Failed to fetch reports');
-      } finally {
-        setLoading(false);
+  const fetchReports = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (token) {
+        const response = await Instance.get('/reports/user', {
+          headers: {
+            Authorization: token,
+          },
+        });
+        setReports(response.data);
+      } else {
+        setError('No token found');
       }
-    };
+    } catch (err) {
+      console.log(err);
+      setError('Failed to fetch reports');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
+  const onRefresh = () => {
+    setRefreshing(true);
     fetchReports();
-  }, []);
+  };
 
-  const handleDownload = async fileData => {
+  const handleSearch = (text) => {
+    setSearchQuery(text);
+  };
+
+  const filteredReports = reports.filter((report) =>
+    report.details?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleDownload = async (fileData, report) => {
+    setSelectedReport(report);
     const permissionGranted = await requestStoragePermission();
     if (permissionGranted) {
       try {
@@ -81,136 +124,246 @@ export default function Reports({navigation}) {
         const fileName = `report_${new Date().getTime()}${fileExtension}`;
         const downloadDestPath = `${RNFS.DocumentDirectoryPath}/${fileName}`;
 
-        // Write the file to disk
         await RNFS.writeFile(downloadDestPath, base64String, 'base64');
 
-        // Check if the file exists
         const fileExists = await RNFS.exists(downloadDestPath);
         if (fileExists) {
           setDownloadDest(downloadDestPath);
           setSuccessModalVisible(true);
         } else {
-          Alert.alert('Error', 'Failed to download file', [{text: 'OK'}]);
+          Alert.alert('Error', 'Failed to download file', [{ text: 'OK' }]);
         }
       } catch (error) {
         console.error('Download error:', error);
         Alert.alert('Error', 'An error occurred while downloading the file.', [
-          {text: 'OK'},
+          { text: 'OK' },
         ]);
       }
     } else {
       Alert.alert(
         'Permission Denied',
-        'Storage permission is required to download files.',
+        'Storage permission is required to download files.'
       );
     }
   };
 
-  const handleOpenFile = async filePath => {
+  const handleOpenFile = async (filePath) => {
     try {
       await FileViewer.open(filePath);
       setSuccessModalVisible(false);
     } catch (error) {
       console.error('Error opening file:', error);
-      Alert.alert('Error', 'Failed to open the file', [{text: 'OK'}]);
+      Alert.alert('Error', 'Failed to open the file', [{ text: 'OK' }]);
     }
   };
 
-  const renderReportItem = ({item}) => (
-    <View style={styles.ReportView}>
-      <Text style={styles.ReportTxt}>{item.details}</Text>
-      <Text style={styles.ReportTxt}>
-        {new Date(item.createdAt).toLocaleDateString()}
+  const ReportCard = ({ item, index }) => {
+    const slideAnim = useRef(new Animated.Value(50)).current;
+    const scaleAnim = useRef(new Animated.Value(0.95)).current;
+
+    useEffect(() => {
+      Animated.parallel([
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          friction: 8,
+          tension: 40,
+          delay: index * 100,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 8,
+          tension: 40,
+          delay: index * 100,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, []);
+
+    return (
+      <Animated.View
+        style={[
+          styles.reportCard,
+          {
+            transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
+          },
+        ]}
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.iconWrapper}>
+            <LinearGradient
+              colors={['#3B82F6', '#2563EB']}
+              style={styles.iconGradient}
+            >
+              <Ionicons name="document-text-outline" size={24} color="#FFF" />
+            </LinearGradient>
+          </View>
+          <View style={styles.cardHeaderInfo}>
+            <Text style={styles.reportTitle} numberOfLines={2}>
+              {item.details || 'Medical Report'}
+            </Text>
+            <View style={styles.dateBadge}>
+              <Ionicons name="calendar-outline" size={12} color="#6B7280" />
+              <Text style={styles.dateText}>
+                {new Date(item.createdAt).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.cardFooter}>
+          <TouchableOpacity
+            style={styles.downloadBtn}
+            onPress={() => handleDownload(item.file, item)}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={['#3B82F6', '#2563EB']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.downloadGradient}
+            >
+              <Ionicons name="download-outline" size={18} color="#FFF" />
+              <Text style={styles.downloadBtnText}>Download Report</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    );
+  };
+
+  const EmptyList = () => (
+    <View style={styles.emptyContainer}>
+      <View style={styles.emptyIconBg}>
+        <Ionicons name="document-text-outline" size={60} color="#3B82F6" />
+      </View>
+      <Text style={styles.emptyTitle}>No Reports Found</Text>
+      <Text style={styles.emptySubtitle}>
+        Your medical reports will appear here once available
       </Text>
-      <TouchableOpacity
-        style={styles.downloadbtn}
-        onPress={() => handleDownload(item.file)}>
-        <Ionicons
-          name="download-outline"
-          size={20}
-          color={COLORS.white}
-          style={styles.icon}
-        />
-        <Text style={styles.downloadTxt}>Download Report</Text>
-      </TouchableOpacity>
     </View>
   );
 
+  if (loading) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+        <Text style={styles.loaderText}>Loading reports...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor={COLORS.DODGERBLUE} barStyle="light-content" />
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.white} />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
-        <View style={styles.TittleView}>
-          <Text style={styles.TittleText}>Appointment Reports</Text>
-        </View>
+        <Text style={styles.headerTitle}>Medical Reports</Text>
+        <View style={styles.placeholder} />
       </View>
-      <View style={styles.searchHeader}>
-        <View style={styles.searchTouch}>
-          <TextInput
-            placeholder="Search..."
-            placeholderTextColor={COLORS.grey}
-            style={styles.searchInput}
-          />
-          <Ionicons
-            name="search-circle-sharp"
-            size={40}
-            color={COLORS.DODGERBLUE}
-          />
-        </View>
-      </View>
-      {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.DODGERBLUE} />
-        </View>
-      ) : error ? (
-        <View style={styles.centered}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      ) : reports.length === 0 ? (
-        <View style={styles.centered}>
-          <Image
-            source={require('../../../assets/no-data.jpg')}
-            style={styles.NoDataImage}
-          />
-          <Text style={styles.errorText}>No reports available</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={reports}
-          renderItem={renderReportItem}
-          keyExtractor={item => item._id}
-        />
-      )}
 
+      {/* Stats Summary */}
+      <View style={styles.statsContainer}>
+        <View style={styles.statBox}>
+          <Text style={styles.statNumber}>{reports.length}</Text>
+          <Text style={styles.statLabel}>Total Reports</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statBox}>
+          <Text style={styles.statNumber}>
+            {reports.filter((r) => r.file).length}
+          </Text>
+          <Text style={styles.statLabel}>Available</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statBox}>
+          <Text style={styles.statNumber}>
+            {new Date().getFullYear()}
+          </Text>
+          <Text style={styles.statLabel}>This Year</Text>
+        </View>
+      </View>
+
+      {/* Search Bar */}
+      <View style={styles.searchSection}>
+        <View style={styles.searchContainer}>
+          <Ionicons name="search-outline" size={20} color="#9CA3AF" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search reports..."
+            placeholderTextColor="#9CA3AF"
+            value={searchQuery}
+            onChangeText={handleSearch}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => handleSearch('')}>
+              <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* Reports List */}
+      <Animated.FlatList
+        data={filteredReports}
+        showsVerticalScrollIndicator={false}
+        keyExtractor={(item) => item._id}
+        renderItem={({ item, index }) => <ReportCard item={item} index={index} />}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />
+        }
+        ListEmptyComponent={<EmptyList />}
+        style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+      />
+
+      {/* Success Modal */}
       <Modal
         visible={successModalVisible}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setSuccessModalVisible(false)}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.successMessage}>
-              File downloaded successfully
-            </Text>
-            <View style={styles.DoneImageView}>
-              <Image
-                style={styles.doneimage}
-                source={require('../../../assets/done-icon.jpg')}
-              />
+        onRequestClose={() => setSuccessModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalIconWrapper}>
+              <LinearGradient
+                colors={['#10B981', '#059669']}
+                style={styles.modalIconGradient}
+              >
+                <Ionicons name="checkmark" size={40} color="#FFF" />
+              </LinearGradient>
             </View>
-            <TouchableOpacity
-              onPress={() => handleOpenFile(downloadDest)}
-              style={styles.modalSucessButton}>
-              <Text style={styles.modalButtonText}>Open File</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setSuccessModalVisible(false)}
-              style={styles.modalSucessButton}>
-              <Text style={styles.modalButtonText}>OK</Text>
-            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Download Complete!</Text>
+            <Text style={styles.modalMessage}>
+              Your report has been downloaded successfully
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalCancelBtn]}
+                onPress={() => setSuccessModalVisible(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>Close</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalOpenBtn]}
+                onPress={() => handleOpenFile(downloadDest)}
+              >
+                <LinearGradient
+                  colors={['#3B82F6', '#2563EB']}
+                  style={styles.modalOpenGradient}
+                >
+                  <Text style={styles.modalOpenBtnText}>Open File</Text>
+                  <Ionicons name="open-outline" size={18} color="#FFF" />
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -221,145 +374,269 @@ export default function Reports({navigation}) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: '#F8F9FA',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: scale(10),
-    paddingVertical: verticalScale(8),
-    backgroundColor: COLORS.DODGERBLUE,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 20 : 20,
+    paddingBottom: 15,
+    backgroundColor: '#FFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
-  TittleView: {
-    flex: 1,
-  },
-  TittleText: {
-    fontSize: moderateScale(18),
-    color: COLORS.white,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  searchHeader: {
-    height: verticalScale(70),
-    backgroundColor: COLORS.DODGERBLUE,
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    borderBottomLeftRadius: moderateScale(10),
-    borderBottomRightRadius: moderateScale(10),
+    backgroundColor: '#F3F4F6',
   },
-  searchTouch: {
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  placeholder: {
+    width: 40,
+  },
+  statsContainer: {
     flexDirection: 'row',
-    width: '90%',
-    backgroundColor: COLORS.white,
-    borderColor: COLORS.AntiFlashWhite,
-    borderWidth: moderateScale(1),
-    borderRadius: moderateScale(10),
-    paddingHorizontal: scale(10),
-    elevation: 3,
-    justifyContent: 'space-between',
+    backgroundColor: '#FFF',
+    marginHorizontal: 20,
+    marginTop: 16,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  statBox: {
+    flex: 1,
     alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: 12,
+  },
+  searchSection: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
-    height: verticalScale(40),
-    color: COLORS.black,
-    fontSize: moderateScale(16),
+    marginLeft: 10,
+    fontSize: 15,
+    color: '#111827',
+    padding: 0,
   },
-  ReportMainView: {
-    marginVertical: verticalScale(10),
-    marginHorizontal: scale(10),
+  listContent: {
+    padding: 16,
+    paddingBottom: 40,
   },
-  ReportView: {
-    width: scale(330),
-    backgroundColor: COLORS.AntiFlashWhite,
-    borderRadius: moderateScale(5),
-    borderWidth: moderateScale(0.5),
-    borderColor: COLORS.AntiFlashWhite,
-    paddingHorizontal: scale(10),
-    paddingVertical: verticalScale(10),
-    marginHorizontal: scale(10),
-    marginVertical: verticalScale(10),
-    alignSelf: 'center',
-    elevation: 5,
+  reportCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  ReportTxt: {
-    fontSize: moderateScale(14),
-    fontWeight: '600',
-    color: COLORS.DODGERBLUE,
-    marginTop: verticalScale(5),
-  },
-  downloadbtn: {
+  cardHeader: {
     flexDirection: 'row',
-    paddingHorizontal: scale(10),
-    paddingVertical: verticalScale(6),
-    backgroundColor: COLORS.DODGERBLUE,
-    borderColor: COLORS.DODGERBLUE,
-    borderRadius: moderateScale(10),
-    borderWidth: moderateScale(0.5),
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  iconWrapper: {
+    marginRight: 14,
+  },
+  iconGradient: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
-    alignSelf: 'flex-end',
   },
-  downloadTxt: {
-    marginLeft: scale(5),
-    color: COLORS.white,
-    fontSize: moderateScale(14),
+  cardHeaderInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  reportTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 6,
+    lineHeight: 22,
+  },
+  dateBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dateText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  cardFooter: {
+    padding: 16,
+  },
+  downloadBtn: {
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  downloadGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+  },
+  downloadBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 32,
+  },
+  emptyIconBg: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 8,
   },
-  errorText: {
-    color: 'red',
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#9CA3AF',
     textAlign: 'center',
-    fontSize: moderateScale(16),
+    lineHeight: 20,
   },
-  centered: {
+  loaderContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#FFF',
   },
-  NoDataImage: {
-    height: verticalScale(150),
-    width: scale(180),
-    overflow: 'hidden',
-    resizeMode: 'contain',
+  loaderText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#3B82F6',
+    fontWeight: '500',
   },
-
-  modalContainer: {
+  modalOverlay: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  modalContent: {
-    backgroundColor: COLORS.white,
-    padding: moderateScale(20),
-    borderRadius: moderateScale(10),
-    width: '80%',
+  modalContainer: {
+    backgroundColor: '#FFF',
+    borderRadius: 24,
+    padding: 24,
+    width: width - 48,
+    alignItems: 'center',
   },
-  successMessage: {
-    fontSize: moderateScale(16),
-    fontWeight: '700',
-    color: COLORS.DODGERBLUE,
+  modalIconWrapper: {
+    marginBottom: 20,
+  },
+  modalIconGradient: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: '#6B7280',
     textAlign: 'center',
+    marginBottom: 24,
   },
-  DoneImageView: {
-    alignSelf: 'center',
-    paddingVertical: verticalScale(5),
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
   },
-  doneimage: {
-    height: verticalScale(100),
-    width: scale(150),
+  modalBtn: {
+    flex: 1,
+    borderRadius: 14,
     overflow: 'hidden',
   },
-  modalSucessButton: {
-    backgroundColor: COLORS.DODGERBLUE,
-    padding: moderateScale(10),
-    borderRadius: moderateScale(5),
-    marginHorizontal: moderateScale(5),
-    marginTop: verticalScale(10),
+  modalCancelBtn: {
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 12,
+    alignItems: 'center',
   },
-  modalButtonText: {
-    color: COLORS.white,
-    textAlign: 'center',
-    fontSize: moderateScale(16),
+  modalCancelBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  modalOpenBtn: {
+    overflow: 'hidden',
+  },
+  modalOpenGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+  },
+  modalOpenBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFF',
   },
 });

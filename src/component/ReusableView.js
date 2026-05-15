@@ -11,10 +11,26 @@ export default function ReusableView({
   imageSource,
   imageStyle,
 }) {
+  const handlePress = () => {
+    try {
+      // Check for React Navigation object (has navigate method)
+      if (navigation && typeof navigation.navigate === 'function') {
+        navigation();
+      } else if (typeof navigation === 'function') {
+        // For custom navigation functions
+        navigation();
+      } else {
+        console.warn('Navigation function is not defined');
+      }
+    } catch (error) {
+      console.error('Navigation error:', error);
+    }
+  };
+
   return (
     <TouchableOpacity 
       style={styles.container} 
-      onPress={navigation}
+      onPress={handlePress}
       activeOpacity={0.8}>
       <LinearGradient
         colors={['#FFFFFF', '#F8F9FA']}

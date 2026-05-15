@@ -15,8 +15,6 @@ export default function PrivacyPolicy({navigation}) {
       <CustomHeader title="Privacy Policy" navigation={navigation} />
 
       <ScrollView contentContainerStyle={styles.contentContainer}>
-       
-
         <Text style={styles.subHeading}>Introduction</Text>
         <Text style={styles.text}>
           Welcome to the Pathology App. Your privacy is very important to us.
@@ -24,7 +22,6 @@ export default function PrivacyPolicy({navigation}) {
           personal information when you use our services to book lab tests
           online.
         </Text>
-
         <Text style={styles.subHeading}>Information Collection</Text>
         <Text style={styles.text}>
           We collect the following types of information:
@@ -35,7 +32,6 @@ export default function PrivacyPolicy({navigation}) {
           {'\n'}3. Device Information: Information such as your device’s
           operating system, app version, and usage statistics.
         </Text>
-
         <Text style={styles.subHeading}>How We Use Your Information</Text>
         <Text style={styles.text}>
           Your information is used to provide the following services:
@@ -46,21 +42,18 @@ export default function PrivacyPolicy({navigation}) {
           {'\n'}4. Comply with legal requirements and ensure the security of
           your data.
         </Text>
-
         <Text style={styles.subHeading}>Data Protection</Text>
         <Text style={styles.text}>
           We take the security of your personal and health information
           seriously. We implement industry-standard security measures to protect
           your data from unauthorized access, alteration, or disclosure.
         </Text>
-
         <Text style={styles.subHeading}>Third-Party Services</Text>
         <Text style={styles.text}>
           We do not share your personal or health information with third-party
           services unless necessary for the operation of the app, such as with
           lab providers for processing your tests.
         </Text>
-
         <Text style={styles.subHeading}>Your Rights</Text>
         <Text style={styles.text}>
           You have the right to:
@@ -69,14 +62,12 @@ export default function PrivacyPolicy({navigation}) {
           {'\n'}3. Request the deletion of your account and personal data,
           subject to legal obligations.
         </Text>
-
         <Text style={styles.subHeading}>Changes to This Privacy Policy</Text>
         <Text style={styles.text}>
           We may update our Privacy Policy from time to time. Any changes will
           be posted here, and the updated version will be effective immediately
           upon publication.
         </Text>
-
         <Text style={styles.subHeading}>Contact Us</Text>
         <Text style={styles.text}>
           If you have any questions or concerns about this Privacy Policy,

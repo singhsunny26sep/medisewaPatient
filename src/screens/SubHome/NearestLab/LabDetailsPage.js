@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,478 +8,837 @@ import {
   TouchableOpacity,
   Linking,
   Alert,
-  ImageBackground,
   Modal,
+  Animated,
+  Dimensions,
+  Platform,
+  ScrollView,
 } from 'react-native';
-import {COLORS} from '../../../Theme/Colors';
-import {moderateScale, scale, verticalScale} from '../../../utils/Scaling';
-import Icon from 'react-native-vector-icons/Ionicons';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import {StatusBar} from 'react-native';
-import {Container} from '../../../component/Container/Container';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { COLORS } from '../../../Theme/Colors';
+import { moderateScale, scale, verticalScale } from '../../../utils/Scaling';
 import { Fonts } from '../../../Theme/Fonts';
 
-const DEFAULT_IMAGE =
-  'https://passion.healthcare/wp-content/uploads/2023/02/labimage.jpeg';
-const TestImage =
-  'https://th.bing.com/th/id/OIP.oVyEFHbxvD8ZFkERMHZp7wHaFK?w=477&h=333&rs=1&pid=ImgDetMain';
+const { width, height } = Dimensions.get('window');
+const isSmallPhone = width < 380;
 
-// this LabDetailsPage sub page of NearestLabPage screens
-export default function LabDetailsPage({route, navigation}) {
-  const {lab, locationAddress} = route.params;
+const DEFAULT_IMAGE = 'https://passion.healthcare/wp-content/uploads/2023/02/labimage.jpeg';
+
+export default function LabDetailsPage({ route, navigation }) {
+  const lab = route?.params?.lab || null;
+  const locationAddress = route?.params?.locationAddress || '';
+  
   const [cart, setCart] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [selectedTab, setSelectedTab] = useState('tests');
+  
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
-  const toggleModal = () => {
-    setIsModalVisible(!isModalVisible);
-  };
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
-  const addToCart = item => {
+  if (!lab) {
+    return (
+      <View style={styles.errorContainer}>
+        <View style={styles.errorIconBg}>
+          <Ionicons name="alert-circle-outline" size={60} color="#EF4444" />
+        </View>
+        <Text style={styles.errorTitle}>Lab Not Found</Text>
+        <Text style={styles.errorText}>Lab information is not available</Text>
+        <TouchableOpacity style={styles.errorBtn} onPress={() => navigation.goBack()}>
+          <LinearGradient colors={['#3B82F6', '#2563EB']} style={styles.errorGradient}>
+            <Text style={styles.errorBtnText}>Go Back</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const toggleModal = () => setIsModalVisible(!isModalVisible);
+
+  const addToCart = (item) => {
     setCart(prevCart => [...prevCart, item]);
   };
 
-  const removeFromCart = item => {
-    const newCart = cart.filter(
-      cartItem => cartItem.labCategory.name !== item.labCategory.name,
-    );
-    setCart(newCart);
+  const removeFromCart = (item) => {
+    setCart(prevCart => prevCart.filter(cartItem => cartItem._id !== item._id));
   };
 
-  const handlePressAddress = address => {
-    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      address,
-    )}`;
-    Linking.canOpenURL(url)
-      .then(supported => {
-        if (supported) {
-          Linking.openURL(url);
-        } else {
-          Alert.alert('Error', 'Unable to open Google Maps');
-        }
-      })
-      .catch(() => {
-        Alert.alert('Error', 'Unable to open Google Maps');
-      });
+  const handlePressAddress = () => {
+    const address = `${lab?.address?.address || ''}, ${lab?.address?.city || ''}, ${lab?.address?.state || ''}`;
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+    Linking.openURL(url).catch(() => Alert.alert('Error', 'Unable to open Google Maps'));
   };
 
-  const handlePressContactNumber = number => {
-    const url = `tel:${number}`;
-    Linking.canOpenURL(url)
-      .then(supported => {
-        if (supported) {
-          Linking.openURL(url);
-        } else {
-          Alert.alert('Error', 'Unable to make a call');
-        }
-      })
-      .catch(() => {
-        Alert.alert('Error', 'Unable to make a call');
-      });
-  };
-
-  const renderTest = ({item}) => {
-    // Safety check for item data
-    if (!item) {
-      return null;
-    }
-
-    const labCategory = item.labCategory || {};
-    const testName = labCategory.name || 'Unknown Test';
-    const testPrice = item.price || 0;
-    const imageUrl = (labCategory.image && typeof labCategory.image === 'string') ? labCategory.image : TestImage;
-
-    const isInCart = cart.some(
-      cartItem => cartItem && cartItem.labCategory?.name === testName,
-    );
-
-    return (
-      <View style={styles.MaintestItemContainer}>
-        <LinearGradient
-          start={{x: 0, y: 0}}
-          end={{x: 1, y: 0}}
-          colors={['#F8F8F8', '#E2E3E3']}
-          style={styles.testItemContainer}>
-          <Image
-            style={styles.testImage}
-            source={{uri: imageUrl}}
-            resizeMode="contain"
-            defaultSource={require('../../../assets/Reports.jpg')}
-          />
-          <View style={styles.testDetailsContainer}>
-            <View style={styles.testNameView}>
-              <Text style={styles.testName} numberOfLines={2}>{testName}</Text>
-              <Text style={styles.testPrice}>Price: ₹ {testPrice} /-</Text>
-            </View>
-            <View style={{justifyContent: 'center'}}>
-              {isInCart ? (
-                <TouchableOpacity
-                  onPress={() => item && item._id && removeFromCart(item)}
-                  accessibilityLabel="Remove from cart"
-                  disabled={!item || !item._id}>
-                  <Icon
-                    name="trash-bin"
-                    size={moderateScale(24)}
-                    color={item && item._id ? COLORS.red : COLORS.gray}
-                  />
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  onPress={() => item && item._id && addToCart(item)}
-                  style={[styles.addButton, (!item || !item._id) && styles.disabledButton]}
-                  accessibilityLabel="Add to cart"
-                  disabled={!item || !item._id}>
-                  <MaterialIcons
-                    name="add"
-                    size={moderateScale(16)}
-                    color={COLORS.white}
-                  />
-                  <Text style={styles.addButtonText}>Add</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        </LinearGradient>
-      </View>
-    );
+  const handlePressContactNumber = () => {
+    const url = `tel:${lab?.contactNumber || ''}`;
+    Linking.openURL(url).catch(() => Alert.alert('Error', 'Unable to make a call'));
   };
 
   const handleProceedToBook = () => {
-    if (!lab) {
-      Alert.alert('Error', 'Lab information is missing');
-      return;
-    }
-
-    if (!lab._id) {
-      Alert.alert('Error', 'Lab ID is missing');
-      return;
-    }
-
     if (cart.length === 0) {
       Alert.alert('Error', 'Please select at least one test');
       return;
     }
-
-    const validTests = cart.filter(item => item && item._id);
-
-    if (validTests.length === 0) {
-      Alert.alert('Error', 'No valid tests selected');
-      return;
-    }
-
     navigation.navigate('BookAppointment', {
-      labName: lab.name || 'Unknown Lab',
+      labName: lab.name,
       labId: lab._id,
-      selectedTestIds: validTests.map(item => item._id),
-      selectedTestsname: validTests.map(item => item.labCategory?.name || 'Unknown Test'),
-      locationAddress: locationAddress || 'Unknown Location',
+      selectedTestIds: cart.map(item => item._id),
+      selectedTestsname: cart.map(item => item.labCategory?.name),
+      locationAddress: locationAddress,
     });
   };
 
-  const renderHeader = () => (
-    <View style={styles.headerContainer}>
-      <ImageBackground
-        style={styles.labImage}
-        source={{uri: (lab?.image && typeof lab.image === 'string') ? lab.image : DEFAULT_IMAGE}}
-        resizeMode="contain"
-        defaultSource={require('../../../assets/NearestLabLogo.jpg')}>
-        <View style={styles.headerSubContainer}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Icon
-              name="arrow-back-circle-sharp"
-              size={35}
-              color={COLORS.ARSENIC}
+  const TestCard = ({ item }) => {
+    const labCategory = item.labCategory || {};
+    const testName = labCategory.name || 'Unknown Test';
+    const testPrice = item.price || 0;
+    const isInCart = cart.some(cartItem => cartItem._id === item._id);
+    const scaleAnim = useRef(new Animated.Value(0.95)).current;
+
+    useEffect(() => {
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+    }, []);
+
+    return (
+      <Animated.View style={[styles.testCard, { transform: [{ scale: scaleAnim }] }]}>
+        <LinearGradient
+          colors={['#FFF', '#F9FAFB']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.testCardGradient}
+        >
+          <View style={styles.testImageWrapper}>
+            <Image
+              style={styles.testImage}
+              source={{ uri: labCategory.image || DEFAULT_IMAGE }}
+              resizeMode="cover"
             />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={toggleModal} style={styles.modalIcon}>
-            <Icon name="information-circle" size={30} color={COLORS.ARSENIC} />
-          </TouchableOpacity>
+          </View>
+          <View style={styles.testInfo}>
+            <Text style={styles.testName} numberOfLines={2}>{testName}</Text>
+            <Text style={styles.testPrice}>₹ {testPrice}</Text>
+            <View style={styles.testMeta}>
+              <View style={styles.testMetaBadge}>
+                <Ionicons name="time-outline" size={12} color="#6B7280" />
+                <Text style={styles.testMetaText}>48 hrs report</Text>
+              </View>
+              <View style={styles.testMetaBadge}>
+                <Ionicons name="shield-checkmark-outline" size={12} color="#10B981" />
+                <Text style={styles.testMetaText}>NABL Certified</Text>
+              </View>
+            </View>
+          </View>
+          <View style={styles.testAction}>
+            {isInCart ? (
+              <TouchableOpacity onPress={() => removeFromCart(item)} style={styles.removeBtn}>
+                <Ionicons name="trash-outline" size={22} color="#EF4444" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={() => addToCart(item)} style={styles.addBtn}>
+                <LinearGradient
+                  colors={['#3B82F6', '#2563EB']}
+                  style={styles.addBtnGradient}
+                >
+                  <MaterialIcons name="add" size={16} color="#FFF" />
+                  <Text style={styles.addBtnText}>Add</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+          </View>
+        </LinearGradient>
+      </Animated.View>
+    );
+  };
+
+  const HeaderComponent = () => (
+    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+      {/* Hero Banner */}
+      <LinearGradient
+        colors={['#3B82F6', '#2563EB']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.heroBanner}
+      >
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color="#FFF" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={toggleModal} style={styles.infoBtn}>
+          <Ionicons name="information-circle-outline" size={24} color="#FFF" />
+        </TouchableOpacity>
+      </LinearGradient>
+
+      {/* Lab Info Card */}
+      <View style={styles.labInfoCard}>
+        <View style={styles.labLogoWrapper}>
+          <LinearGradient
+            colors={['#EFF6FF', '#DBEAFE']}
+            style={styles.labLogoBg}
+          >
+            <Image
+              style={styles.labLogo}
+              source={{ uri: lab.image || DEFAULT_IMAGE }}
+              resizeMode="contain"
+            />
+          </LinearGradient>
         </View>
-      </ImageBackground>
-      <Text style={styles.title}>{lab?.name || 'Lab Details'}</Text>
-      <View style={styles.TouchableTxt}>
-        <Icon
-          name="flask-outline"
-          size={moderateScale(18)}
-          color={COLORS.ARSENIC}
-          style={styles.icon}
-        />
-        <Text style={styles.details}>Tests Offered:</Text>
-      </View>
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isModalVisible}
-        onRequestClose={toggleModal}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Lab Information</Text>
-            <TouchableOpacity
-              style={styles.ModalAddressView}
-              onPress={handlePressAddress}>
-              <View style={styles.ModalSubAddressView}>
-                <Icon
-                  name="location-outline"
-                  size={moderateScale(18)}
-                  color={COLORS.ARSENIC}
-                  style={styles.icon}
-                />
-                <Text style={styles.AddressTxt}>Address</Text>
-              </View>
-              <Text style={styles.modalText}>
-                {`: ${lab?.address?.address || 'N/A'}, ${lab?.address?.city || 'N/A'}, ${lab?.address?.state || 'N/A'} - ${lab?.address?.pinCode || 'N/A'}`}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.ModalAddressView}
-              onPress={handlePressContactNumber}>
-              <View style={styles.ModalSubAddressView}>
-                <Icon
-                  name="call-outline"
-                  size={moderateScale(18)}
-                  color={COLORS.ARSENIC}
-                  style={styles.icon}
-                />
-                <Text style={styles.AddressTxt}>Mobile</Text>
-              </View>
-              <Text style={styles.modalText}>{`: ${lab?.contactNumber || 'N/A'}`}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={toggleModal} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
+        <Text style={styles.labName}>{lab.name}</Text>
+        <View style={styles.labRatingRow}>
+          <View style={styles.ratingBadge}>
+            <Ionicons name="star" size={14} color="#F59E0B" />
+            <Text style={styles.ratingText}>4.8</Text>
+          </View>
+          <Text style={styles.ratingCount}>(1.2k+ reviews)</Text>
+        </View>
+        <View style={styles.labStatsRow}>
+          <View style={styles.labStat}>
+            <Ionicons name="flask-outline" size={18} color="#3B82F6" />
+            <Text style={styles.labStatText}>{lab.testsOffered?.length || 0} Tests</Text>
+          </View>
+          <View style={styles.labStatDivider} />
+          <View style={styles.labStat}>
+            <Ionicons name="time-outline" size={18} color="#3B82F6" />
+            <Text style={styles.labStatText}>48 hrs Report</Text>
+          </View>
+          <View style={styles.labStatDivider} />
+          <View style={styles.labStat}>
+            <Ionicons name="shield-checkmark-outline" size={18} color="#10B981" />
+            <Text style={styles.labStatText}>Certified</Text>
           </View>
         </View>
-      </Modal>
+      </View>
+
+      {/* Tabs */}
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity
+          style={[styles.tab, selectedTab === 'tests' && styles.tabActive]}
+          onPress={() => setSelectedTab('tests')}
+        >
+          <Text style={[styles.tabText, selectedTab === 'tests' && styles.tabTextActive]}>
+            Available Tests
+          </Text>
+          <View style={selectedTab === 'tests' && styles.tabIndicator} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, selectedTab === 'info' && styles.tabActive]}
+          onPress={() => setSelectedTab('info')}
+        >
+          <Text style={[styles.tabText, selectedTab === 'info' && styles.tabTextActive]}>
+            Lab Info
+          </Text>
+          <View style={selectedTab === 'info' && styles.tabIndicator} />
+        </TouchableOpacity>
+      </View>
+    </Animated.View>
+  );
+
+  const InfoTab = () => (
+    <View style={styles.infoTabContainer}>
+      <TouchableOpacity style={styles.infoCard} onPress={handlePressAddress}>
+        <View style={styles.infoIconBg}>
+          <Ionicons name="location-outline" size={24} color="#3B82F6" />
+        </View>
+        <View style={styles.infoContent}>
+          <Text style={styles.infoTitle}>Address</Text>
+          <Text style={styles.infoValue}>
+            {`${lab?.address?.address || 'N/A'}, ${lab?.address?.city || 'N/A'}, ${lab?.address?.state || 'N/A'} - ${lab?.address?.pinCode || 'N/A'}`}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.infoCard} onPress={handlePressContactNumber}>
+        <View style={styles.infoIconBg}>
+          <Ionicons name="call-outline" size={24} color="#10B981" />
+        </View>
+        <View style={styles.infoContent}>
+          <Text style={styles.infoTitle}>Contact Number</Text>
+          <Text style={styles.infoValue}>{lab?.contactNumber || 'N/A'}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+      </TouchableOpacity>
+
+      <View style={styles.infoCard}>
+        <View style={styles.infoIconBg}>
+          <Ionicons name="time-outline" size={24} color="#F59E0B" />
+        </View>
+        <View style={styles.infoContent}>
+          <Text style={styles.infoTitle}>Working Hours</Text>
+          <Text style={styles.infoValue}>Mon - Sat: 8:00 AM - 8:00 PM</Text>
+          <Text style={styles.infoSubValue}>Sunday: 9:00 AM - 2:00 PM</Text>
+        </View>
+      </View>
+
+      <View style={styles.infoCard}>
+        <View style={styles.infoIconBg}>
+          <Ionicons name="card-outline" size={24} color="#8B5CF6" />
+        </View>
+        <View style={styles.infoContent}>
+          <Text style={styles.infoTitle}>Payment Methods</Text>
+          <Text style={styles.infoValue}>Cash, Card, UPI, Insurance</Text>
+        </View>
+      </View>
     </View>
   );
 
   return (
-    <Container
-      statusBarStyle={'dark-content'}
-      statusBarBackgroundColor={COLORS.white}
-      backgroundColor={COLORS.background}>
+    <View style={styles.container}>
       <FlatList
-        ListHeaderComponent={renderHeader}
-        data={lab.testsOffered}
-        renderItem={renderTest}
-        keyExtractor={item => item._id ? item._id.toString() : Math.random().toString()}
-        contentContainerStyle={styles.scrollViewContent}
+        ListHeaderComponent={HeaderComponent}
+        data={selectedTab === 'tests' ? lab.testsOffered || [] : []}
+        renderItem={({ item }) => <TestCard item={item} />}
+        keyExtractor={(item) => item._id?.toString() || Math.random().toString()}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <Text style={styles.noTests}>No tests offered</Text>
+          selectedTab === 'tests' ? (
+            <View style={styles.emptyTests}>
+              <Ionicons name="flask-outline" size={50} color="#9CA3AF" />
+              <Text style={styles.emptyTestsTitle}>No Tests Available</Text>
+              <Text style={styles.emptyTestsSubtitle}>Please check back later</Text>
+            </View>
+          ) : (
+            <InfoTab />
+          )
         }
       />
+
+      {/* Cart Bottom Sheet */}
       {cart.length > 0 && (
-        <TouchableOpacity
-          style={styles.bottomButton}
-          onPress={handleProceedToBook}>
-          <Text style={styles.bottomButtonText}>Proceed to book</Text>
-        </TouchableOpacity>
+        <Animated.View style={styles.cartSheet}>
+          <LinearGradient
+            colors={['#FFF', '#F9FAFB']}
+            style={styles.cartSheetContent}
+          >
+            <View style={styles.cartSheetInfo}>
+              <Text style={styles.cartSheetTitle}>
+                {cart.length} Test{cart.length > 1 ? 's' : ''} Selected
+              </Text>
+              <Text style={styles.cartSheetPrice}>
+                Total: ₹{cart.reduce((sum, item) => sum + (item.price || 0), 0)}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.cartSheetBtn} onPress={handleProceedToBook}>
+              <LinearGradient
+                colors={['#3B82F6', '#2563EB']}
+                style={styles.cartSheetGradient}
+              >
+                <Text style={styles.cartSheetBtnText}>Proceed to Book</Text>
+                <Ionicons name="arrow-forward" size={18} color="#FFF" />
+              </LinearGradient>
+            </TouchableOpacity>
+          </LinearGradient>
+        </Animated.View>
       )}
-    </Container>
+
+      {/* Info Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isModalVisible}
+        onRequestClose={toggleModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Lab Information</Text>
+              <TouchableOpacity onPress={toggleModal}>
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <TouchableOpacity style={styles.modalInfoRow} onPress={handlePressAddress}>
+                <View style={styles.modalInfoIcon}>
+                  <Ionicons name="location-outline" size={22} color="#3B82F6" />
+                </View>
+                <View style={styles.modalInfoText}>
+                  <Text style={styles.modalInfoLabel}>Address</Text>
+                  <Text style={styles.modalInfoValue}>
+                    {`${lab?.address?.address || 'N/A'}, ${lab?.address?.city || 'N/A'}, ${lab?.address?.state || 'N/A'}`}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalInfoRow} onPress={handlePressContactNumber}>
+                <View style={styles.modalInfoIcon}>
+                  <Ionicons name="call-outline" size={22} color="#10B981" />
+                </View>
+                <View style={styles.modalInfoText}>
+                  <Text style={styles.modalInfoLabel}>Contact</Text>
+                  <Text style={styles.modalInfoValue}>{lab?.contactNumber || 'N/A'}</Text>
+                </View>
+              </TouchableOpacity>
+
+              <View style={styles.modalInfoRow}>
+                <View style={styles.modalInfoIcon}>
+                  <Ionicons name="mail-outline" size={22} color="#8B5CF6" />
+                </View>
+                <View style={styles.modalInfoText}>
+                  <Text style={styles.modalInfoLabel}>Email</Text>
+                  <Text style={styles.modalInfoValue}>{lab?.email || 'info@lab.com'}</Text>
+                </View>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: '#F8F9FA',
   },
-  headerContainer: {
-    backgroundColor: COLORS.white,
-    paddingBottom: verticalScale(10),
-  },
-  headerSubContainer: {
-    flexDirection: 'row',
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#FFF',
+    padding: 20,
+  },
+  errorIconBg: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#FEF2F2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  errorTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 24,
+  },
+  errorBtn: {
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  errorGradient: {
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 14,
+  },
+  errorBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  heroBanner: {
+    height: 180,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 12,
   },
-  modalIcon: {},
-  scrollViewContent: {
-    paddingBottom: verticalScale(70),
-  },
-  title: {
-    fontSize: moderateScale(18),
-    fontFamily:Fonts.Light,
-    color: COLORS.black,
-    textAlign: 'center',
-    paddingTop: verticalScale(5),
-  },
-  labImage: {
-    height: verticalScale(150),
-    width: '100%',
-    resizeMode: 'contain',
-    overflow: 'hidden',
-  },
-  TouchableTxt: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: verticalScale(10),
-    paddingHorizontal: scale(10),
-    alignSelf: 'center',
-  },
-  icon: {
-    paddingHorizontal: scale(2),
-  },
-  details: {
-    fontSize: moderateScale(14),
-    color: COLORS.ARSENIC,
-    fontFamily:Fonts.Medium,
-    width: scale(100),
-    top:scale(2)
-  },
-  MaintestItemContainer: {
-    flex: 1,
-    marginHorizontal: scale(15),
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  testItemContainer: {
-    flex: 1,
-    height: verticalScale(70),
-    width: '100%',
-    flexDirection: 'row',
-    borderRadius: moderateScale(10),
-    overflow: 'hidden',
-    marginHorizontal: scale(15),
-    marginVertical: verticalScale(10),
+  infoBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  labInfoCard: {
+    backgroundColor: '#FFF',
+    marginHorizontal: 20,
+    marginTop: -40,
+    borderRadius: 24,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 6,
   },
-
-  testImage: {
-    width: scale(70),
-    height: verticalScale(70),
-    marginRight: scale(10),
-    overflow: 'hidden',
+  labLogoWrapper: {
+    marginTop: -50,
+    marginBottom: 12,
   },
-  testDetailsContainer: {
-    flex: 1,
-    paddingHorizontal: scale(10),
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  labLogoBg: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FFF',
   },
-  testNameView: {},
+  labLogo: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  labName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  labRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8,
+  },
+  ratingText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#F59E0B',
+    marginLeft: 4,
+  },
+  ratingCount: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  labStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  labStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  labStatDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#E5E7EB',
+  },
+  labStatText: {
+    fontSize: 12,
+    color: '#4B5563',
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  tabActive: {
+    borderBottomWidth: 0,
+  },
+  tabText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  tabTextActive: {
+    color: '#3B82F6',
+    fontWeight: '600',
+  },
+  tabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    width: 40,
+    height: 3,
+    backgroundColor: '#3B82F6',
+    borderRadius: 1.5,
+  },
+  listContent: {
+    paddingBottom: 100,
+  },
+  testCard: {
+    marginHorizontal: 20,
+    marginBottom: 12,
+  },
+  testCardGradient: {
+    flexDirection: 'row',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFF',
+  },
+  testImageWrapper: {
+    width: 70,
+    height: 70,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginRight: 12,
+  },
+  testImage: {
+    width: '100%',
+    height: '100%',
+  },
+  testInfo: {
+    flex: 1,
+  },
   testName: {
-    fontSize: moderateScale(15),
-    fontFamily:Fonts.Bold,
-    color: COLORS.black,
-    width: scale(130),
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
   },
   testPrice: {
-    fontSize: moderateScale(14),
-    color: COLORS.green,
-    fontFamily:Fonts.Light,
-    paddingTop: verticalScale(5),
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#3B82F6',
+    marginBottom: 6,
   },
-  addButton: {
-    backgroundColor: COLORS.DODGERBLUE,
-    borderColor: COLORS.DODGERBLUE,
-    borderWidth: moderateScale(1),
-    paddingVertical: verticalScale(5),
-    paddingHorizontal: scale(8),
-    borderRadius: moderateScale(5),
-    justifyContent: 'center',
-    alignItems: 'center',
+  testMeta: {
     flexDirection: 'row',
+    gap: 8,
   },
-  addButtonText: {
-    color: COLORS.white,
-    fontFamily:Fonts.Light,
-    fontSize: moderateScale(14),
+  testMetaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
-  disabledButton: {
-    backgroundColor: COLORS.gray,
-    borderColor: COLORS.gray,
+  testMetaText: {
+    fontSize: 10,
+    color: '#6B7280',
   },
-  noTests: {
-    fontSize: moderateScale(16),
-    color: COLORS.ARSENIC,
-    textAlign: 'center',
-    marginTop: verticalScale(20),
+  testAction: {
+    justifyContent: 'center',
+    marginLeft: 8,
   },
-  bottomButton: {
-    position: 'absolute',
-    bottom: verticalScale(10),
-    backgroundColor: COLORS.DODGERBLUE,
+  addBtn: {
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  addBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 4,
+  },
+  addBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  removeBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FEF2F2',
     justifyContent: 'center',
     alignItems: 'center',
-    alignSelf: 'center',
-    width: scale(320),
-    height: verticalScale(50),
-    borderRadius: moderateScale(10),
-    elevation: 3,
   },
-  bottomButtonText: {
-    color: COLORS.white,
-    fontFamily:Fonts.Bold,
-    fontSize: moderateScale(15),
-    top:scale(4)
+  infoTabContainer: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  infoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  infoIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  infoContent: {
+    flex: 1,
+  },
+  infoTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+    marginBottom: 2,
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  infoSubValue: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
+  emptyTests: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 32,
+  },
+  emptyTestsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginTop: 16,
+    marginBottom: 4,
+  },
+  emptyTestsSubtitle: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+  },
+  cartSheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  cartSheetContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cartSheetInfo: {
+    flex: 1,
+  },
+  cartSheetTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  cartSheetPrice: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#3B82F6',
+    marginTop: 2,
+  },
+  cartSheetBtn: {
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  cartSheetGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  cartSheetBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFF',
   },
   modalOverlay: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
   modalContainer: {
-    backgroundColor: COLORS.white,
-    paddingHorizontal: scale(20),
-    paddingVertical: verticalScale(10),
-    borderRadius: moderateScale(10),
-    width: scale(320),
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: height * 0.8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   modalTitle: {
-    fontSize: moderateScale(16),
-    fontFamily:Fonts.Bold,
-    marginBottom: verticalScale(10),
-    color: COLORS.ARSENIC,
-    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
   },
-  ModalAddressView: {
+  modalInfoRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    width: scale(295),
-    marginTop: verticalScale(5),
-    backgroundColor: COLORS.white,
+    alignItems: 'flex-start',
+    marginBottom: 20,
   },
-  ModalSubAddressView: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  AddressTxt: {
-    fontFamily:Fonts.Bold,
-    color: COLORS.ARSENIC,
-    width: scale(60),
-  },
-  modalText: {
-    fontSize: moderateScale(15),
-    color: COLORS.DODGERBLUE,
-    width: scale(220),
-    fontFamily:Fonts.Medium,
-
-  },
-  closeButton: {
-    marginTop: verticalScale(13),
-    backgroundColor: COLORS.DODGERBLUE,
-    height: verticalScale(30),
-    width: scale(60),
+  modalInfoIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 5,
-    alignSelf: 'center',
+    marginRight: 14,
   },
-  closeButtonText: {
-    color: COLORS.white,
-    fontSize: moderateScale(14),
-    textAlign: 'center',
-    fontFamily:Fonts.Light,
+  modalInfoText: {
+    flex: 1,
+  },
+  modalInfoLabel: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginBottom: 2,
+  },
+  modalInfoValue: {
+    fontSize: 14,
+    color: '#111827',
+    lineHeight: 20,
   },
 });
