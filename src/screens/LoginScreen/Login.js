@@ -57,7 +57,8 @@ export default function Login({ navigation }) {
         navigation.navigate('MobileVerify', {
           mobile: mobile,
           sessionId: otpSessionId,
-          fcmToken: fcmToken
+          fcmToken: fcmToken,
+             role: "patient",
         });
       } else {
         setToastMessage('Failed to request OTP');

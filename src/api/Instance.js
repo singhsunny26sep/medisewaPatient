@@ -4,20 +4,24 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const Instance = axios.create({
   // baseURL: 'https://pathology-server.onrender.com/',
   // baseURL: 'http://192.168.115.164:5000/',
-  baseURL: 'https://medisawabackend.onrender.com/',
+  baseURL: 'https://medisawabackend.onrender.com/api/v1/',
 });
 
 Instance.interceptors.request.use(
   async config => {
     try { 
       const token = await AsyncStorage.getItem('userToken');
+      console.log('Token from AsyncStorage:', token);
       if (token) {
         if (!config.headers) {
           config.headers = {};
         }
         config.headers.Authorization = `Bearer ${token}`;
+      } else {
+        console.log('No token found in AsyncStorage');
       }
     } catch (e) {
+      console.error('Error getting token from AsyncStorage:', e);
     }
     return config;
   },

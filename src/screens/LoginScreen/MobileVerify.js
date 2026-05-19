@@ -97,7 +97,8 @@ export default function MobileVerify({route, navigation}) {
         mobile,
         sessionId,
         otpLength: code.length,
-        hasFcmToken: !!fcmToken
+        hasFcmToken: !!fcmToken,
+        role: "patient",
       });
   
       const response = await Instance.post('api/v1/users/verify/otp', requestPayload);
