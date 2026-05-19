@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, {useRef, useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -10,78 +10,17 @@ import {
   Animated,
   Dimensions,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Fontisto from 'react-native-vector-icons/Fontisto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {Instance} from '../../../api/Instance';
 
-const { width, height } = Dimensions.get('window');
+const {width, height} = Dimensions.get('window');
 
-// Static Lab Data
-const staticLabs = [
-  {
-    id: '1',
-    name: 'Apollo Diagnostics',
-    city: 'Delhi',
-    state: 'Delhi',
-    image: 'https://passion.healthcare/wp-content/uploads/2023/02/labimage.jpeg',
-    logo: 'https://static.vecteezy.com/system/resources/previews/020/448/567/non_2x/laboratory-logo-design-template-free-vector.jpg',
-    rating: 4.8,
-    tests: 120,
-  },
-  {
-    id: '2',
-    name: 'Dr. Lal PathLabs',
-    city: 'Gurgaon',
-    state: 'Haryana',
-    image: 'https://passion.healthcare/wp-content/uploads/2023/02/labimage.jpeg',
-    logo: 'https://static.vecteezy.com/system/resources/previews/020/448/567/non_2x/laboratory-logo-design-template-free-vector.jpg',
-    rating: 4.7,
-    tests: 95,
-  },
-  {
-    id: '3',
-    name: 'SRL Diagnostics',
-    city: 'Noida',
-    state: 'Uttar Pradesh',
-    image: 'https://passion.healthcare/wp-content/uploads/2023/02/labimage.jpeg',
-    logo: 'https://static.vecteezy.com/system/resources/previews/020/448/567/non_2x/laboratory-logo-design-template-free-vector.jpg',
-    rating: 4.6,
-    tests: 85,
-  },
-  {
-    id: '4',
-    name: 'Thyrocare Technologies',
-    city: 'Mumbai',
-    state: 'Maharashtra',
-    image: 'https://passion.healthcare/wp-content/uploads/2023/02/labimage.jpeg',
-    logo: 'https://static.vecteezy.com/system/resources/previews/020/448/567/non_2x/laboratory-logo-design-template-free-vector.jpg',
-    rating: 4.9,
-    tests: 150,
-  },
-  {
-    id: '5',
-    name: 'Metropolis Healthcare',
-    city: 'Bangalore',
-    state: 'Karnataka',
-    image: 'https://passion.healthcare/wp-content/uploads/2023/02/labimage.jpeg',
-    logo: 'https://static.vecteezy.com/system/resources/previews/020/448/567/non_2x/laboratory-logo-design-template-free-vector.jpg',
-    rating: 4.5,
-    tests: 110,
-  },
-  {
-    id: '6',
-    name: 'Healthians',
-    city: 'Chennai',
-    state: 'Tamil Nadu',
-    image: 'https://passion.healthcare/wp-content/uploads/2023/02/labimage.jpeg',
-    logo: 'https://static.vecteezy.com/system/resources/previews/020/448/567/non_2x/laboratory-logo-design-template-free-vector.jpg',
-    rating: 4.4,
-    tests: 75,
-  },
-];
-
-const LabCard = ({ item, onPress }) => {
+const LabCard = ({item, onPress}) => {
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
 
   useEffect(() => {
@@ -94,20 +33,30 @@ const LabCard = ({ item, onPress }) => {
   }, []);
 
   return (
-    <Animated.View style={[styles.labCard, { transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View style={[styles.labCard, {transform: [{scale: scaleAnim}]}]}>
       <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
-        <Image source={{ uri: item.image }} style={styles.labCoverImage} />
+        <Image source={{uri: item.image}} style={styles.labCoverImage} />
         <View style={styles.labLogoWrapper}>
-          <Image source={{ uri: item.logo }} style={styles.labLogo} />
+          <Image source={{uri: item.logo}} style={styles.labLogo} />
         </View>
         <View style={styles.labInfo}>
           <View style={styles.labNameRow}>
             <Fontisto name="laboratory" size={16} color="#3B82F6" />
-            <Text style={styles.labName} numberOfLines={1}>{item.name}</Text>
+            <Text style={styles.labName} numberOfLines={1}>
+              {item.name}
+            </Text>
           </View>
+          <Text style={styles.labName} numberOfLines={1}>
+            {item.description}
+          </Text>
+          <Text style={styles.labName} numberOfLines={1}>
+            ₹ {item.price}
+          </Text>
           <View style={styles.labAddressRow}>
             <Ionicons name="location-outline" size={14} color="#6B7280" />
-            <Text style={styles.labAddress} numberOfLines={1}>{`${item.city}, ${item.state}`}</Text>
+            <Text
+              style={styles.labAddress}
+              numberOfLines={1}>{`${item.city}, ${item.state}`}</Text>
           </View>
           <View style={styles.labMetaRow}>
             <View style={styles.metaBadge}>
@@ -135,17 +84,48 @@ const EmptyState = () => (
       <Ionicons name="flask-outline" size={50} color="#3B82F6" />
     </View>
     <Text style={styles.emptyTitle}>No Labs Found</Text>
-    <Text style={styles.emptySubtitle}>Try searching with a different keyword</Text>
+    <Text style={styles.emptySubtitle}>
+      Try searching with a different keyword
+    </Text>
   </View>
 );
 
-export default function NearestLabPage({ navigation }) {
+export default function NearestLabPage({navigation}) {
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [filteredLabs, setFilteredLabs] = React.useState(staticLabs);
+  const [labs, setLabs] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [page, setPage] = React.useState(1);
+  const [limit, setLimit] = React.useState(10);
+  const [totalPages, setTotalPages] = React.useState(1);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
+  // Fetch labs from API
+  const fetchLabs = async () => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+
+      const response = await Instance.get(`api/v1/labs?page=${page}&limit=${limit}`, {
+        headers: {
+          Authorization: token,
+        },
+      });
+      if (response.data.success) {
+        setLabs(response.data.data);
+        setTotalPages(response.data.totalPages);
+        console.log();
+      }
+    } catch (error) {
+      console.error('Error fetching labs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
+    fetchLabs();
+
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -159,37 +139,41 @@ export default function NearestLabPage({ navigation }) {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [page, limit]);
 
   // Filter labs based on search
   React.useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredLabs(staticLabs);
-    } else {
-      const searchLower = searchQuery.toLowerCase().trim();
-      const filtered = staticLabs.filter(lab =>
-        lab.name.toLowerCase().includes(searchLower) ||
-        lab.city.toLowerCase().includes(searchLower) ||
-        lab.state.toLowerCase().includes(searchLower)
-      );
-      setFilteredLabs(filtered);
-    }
+    // Filtering will be done on the client side for now
+    // In a real app, you might want to send search query to the API
   }, [searchQuery]);
 
-  const handleLabPress = (item) => {
-    navigation.navigate('LabDetailsPage', { lab: item, locationAddress: 'Delhi, India' });
+  const handleLabPress = item => {
+    navigation.navigate('LabDetailsPage', {
+      lab: item,
+      locationAddress: 'Delhi, India',
+    });
+  };
+
+  const handleLoadMore = () => {
+    if (page < totalPages) {
+      setPage(prevPage => prevPage + 1);
+    }
   };
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.locationBtn}>
           <Ionicons name="location-outline" size={16} color="#3B82F6" />
-          <Text style={styles.locationText} numberOfLines={1}>Delhi, India</Text>
+          <Text style={styles.locationText} numberOfLines={1}>
+            Delhi, India
+          </Text>
           <Ionicons name="chevron-down" size={14} color="#6B7280" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.filterBtn}>
@@ -201,10 +185,9 @@ export default function NearestLabPage({ navigation }) {
       <View style={styles.searchSection}>
         <LinearGradient
           colors={['#3B82F6', '#2563EB']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.searchGradient}
-        >
+          start={{x: 0, y: 0}}
+          end={{x: 1, y: 1}}
+          style={styles.searchGradient}>
           <View style={styles.searchContainer}>
             <Ionicons name="search-outline" size={20} color="#9CA3AF" />
             <TextInput
@@ -226,7 +209,7 @@ export default function NearestLabPage({ navigation }) {
       {/* Stats Row */}
       <View style={styles.statsContainer}>
         <View style={styles.statBox}>
-          <Text style={styles.statNumber}>{filteredLabs.length}</Text>
+          <Text style={styles.statNumber}>{labs.length}</Text>
           <Text style={styles.statLabel}>Labs Found</Text>
         </View>
         <View style={styles.statDivider} />
@@ -244,28 +227,64 @@ export default function NearestLabPage({ navigation }) {
       {/* Welcome Banner */}
       <LinearGradient
         colors={['#EFF6FF', '#DBEAFE']}
-        style={styles.welcomeBanner}
-      >
+        style={styles.welcomeBanner}>
         <View>
           <Text style={styles.welcomeTitle}>Find Best Labs Near You</Text>
-          <Text style={styles.welcomeSubtitle}>Book lab tests at affordable prices</Text>
+          <Text style={styles.welcomeSubtitle}>
+            Book lab tests at affordable prices
+          </Text>
         </View>
         <View style={styles.welcomeIcon}>
-          <Ionicons name="flask-outline" size={50} color="#3B82F6" opacity={0.3} />
+          <Ionicons
+            name="flask-outline"
+            size={50}
+            color="#3B82F6"
+            opacity={0.3}
+          />
         </View>
       </LinearGradient>
 
       {/* Labs List */}
-      <Animated.View style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+      <Animated.View
+        style={{
+          flex: 1,
+          opacity: fadeAnim,
+          transform: [{translateY: slideAnim}],
+        }}>
         <FlatList
-          data={filteredLabs}
-          renderItem={({ item }) => (
+          data={labs}
+          renderItem={({item}) => (
             <LabCard item={item} onPress={() => handleLabPress(item)} />
           )}
-          keyExtractor={(item) => item.id}
+          keyExtractor={item => item._id || item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={<EmptyState />}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIconBg}>
+                <Ionicons name="flask-outline" size={50} color="#3B82F6" />
+              </View>
+              <Text style={styles.emptyTitle}>No Labs Found</Text>
+              <Text style={styles.emptySubtitle}>
+                Try searching with a different keyword
+              </Text>
+            </View>
+          )}
+          onEndReached={() => {
+            if (page < totalPages) {
+              handleLoadMore();
+            }
+          }}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            loading && (
+              <ActivityIndicator
+                size="small"
+                color="#3B82F6"
+                style={{padding: 16}}
+              />
+            )
+          }
         />
       </Animated.View>
     </View>
@@ -355,7 +374,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
@@ -414,7 +433,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
@@ -437,7 +456,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FFF',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 4,
@@ -463,6 +482,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111827',
     flex: 1,
+    textTransform: 'capitalize',
   },
   labAddressRow: {
     flexDirection: 'row',
