@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { Modal, Text, TouchableOpacity, View } from 'react-native'
-import RtmService from './rtmService'
+import { RtmService } from './rtmService'
 import { useLogin } from './LoginProvider'
 import { COLORS } from '../Theme/Colors'
 import { AGORA_APP_ID } from './agoraConfig'

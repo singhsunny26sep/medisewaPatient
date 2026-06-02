@@ -98,7 +98,7 @@ export default function Login({ navigation }) {
                 <Ionicons name="medkit-outline" size={50} color="#FFF" />
               </LinearGradient>
             </View>
-            <Text style={styles.appName}>MediSeva</Text>
+            <Text style={styles.appName}>MediSewa</Text>
             <Text style={styles.tagline}>Your Health, Our Priority</Text>
           </View>
 
@@ -108,7 +108,6 @@ export default function Login({ navigation }) {
             <Text style={styles.subtitleText}>
               Sign in to continue to your account
             </Text>
-
             <View style={styles.inputWrapper}>
               <CustomTextInput
                 label="Mobile Number"

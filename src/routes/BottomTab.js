@@ -94,25 +94,25 @@ export default function MainStack() {
 }
 
 const styles = StyleSheet.create({
-  tabBarContainer: {
-    position: 'relative',
-    borderTopLeftRadius: moderateScale(20),
-    borderTopRightRadius: moderateScale(20),
-    elevation: 15,
-    shadowColor: COLORS.DODGERBLUE,
-    shadowOffset: {
-      width: 0,
-      height: -4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    marginHorizontal: scale(8),
-    marginBottom: verticalScale(12),
-    backgroundColor: COLORS.white,
-    minHeight: verticalScale(65),
-    maxHeight: verticalScale(75),
-    overflow: 'hidden',
-  },
+   tabBarContainer: {
+     position: 'relative',
+     borderTopLeftRadius: moderateScale(20),
+     borderTopRightRadius: moderateScale(20),
+     elevation: 2,
+     shadowColor: '#000',
+     shadowOffset: {
+       width: 0,
+       height: 2,
+     },
+     shadowOpacity: 0.05,
+     shadowRadius: 8,
+     marginHorizontal: scale(8),
+     marginBottom: verticalScale(12),
+     backgroundColor: COLORS.white,
+     minHeight: verticalScale(65),
+     maxHeight: verticalScale(75),
+     overflow: 'hidden',
+   },
   tabBar: {
     flexDirection: 'row',
     backgroundColor: COLORS.white,

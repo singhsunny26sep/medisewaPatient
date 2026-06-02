@@ -22,13 +22,10 @@ export default function SelectHealthP({}) {
   const navigation = useNavigation();
   const route = useRoute();
   const {onSelectProblem} = route.params;
-
   const [healthProblems, setHealthProblems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
   const numColumns = 3;
-
   useEffect(() => {
     const fetchHealthProblems = async () => {
       try {
@@ -40,7 +37,6 @@ export default function SelectHealthP({}) {
         setLoading(false);
       }
     };
-
     fetchHealthProblems();
   }, []);
 
@@ -59,7 +55,6 @@ export default function SelectHealthP({}) {
         <Text style={styles.itemText}>{item.name}</Text>
       </TouchableOpacity>
   );
-
   if (error) {
     return (
       <View style={styles.errorContainer}>

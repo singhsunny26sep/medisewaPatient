@@ -1,41 +1,52 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
-  Alert,
   ScrollView,
   Modal,
   ActivityIndicator,
   Image,
+  Alert,
 } from 'react-native';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {COLORS} from '../../Theme/Colors';
-import {moderateScale, scale, verticalScale} from '../../utils/Scaling';
-import {Instance} from '../../api/Instance';
-import CustomRadioButton from '../../component/CustomRadioButton';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import {StatusBar} from 'react-native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
+import LinearGradient from 'react-native-linear-gradient';
+
+import {COLORS} from '../../Theme/Colors';
+import {Fonts} from '../../Theme/Fonts';
+import {moderateScale, scale, verticalScale} from '../../utils/Scaling';
+
 import {Container} from '../../component/Container/Container';
 import CustomHeader from '../../component/header/CustomHeader';
 import CustomTextInput from '../../component/texinput/CustomTextInput';
-import {Fonts} from '../../Theme/Fonts';
+import CustomRadioButton from '../../component/CustomRadioButton';
+
+import {Instance} from '../../api/Instance';
 
 export default function BookAppointment({route, navigation}) {
-  // const amount = 400;
+  const {
+    labId,
+    selectedTestIds,
+    labName,
+    selectedTestsname,
+    locationAddress,
+  } = route.params;
 
-  const {labId, selectedTestIds, labName, selectedTestsname, locationAddress} =
-    route.params;
-  const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [paymentSuccess, setpaymentSuccess] = useState(false);
+  const [successModal, setSuccessModal] = useState(false);
+
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+
   const [date, setDate] = useState('');
   const [textShowDate, setTextShowDate] = useState('');
+
+  const [selectedHealthProblem, setSelectedHealthProblem] =
+    useState(null);
 
   const [formData, setFormData] = useState({
     age: '',
@@ -49,150 +60,6 @@ export default function BookAppointment({route, navigation}) {
     pincode: '',
   });
 
-  const [selectedHealthProblem, setSelectedHealthProblem] = useState(null);
-  // console.log('tour test id', selectedTestIds, 'lovccc', locationAddress);
-
-  const showDatePicker = () => {
-    setDatePickerVisibility(true);
-  };
-
-  const hideDatePicker = () => {
-    setDatePickerVisibility(false);
-  };
-
-  const handleConfirm = date => {
-    const dt = new Date(date);
-    const sdt = dt.toISOString();
-    const TextDate = dt.toISOString().split('T');
-    const TextDateOne = TextDate[0].split('-');
-    setTextShowDate(`${TextDateOne[2]}/${TextDateOne[1]}/${TextDateOne[0]}`);
-    setDate(sdt);
-
-    hideDatePicker();
-  };
-
-  useEffect(() => {
-    navigation.setOptions({
-      headerLeft: () => (
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.headerButton}>
-          <Icon name="arrow-back" size={24} color={COLORS.ARSENIC} />
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation]);
-
-  const generateTransactionIds = () => {
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 1000000);
-    const merchantPrefix = 'T';
-    return `${merchantPrefix}${timestamp}${random}`;
-  };
-
-
-  const handleInputChange = (name, value) => {
-    setFormData(prevState => ({...prevState, [name]: value}));
-  };
-
-  const handleSelectHealthProblem = problem => {
-    setSelectedHealthProblem(problem);
-  };
-
-  const handleSubmit = async () => {
-    setLoading(true);
-
-    const userToken = await AsyncStorage.getItem('userToken');
-    console.log('User Token =', userToken);
-    if (!userToken) {
-      Alert.alert('Error', 'User token not found. Please login again.');
-      setLoading(false);
-      return;
-    }
-
-    if (!formData.age.trim()) {
-      Alert.alert('Error', 'Age is required.');
-      setLoading(false);
-      return;
-    }
-
-    if (!formData.gender) {
-      Alert.alert('Error', 'Gender is required.');
-      setLoading(false);
-      return;
-    }
-
-    if (!selectedHealthProblem) {
-      Alert.alert('Error', 'Please select a health problem.');
-      setLoading(false);
-      return;
-    }
-
-    if (!formData.problemDescription.trim()) {
-      Alert.alert('Error', 'Please tell us more about the symptoms.');
-      setLoading(false);
-      return;
-    }
-    console.log(formData.mobile, 'refer buuuuu');
-    const appointmentData = {
-      type: 'General Checkup',
-      age: Number(formData.age),
-      gender: formData.gender,
-      referral: formData.mobile,
-      vistType: formData.visittype,
-      locationAddress: locationAddress,
-      problem: selectedHealthProblem
-        ? selectedHealthProblem.name
-        : 'No Health Problem Selected',
-      healthProblem: [selectedHealthProblem._id],
-      appointmentDate: date,
-      problemDescription: formData.problemDescription,
-      labs: {
-        lab: labId,
-        tests: selectedTestIds.map(testId => ({
-          test: testId,
-        })),
-      },
-      address: {
-        address: formData?.address,
-        city: formData?.city,
-        state: formData?.state,
-        pincode: formData?.pincode,
-      },
-    };
-
-    try {
-      // console.log('Sending data:', JSON.stringify(appointmentData, null, 2));
-      const response = await Instance.post('/appointments', appointmentData, {
-        headers: {
-          authorization: userToken,
-        },
-      });
-
-    } catch (error) {
-      console.error('Error details:', error);
-      setLoading(false);
-      if (error.response) {
-        console.error('Server Error:', error.response.data);
-        const message =
-          error.response.data?.message || 'An unexpected server error occurred';
-        Alert.alert(
-          'Server Error',
-          `Status: ${error.response.status}, Message: ${message}`,
-        );
-      } else if (error.request) {
-        console.error('Network Error:', error.request);
-        Alert.alert('Network Error', 'No response received from the server.');
-      } else {
-        console.error('Error:', error.message);
-        Alert.alert('Error', `Request failed: ${error.message}`);
-      }
-    }
-    // finally {
-    //   setLoading(false);
-    // }
-  };
-
   const genderOptions = [
     {label: 'Male', value: 'male'},
     {label: 'Female', value: 'female'},
@@ -203,126 +70,281 @@ export default function BookAppointment({route, navigation}) {
     {label: 'Lab', value: 'lab'},
   ];
 
+  const handleInputChange = (name, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const showDatePicker = () => {
+    setDatePickerVisibility(true);
+  };
+
+  const hideDatePicker = () => {
+    setDatePickerVisibility(false);
+  };
+
+  const handleConfirm = selectedDate => {
+    const dt = new Date(selectedDate);
+
+    const formattedDate = `${dt.getDate()}/${
+      dt.getMonth() + 1
+    }/${dt.getFullYear()}`;
+
+    setTextShowDate(formattedDate);
+    setDate(dt.toISOString());
+
+    hideDatePicker();
+  };
+
+  const handleSubmit = async () => {
+    try {
+      setLoading(true);
+
+      const userToken = await AsyncStorage.getItem('userToken');
+
+      if (!userToken) {
+        Alert.alert('Error', 'Please login again');
+        return;
+      }
+
+      if (!formData.age) {
+        Alert.alert('Validation', 'Please enter age');
+        return;
+      }
+
+      if (!formData.gender) {
+        Alert.alert('Validation', 'Please select gender');
+        return;
+      }
+
+      if (!selectedHealthProblem) {
+        Alert.alert(
+          'Validation',
+          'Please select health problem',
+        );
+        return;
+      }
+
+      const appointmentData = {
+        type: 'General Checkup',
+        age: Number(formData.age),
+        gender: formData.gender,
+        referral: formData.mobile,
+        vistType: formData.visittype,
+        locationAddress: locationAddress,
+
+        problem: selectedHealthProblem?.name,
+
+        healthProblem: [selectedHealthProblem?._id],
+
+        appointmentDate: date,
+
+        problemDescription:
+          formData.problemDescription,
+
+        labs: {
+          lab: labId,
+
+          tests: selectedTestIds.map(testId => ({
+            test: testId,
+          })),
+        },
+
+        address: {
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          pincode: formData.pincode,
+        },
+      };
+
+      await Instance.post(
+        'api/v1/appointments',
+        appointmentData,
+        {
+          headers: {
+            authorization: userToken,
+          },
+        },
+      );
+
+      setSuccessModal(true);
+    } catch (error) {
+      console.log(error);
+
+      Alert.alert(
+        'Error',
+        'Something went wrong. Please try again.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const closeModal = () => {
-    setModalVisible(false);
+    setSuccessModal(false);
+
     navigation.navigate('UserAppointments');
   };
 
   return (
     <Container
-      statusBarStyle={'dark-content'}
-      statusBarBackgroundColor={COLORS.white}
-      backgroundColor={COLORS.white}>
-      <CustomHeader title="Book Appointment"  navigation={navigation}/>
+      backgroundColor={'#F5F7FB'}
+      statusBarStyle={'dark-content'}>
+      <CustomHeader
+        title="Book Appointment"
+        navigation={navigation}
+      />
+
       <ScrollView
         showsVerticalScrollIndicator={false}
-        style={{marginHorizontal: scale(15)}}>
-        <View style={styles.LabNameView}>
-          <Text style={styles.testsTitle}>Lab: </Text>
-          <Text style={styles.Mobdetails}>{labName}</Text>
-        </View>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: moderateScale(4),
-          }}>
-          <Text style={styles.testsTitle2}>Selected Tests:</Text>
-          {selectedTestsname.map((selectedTestsname, index) => (
-            <Text key={index} style={styles.testItem}>
-              {selectedTestsname}
+        contentContainerStyle={{
+          paddingBottom: verticalScale(30),
+        }}
+        style={styles.container}>
+        {/* TOP CARD */}
+
+        <View style={styles.topCard}>
+          <View style={styles.row}>
+            <Icon
+              name="business-outline"
+              size={20}
+              color="#2563EB"
+            />
+
+            <Text style={styles.labTitle}>
+              {' '}
+              {labName}
             </Text>
-          ))}
+          </View>
+
+          <Text style={styles.selectedText}>
+            Selected Tests
+          </Text>
+
+          <View style={styles.badgeWrapper}>
+            {selectedTestsname.map((item, index) => (
+              <View key={index} style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {item}
+                </Text>
+              </View>
+            ))}
+          </View>
         </View>
-        <View style={styles.formContainer}>
+
+        {/* FORM */}
+
+        <View style={styles.formCard}>
           <CustomTextInput
             label="Age"
             placeholder="Enter age"
             keyboardType="numeric"
-            value={formData.age}
             maxLength={2}
-            onChangeText={value => handleInputChange('age', value)}
+            value={formData.age}
+            onChangeText={value =>
+              handleInputChange('age', value)
+            }
           />
-          <Text style={styles.label}>Appointment Date</Text>
-          <TouchableOpacity onPress={showDatePicker}>
-            <View
-              style={{
-                borderWidth: 0.8,
-                borderColor: COLORS.AshGray,
-                borderRadius: moderateScale(8),
-                paddingHorizontal: scale(10),
-                height: verticalScale(40),
-                marginBottom: verticalScale(15),
-                justifyContent: 'center',
-              }}>
-              <Text
-                style={{
-                  fontSize: moderateScale(14),
-                  fontFamily:Fonts.Medium
-                }}>
-                {!!textShowDate ? textShowDate : 'Select Appointment Date'}
-              </Text>
-            </View>
+
+          {/* DATE */}
+
+          <Text style={styles.label}>
+            Appointment Date
+          </Text>
+
+          <TouchableOpacity
+            style={styles.dateBox}
+            onPress={showDatePicker}>
+            <Text style={styles.dateText}>
+              {textShowDate ||
+                'Select appointment date'}
+            </Text>
+
+            <Icon
+              name="calendar-outline"
+              size={22}
+              color="#2563EB"
+            />
           </TouchableOpacity>
-          <View style={styles.radioGroupView}>
-            <Text style={styles.Genderlabel}>Gender</Text>
+
+          {/* GENDER */}
+
+          <View style={styles.radioSection}>
+            <Text style={styles.label}>Gender</Text>
+
             <CustomRadioButton
               options={genderOptions}
               selectedValue={formData.gender}
               onValueChange={gender =>
-                setFormData(prevState => ({...prevState, gender}))
+                setFormData(prev => ({
+                  ...prev,
+                  gender,
+                }))
               }
             />
           </View>
 
-          <View style={styles.radioGroupView}>
-            <Text style={styles.Genderlabel}>Visit Type</Text>
+          {/* VISIT TYPE */}
+
+          <View style={styles.radioSection}>
+            <Text style={styles.label}>
+              Visit Type
+            </Text>
+
             <CustomRadioButton
               options={visitOptions}
               selectedValue={formData.visittype}
               onValueChange={visittype =>
-                setFormData(prevState => ({...prevState, visittype}))
+                setFormData(prev => ({
+                  ...prev,
+                  visittype,
+                }))
               }
             />
           </View>
 
           <CustomTextInput
-            label="Referral-Mobile (optional)"
+            label="Referral Mobile"
             placeholder="Enter referral mobile"
             keyboardType="phone-pad"
-            value={formData.mobile}
             maxLength={10}
-            onChangeText={value => handleInputChange('mobile', value)}
+            value={formData.mobile}
+            onChangeText={value =>
+              handleInputChange('mobile', value)
+            }
           />
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Health Problem</Text>
-            <TouchableOpacity
-              style={styles.searchInputView}
-              onPress={() =>
-                navigation.navigate('SelectHealthP', {
-                  onSelectProblem: handleSelectHealthProblem,
-                })
-              }>
-              {selectedHealthProblem ? (
-                <View style={styles.problemContainer}>
-                  <Text style={styles.problemText}>
-                    {selectedHealthProblem.name}
-                  </Text>
-                </View>
-              ) : (
-                <Text style={styles.noProblemText}>
-                  No health problem selected
-                </Text>
-              )}
-              <View style={styles.selectedArrowView}>
-                <Icon
-                  name="arrow-forward"
-                  size={24}
-                  color={COLORS.DODGERBLUE}
-                />
-              </View>
-            </TouchableOpacity>
-          </View>
+
+          {/* HEALTH PROBLEM */}
+
+          <Text style={styles.label}>
+            Health Problem
+          </Text>
+
+          <TouchableOpacity
+            style={styles.problemBox}
+            onPress={() =>
+              navigation.navigate(
+                'SelectHealthP',
+                {
+                  onSelectProblem:
+                    setSelectedHealthProblem,
+                },
+              )
+            }>
+            <Text style={styles.problemText}>
+              {selectedHealthProblem?.name ||
+                'Select health problem'}
+            </Text>
+
+            <Icon
+              name="chevron-forward"
+              size={22}
+              color="#2563EB"
+            />
+          </TouchableOpacity>
 
           <CustomTextInput
             label="Pincode"
@@ -330,111 +352,123 @@ export default function BookAppointment({route, navigation}) {
             keyboardType="number-pad"
             maxLength={6}
             value={formData.pincode}
-            onChangeText={value => handleInputChange('pincode', value)}
+            onChangeText={value =>
+              handleInputChange('pincode', value)
+            }
           />
 
           <CustomTextInput
             label="Address"
             placeholder="Enter address"
             value={formData.address}
-            onChangeText={value => handleInputChange('address', value)}
+            onChangeText={value =>
+              handleInputChange('address', value)
+            }
           />
 
           <CustomTextInput
             label="City"
             placeholder="Enter city"
             value={formData.city}
-            onChangeText={value => handleInputChange('city', value)}
+            onChangeText={value =>
+              handleInputChange('city', value)
+            }
           />
 
           <CustomTextInput
             label="State"
             placeholder="Enter state"
             value={formData.state}
-            onChangeText={value => handleInputChange('state', value)}
-          />
-
-  
-           <CustomTextInput
-            label="Tell Us more about the symptoms ?"
-            placeholder="Tell us about symptoms ...."
-            value={formData.problemDescription}
             onChangeText={value =>
-              handleInputChange('problemDescription', value)
+              handleInputChange('state', value)
             }
           />
-       
 
-          <View style={styles.ButtonFlex}>
-            <View style={styles.shieldView}>
-              <MaterialCommunityIcons
-                name="shield-check"
-                size={16}
-                color={COLORS.DODGERBLUE}
-              />
-              <Text style={styles.shieldViewTxt}>
-                Book Appointment are 100% Private and Secure
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={[
-                styles.buttonMAin,
-                loading && {backgroundColor: COLORS.lightGrey},
-              ]}
-              onPress={handleSubmit}
-              disabled={loading}>
-              {loading ? (
-                <ActivityIndicator size="small" color={COLORS.white} />
-              ) : (
-                <Text style={styles.buttonMAinTxt}>Submit</Text>
-              )}
-            </TouchableOpacity>
+          <CustomTextInput
+            label="Tell us more about symptoms"
+            placeholder="Write symptoms..."
+            value={formData.problemDescription}
+            onChangeText={value =>
+              handleInputChange(
+                'problemDescription',
+                value,
+              )
+            }
+          />
+
+          {/* SECURITY BOX */}
+
+          <View style={styles.securityBox}>
+            <MaterialCommunityIcons
+              name="shield-check"
+              size={18}
+              color="#2563EB"
+            />
+
+            <Text style={styles.securityText}>
+              Your appointment is secure &
+              private
+            </Text>
           </View>
+
+          {/* BUTTON */}
+
+          <TouchableOpacity
+            disabled={loading}
+            onPress={handleSubmit}>
+            <LinearGradient
+              colors={['#2563EB', '#3B82F6']}
+              start={{x: 0, y: 0}}
+              end={{x: 1, y: 1}}
+              style={styles.button}>
+              {loading ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.buttonText}>
+                  Book Appointment
+                </Text>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
       </ScrollView>
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={closeModal}>
+
+      {/* SUCCESS MODAL */}
+
+      <Modal transparent visible={successModal}>
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalText}>Success</Text>
-            <Text style={styles.modalSubText}>
-              Appointment booked successfully
-            </Text>
             <Image
-              style={styles.doneimage}
               source={require('../../assets/done-icon.jpg')}
+              style={styles.successImage}
             />
-            <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
-              <Text style={styles.closeButtonText}>Close</Text>
+
+            <Text style={styles.successTitle}>
+              Appointment Booked
+            </Text>
+
+            <Text style={styles.successSubTitle}>
+              Your appointment has been booked
+              successfully
+            </Text>
+
+            <TouchableOpacity
+              onPress={closeModal}>
+              <LinearGradient
+                colors={['#2563EB', '#3B82F6']}
+                style={styles.modalButton}>
+                <Text
+                  style={styles.modalButtonText}>
+                  Continue
+                </Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={paymentSuccess}
-        onRequestClose={closeModal}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalText}>Payment successfully</Text>
-            {/* <Text style={styles.modalSubText}>
-              Payment successfully
-            </Text> */}
-            <Image
-              style={styles.doneimage}
-              source={require('../../assets/done-icon.jpg')}
-            />
-            <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      {/* DATE PICKER */}
+
       <DateTimePickerModal
         isVisible={isDatePickerVisible}
         mode="date"
@@ -446,168 +480,211 @@ export default function BookAppointment({route, navigation}) {
 }
 
 const styles = StyleSheet.create({
-  AppointmentView: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: verticalScale(10),
-  },
-  title: {
-    fontSize: moderateScale(24),
-    fontWeight: 'bold',
-    color: COLORS.DODGERBLUE,
-    textAlign: 'center',
+  container: {
     flex: 1,
-  },
-  LabNameView: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  testsTitle: {
-    fontSize: moderateScale(18),
-    color: COLORS.ARSENIC,
-    paddingVertical: verticalScale(10),
-    fontFamily:Fonts.Medium,
-  },
-  testsTitle2: {
-    fontSize: moderateScale(18),
-    color: COLORS.ARSENIC,
-    fontFamily:Fonts.Medium
-  },
-  testItem: {
-    fontSize: moderateScale(18),
-    fontFamily:Fonts.Light,
-    color: COLORS.DODGERBLUE,
-  },
-  formContainer: {
-    marginTop: verticalScale(20),
-  },
-  label: {
-    fontSize: moderateScale(16),
-    marginBottom: scale(8),
-    color: COLORS.black,
-    fontFamily: Fonts.Medium,
-  },
-  Genderlabel: {
-    fontSize: moderateScale(16),
-    marginBottom: verticalScale(5),
-    color: COLORS.black,
-    fontFamily: Fonts.Medium,
-    width: scale(90),
-    top:scale(4)
-  },
-  Mobdetails: {
-    fontSize: moderateScale(18),
-    fontFamily:Fonts.Light,
-    color: COLORS.DODGERBLUE,
-    paddingVertical: verticalScale(10),
+    paddingHorizontal: 16,
   },
 
-  headerButton: {
-    padding: scale(10),
+  topCard: {
+    backgroundColor: '#FFFFFF',
+    marginTop: 18,
+    borderRadius: 22,
+    padding: 18,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowRadius: 6,
   },
-  inputContainer: {
-    marginBottom: verticalScale(15),
-  },
-  searchInputView: {
+
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.AshGray,
-    borderRadius: moderateScale(10),
-    paddingHorizontal: scale(10),
-    height: verticalScale(40),
-    justifyContent: 'space-between',
   },
-  problemContainer: {
-    flex: 1,
-    justifyContent: 'center',
+
+  labTitle: {
+    fontSize: 17,
+    color: '#111827',
+    fontFamily: Fonts.Bold,
+    marginLeft: 6,
   },
-  problemText: {
-    fontSize: moderateScale(16),
-    color: COLORS.ARSENIC,
+
+  selectedText: {
+    fontSize: 15,
+    color: '#111827',
+    fontFamily: Fonts.Bold,
+    marginTop: 18,
   },
-  noProblemText: {
-    fontSize: moderateScale(13),
-    fontFamily:Fonts.Medium,
-    top:scale(2)
-  },
-  selectedArrowView: {
-    paddingLeft: scale(10),
-  },
-  radioGroupView: {
+
+  badgeWrapper: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: verticalScale(15),
+    flexWrap: 'wrap',
+    marginTop: 12,
   },
-  ButtonFlex: {
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    marginHorizontal: scale(15),
-    flex: 1,
-    paddingBottom: verticalScale(15),
-  },
-  shieldView: {
-    flexDirection: 'row',
-    marginTop: verticalScale(15),
-  },
-  shieldViewTxt: {
-    color: COLORS.DODGERBLUE,
-    fontSize: moderateScale(13),
-    fontWeight: '500',
-  },
-  buttonMAin: {
-    marginTop: verticalScale(10),
-    backgroundColor: COLORS.DODGERBLUE,
-    borderRadius: moderateScale(10),
-    height: verticalScale(45),
-    width: scale(320),
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  buttonMAinTxt: {
-    color: COLORS.white,
-    fontSize: moderateScale(16),
-    fontFamily:Fonts.Medium,
-    textAlign: 'center',
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    width: '80%',
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 20,
-    alignItems: 'center',
-  },
-  modalText: {
-    fontSize: moderateScale(18),
-    fontWeight: 'bold',
+
+  badge: {
+    backgroundColor: '#E8F0FF',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 25,
+    marginRight: 10,
     marginBottom: 10,
   },
-  modalSubText: {
-    fontSize: moderateScale(15),
-    marginBottom: 20,
-    fontWeight: '700',
+
+  badgeText: {
+    color: '#2563EB',
+    fontFamily: Fonts.Medium,
+    fontSize: 13,
+  },
+
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 18,
+    marginTop: 18,
+    marginBottom: 30,
+
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowRadius: 6,
+  },
+
+  label: {
+    fontSize: 15,
+    color: '#111827',
+    fontFamily: Fonts.Bold,
+    marginBottom: 10,
+  },
+
+  dateBox: {
+    height: 54,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 15,
+    paddingHorizontal: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+
+  dateText: {
+    color: '#111827',
+    fontFamily: Fonts.Medium,
+    fontSize: 14,
+  },
+
+  radioSection: {
+    marginBottom: 18,
+  },
+
+  problemBox: {
+    height: 54,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 15,
+    paddingHorizontal: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+
+  problemText: {
+    color: '#111827',
+    fontFamily: Fonts.Medium,
+    fontSize: 14,
+  },
+
+  securityBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    padding: 12,
+    borderRadius: 14,
+    marginTop: 10,
+  },
+
+  securityText: {
+    color: '#2563EB',
+    marginLeft: 8,
+    fontSize: 13,
+    fontFamily: Fonts.Medium,
+  },
+
+  button: {
+    height: 56,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 22,
+  },
+
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: Fonts.Bold,
+  },
+
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 22,
+  },
+
+  modalContent: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 26,
+    padding: 24,
+    alignItems: 'center',
+  },
+
+  successImage: {
+    width: 120,
+    height: 120,
+    resizeMode: 'contain',
+  },
+
+  successTitle: {
+    fontSize: 22,
+    color: '#111827',
+    fontFamily: Fonts.Bold,
+    marginTop: 12,
+  },
+
+  successSubTitle: {
+    color: '#6B7280',
+    fontFamily: Fonts.Medium,
     textAlign: 'center',
+    marginTop: 10,
+    lineHeight: 22,
   },
-  closeButton: {
-    backgroundColor: COLORS.DODGERBLUE,
-    borderRadius: 5,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+
+  modalButton: {
+    width: 220,
+    height: 50,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 25,
   },
-  closeButtonText: {
-    color: 'white',
-    fontFamily:Fonts.Medium,
-    fontSize: moderateScale(15),
-  },
-  doneimage: {
-    height: verticalScale(100),
-    width: scale(150),
-    overflow: 'hidden',
+
+  modalButtonText: {
+    color: '#FFFFFF',
+    fontFamily: Fonts.Bold,
+    fontSize: 15,
   },
 });

@@ -157,7 +157,7 @@ export default function Department_List({ route, navigation }) {
               style={styles.bookingButton}
               onPress={() =>
                 navigation.navigate('Dr_AppointmentBook', {
-                  doctorId: item.userId,
+                  doctorId: item._id,
                 })
               }>
               <LinearGradient

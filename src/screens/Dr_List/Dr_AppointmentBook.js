@@ -111,10 +111,8 @@ export default function Dr_AppointmentBook({route, navigation}) {
       'at8PM': '08:00 PM',
       'at8_30PM': '08:30 PM'
     };
-    
     return timeMap[key] || key;
   };
-
   // Function to fetch time slots for a specific date
   const fetchTimeSlots = async (date) => {
     try {
@@ -124,19 +122,16 @@ export default function Dr_AppointmentBook({route, navigation}) {
         console.log('Token not found!');
         return;
       }
-
       const formattedDate = moment(date).format('YYYY-MM-DD');
-      const response = await Instance.get(`api/v1/time-slots/getAll?doctorId=${"68e75b523f50d39c33ac1f32"}&date=${formattedDate}&page=1&limit=10`, {
+      const response = await Instance.get(`api/v1/time-slots/getAll?doctorId=${doctorId}&date=${formattedDate}&page=1&limit=10`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-
       if (response.data.success && response.data.data.timeSlots.length > 0) {
         const timeSlotData = response.data.data.timeSlots[0];
         return processTimeSlotData(timeSlotData, date);
       } else {
-        // No slots available for this date
         return createEmptySlotData(date);
       }
     } catch (error) {

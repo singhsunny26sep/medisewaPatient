@@ -19,7 +19,7 @@ import {Fonts} from '../../Theme/Fonts';
 import CustomTextInput from '../../component/texinput/CustomTextInput';
 import {Instance} from '../../api/Instance';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import ToastMessage from '../../component/ToastMessage/ToastMessage';
+
 import strings from '../../../localization';
 import LinearGradient from 'react-native-linear-gradient';
  import fcmService from '../../utils/fcmService';
@@ -27,20 +27,17 @@ import LinearGradient from 'react-native-linear-gradient';
 const {width, height} = Dimensions.get('window');
 
 export default function Signup({navigation}) {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [mobile, setMobile] = useState('');
-  const [password, setPassword] = useState('');
-  const [address, setAddress] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState('');
-
-  const [nameError, setNameError] = useState('');
-  const [emailError, setEmailError] = useState('');
-  const [mobileError, setMobileError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [addressError, setAddressError] = useState('');
+   const [name, setName] = useState('');
+   const [email, setEmail] = useState('');
+   const [mobile, setMobile] = useState('');
+   const [mobileError, setMobileError] = useState('');
+   const [password, setPassword] = useState('');
+   const [address, setAddress] = useState('');
+   const [loading, setLoading] = useState(false);
+   const [nameError, setNameError] = useState('');
+   const [emailError, setEmailError] = useState('');
+   const [passwordError, setPasswordError] = useState('');
+   const [addressError, setAddressError] = useState('');
 
   const handleSignup = async () => {
     setNameError('');
@@ -48,14 +45,11 @@ export default function Signup({navigation}) {
     setMobileError('');
     setPasswordError('');
     setAddressError('');
-
     let valid = true;
-
     if (!name) {
       setNameError(strings.NameRequired);
       valid = false;
     }
-
     if (!email) {
       setEmailError(strings.EmailRequired);
       valid = false;
@@ -104,25 +98,19 @@ export default function Signup({navigation}) {
         image: '',
         fcmToken: fcmToken || '',
       };
-
-      const response = await Instance.post('api/v1/users/register', body);
-      console.log('Response:', response.data);
-
-      await AsyncStorage.setItem('userToken', response.data.token);
-      await AsyncStorage.setItem('username', name); 
-      setToastMessage('Registration successful');
-      setToastType('success');   
-      navigation.navigate('Login');
-    } catch (error) {
-
-      const errorMessage = error.response?.data?.msg || 'Something went wrong';
-      setToastMessage(errorMessage);
-      setToastType('danger');
-    } finally {
-      setLoading(false);
-    }
+       const response = await Instance.post('api/v1/users/register', body);
+       console.log('Response:', response.data);
+       await AsyncStorage.setItem('userToken', response.data.token);
+       await AsyncStorage.setItem('username', name); 
+       Alert.alert('Registration successful');
+       navigation.navigate('Login');
+     } catch (error) {
+       const errorMessage = error.response?.data?.msg || 'Something went wrong';
+       Alert.alert('Error', errorMessage);
+     } finally {
+       setLoading(false);
+     }
   };
-
   return (
     <Container
       statusBarStyle={'light-content'}
@@ -149,7 +137,6 @@ export default function Signup({navigation}) {
             </Text>
           </View>
         </LinearGradient>
-
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -273,7 +260,9 @@ export default function Signup({navigation}) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-      {toastMessage && <ToastMessage type={toastType} message={toastMessage} />}
+       {/*
+         {toastMessage && <ToastMessage type={toastType} message={toastMessage} />}
+       */}
     </Container>
   );
 }

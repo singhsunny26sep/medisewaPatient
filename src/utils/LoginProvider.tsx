@@ -1,7 +1,7 @@
 import React, { Children, Dispatch, SetStateAction, createContext, useContext, useEffect, useState } from "react";
 import { jwtDecode, JwtPayload } from "jwt-decode";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import RtmService from './rtmService'
+import { RtmService } from './rtmService'
 import { AGORA_APP_ID } from './agoraConfig'
 
 
@@ -66,7 +66,7 @@ export default function LoginProvider({ children }: LoginProviderProps) {
     console.log('token',appToken)
     const getTokenFromLocalstorage = async () => {
         try {
-            const token = await AsyncStorage.getItem('token');
+             const token = await AsyncStorage.getItem('userToken');
             // console.log("method call", token);
             if (token) {
                 const decodedToken = jwtDecode<JwtPayload | undefined | any>(token);
@@ -84,7 +84,7 @@ export default function LoginProvider({ children }: LoginProviderProps) {
                     setUser(decodedToken as UserData); // Assuming result is the user data
                     setIsLoggedIn(true);
                 } else {
-                    await AsyncStorage.removeItem('token');
+                     await AsyncStorage.removeItem('userToken');
                     setIsLoggedIn(false);
                 }
             } else {

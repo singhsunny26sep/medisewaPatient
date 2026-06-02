@@ -52,26 +52,29 @@ const LabCard = ({item, onPress}) => {
           <Text style={styles.labName} numberOfLines={1}>
             ₹ {item.price}
           </Text>
-          <View style={styles.labAddressRow}>
-            <Ionicons name="location-outline" size={14} color="#6B7280" />
-            <Text
-              style={styles.labAddress}
-              numberOfLines={1}>{`${item.city}, ${item.state}`}</Text>
-          </View>
-          <View style={styles.labMetaRow}>
-            <View style={styles.metaBadge}>
-              <Ionicons name="flask-outline" size={10} color="#10B981" />
-              <Text style={styles.metaText}>{item.tests}+ Tests</Text>
-            </View>
-            <View style={styles.metaBadge}>
-              <Ionicons name="star" size={10} color="#F59E0B" />
-              <Text style={styles.metaText}>{item.rating} ★</Text>
-            </View>
-            <View style={styles.metaBadge}>
-              <Ionicons name="time-outline" size={10} color="#F59E0B" />
-              <Text style={styles.metaText}>48 hrs Report</Text>
-            </View>
-          </View>
+          
+           <View style={styles.labMetaRow}>
+             <View style={styles.metaBadge}>
+               <Ionicons name="flask-outline" size={10} color="#10B981" />
+               <Text style={styles.metaText}>{item.tests}+ Tests</Text>
+             </View>
+             <View style={styles.metaBadge}>
+               <Ionicons name="mail-outline" size={10} color="#8B5CF6" />
+               <Text style={styles.metaText}>{item.user?.email || 'N/A'}</Text>
+             </View>
+               <View style={styles.metaBadge}>
+               <Ionicons name="location-outline" size={14} color="#6B7280" />
+               <Text style={styles.metaText}>{item.user?.address || 'N/A'}</Text>
+             </View>
+             <View style={styles.metaBadge}>
+               <Ionicons name="call-outline" size={10} color="#10B981" />
+               <Text style={styles.metaText}>{item.user?.mobile || 'N/A'}</Text>
+             </View>
+             <View style={styles.metaBadge}>
+               <Ionicons name="time-outline" size={10} color="#F59E0B" />
+               <Text style={styles.metaText}>48 hrs Report</Text>
+             </View>
+           </View>
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -495,11 +498,12 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     flex: 1,
   },
-  labMetaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
+   labMetaRow: {
+     flexDirection: 'row',
+     flexWrap: 'wrap',
+     gap: 8,
+     marginTop: 8,
+   },
   metaBadge: {
     flexDirection: 'row',
     alignItems: 'center',

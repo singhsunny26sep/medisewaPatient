@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, {useState, useRef, useEffect} from 'react';
 import {
   View,
   Text,
@@ -13,31 +13,37 @@ import {
   Dimensions,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { COLORS } from '../../../Theme/Colors';
-import { moderateScale, scale, verticalScale } from '../../../utils/Scaling';
-import { Fonts } from '../../../Theme/Fonts';
+import {COLORS} from '../../../Theme/Colors';
+import {moderateScale, scale, verticalScale} from '../../../utils/Scaling';
+import {Fonts} from '../../../Theme/Fonts';
+import {Instance} from '../../../api/Instance';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const { width, height } = Dimensions.get('window');
+const {width, height} = Dimensions.get('window');
 const isSmallPhone = width < 380;
 
-const DEFAULT_IMAGE = 'https://passion.healthcare/wp-content/uploads/2023/02/labimage.jpeg';
+const DEFAULT_IMAGE =
+  'https://passion.healthcare/wp-content/uploads/2023/02/labimage.jpeg';
 
-export default function LabDetailsPage({ route, navigation }) {
-  const lab = route?.params?.lab || null;
+export default function LabDetailsPage({route, navigation}) {
+  const labId = route?.params?.labId || route?.params?.lab?._id || null;
   const locationAddress = route?.params?.locationAddress || '';
-  
+
+  const [labData, setLabData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedTab, setSelectedTab] = useState('tests');
-  
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
+    fetchLabDetails();
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -53,7 +59,39 @@ export default function LabDetailsPage({ route, navigation }) {
     ]).start();
   }, []);
 
-  if (!lab) {
+  const fetchLabDetails = async () => {
+    console.log(labId, 'this is labId');
+    if (!labId) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await Instance.get(`api/v1/labs/single/${labId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (response.data?.success && response.data?.result) {
+        setLabData(response.data.result);
+      }
+    } catch (error) {
+      console.error('Error fetching lab details:', error);
+      Alert.alert('Error', 'Failed to load lab details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </View>
+    );
+  }
+
+  if (!labData) {
     return (
       <View style={styles.errorContainer}>
         <View style={styles.errorIconBg}>
@@ -61,8 +99,12 @@ export default function LabDetailsPage({ route, navigation }) {
         </View>
         <Text style={styles.errorTitle}>Lab Not Found</Text>
         <Text style={styles.errorText}>Lab information is not available</Text>
-        <TouchableOpacity style={styles.errorBtn} onPress={() => navigation.goBack()}>
-          <LinearGradient colors={['#3B82F6', '#2563EB']} style={styles.errorGradient}>
+        <TouchableOpacity
+          style={styles.errorBtn}
+          onPress={() => navigation.goBack()}>
+          <LinearGradient
+            colors={['#3B82F6', '#2563EB']}
+            style={styles.errorGradient}>
             <Text style={styles.errorBtnText}>Go Back</Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -70,25 +112,34 @@ export default function LabDetailsPage({ route, navigation }) {
     );
   }
 
+  const lab = labData;
+  const labInfo = lab.userId || {};
+
   const toggleModal = () => setIsModalVisible(!isModalVisible);
 
-  const addToCart = (item) => {
+  const addToCart = item => {
     setCart(prevCart => [...prevCart, item]);
   };
 
-  const removeFromCart = (item) => {
+  const removeFromCart = item => {
     setCart(prevCart => prevCart.filter(cartItem => cartItem._id !== item._id));
   };
 
   const handlePressAddress = () => {
-    const address = `${lab?.address?.address || ''}, ${lab?.address?.city || ''}, ${lab?.address?.state || ''}`;
-    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-    Linking.openURL(url).catch(() => Alert.alert('Error', 'Unable to open Google Maps'));
+    const address = `${labInfo?.address || ''}`;
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      address,
+    )}`;
+    Linking.openURL(url).catch(() =>
+      Alert.alert('Error', 'Unable to open Google Maps'),
+    );
   };
 
   const handlePressContactNumber = () => {
-    const url = `tel:${lab?.contactNumber || ''}`;
-    Linking.openURL(url).catch(() => Alert.alert('Error', 'Unable to make a call'));
+    const url = `tel:${labInfo?.mobile || ''}`;
+    Linking.openURL(url).catch(() =>
+      Alert.alert('Error', 'Unable to make a call'),
+    );
   };
 
   const handleProceedToBook = () => {
@@ -97,18 +148,15 @@ export default function LabDetailsPage({ route, navigation }) {
       return;
     }
     navigation.navigate('BookAppointment', {
-      labName: lab.name,
+      labName: labInfo?.name || lab.name,
       labId: lab._id,
       selectedTestIds: cart.map(item => item._id),
-      selectedTestsname: cart.map(item => item.labCategory?.name),
+      selectedTestsname: cart.map(item => item.name),
       locationAddress: locationAddress,
     });
   };
 
-  const TestCard = ({ item }) => {
-    const labCategory = item.labCategory || {};
-    const testName = labCategory.name || 'Unknown Test';
-    const testPrice = item.price || 0;
+  const TestCard = ({item}) => {
     const isInCart = cart.some(cartItem => cartItem._id === item._id);
     const scaleAnim = useRef(new Animated.Value(0.95)).current;
 
@@ -122,45 +170,57 @@ export default function LabDetailsPage({ route, navigation }) {
     }, []);
 
     return (
-      <Animated.View style={[styles.testCard, { transform: [{ scale: scaleAnim }] }]}>
+      <Animated.View
+        style={[styles.testCard, {transform: [{scale: scaleAnim}]}]}>
         <LinearGradient
           colors={['#FFF', '#F9FAFB']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.testCardGradient}
-        >
+          start={{x: 0, y: 0}}
+          end={{x: 1, y: 1}}
+          style={styles.testCardGradient}>
           <View style={styles.testImageWrapper}>
             <Image
               style={styles.testImage}
-              source={{ uri: labCategory.image || DEFAULT_IMAGE }}
+              source={{uri: item.image || DEFAULT_IMAGE}}
               resizeMode="cover"
             />
           </View>
           <View style={styles.testInfo}>
-            <Text style={styles.testName} numberOfLines={2}>{testName}</Text>
-            <Text style={styles.testPrice}>₹ {testPrice}</Text>
+            <Text style={styles.testName} numberOfLines={2}>
+              {item.name || 'Unknown Test'}
+            </Text>
+            <Text style={styles.testDescription} numberOfLines={2}>
+              {item.description || ''}
+            </Text>
+            <Text style={styles.testPrice}>₹ {item.price || 0}</Text>
             <View style={styles.testMeta}>
               <View style={styles.testMetaBadge}>
                 <Ionicons name="time-outline" size={12} color="#6B7280" />
                 <Text style={styles.testMetaText}>48 hrs report</Text>
               </View>
               <View style={styles.testMetaBadge}>
-                <Ionicons name="shield-checkmark-outline" size={12} color="#10B981" />
+                <Ionicons
+                  name="shield-checkmark-outline"
+                  size={12}
+                  color="#10B981"
+                />
                 <Text style={styles.testMetaText}>NABL Certified</Text>
               </View>
             </View>
           </View>
           <View style={styles.testAction}>
             {isInCart ? (
-              <TouchableOpacity onPress={() => removeFromCart(item)} style={styles.removeBtn}>
+              <TouchableOpacity
+                onPress={() => removeFromCart(item)}
+                style={styles.removeBtn}>
                 <Ionicons name="trash-outline" size={22} color="#EF4444" />
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity onPress={() => addToCart(item)} style={styles.addBtn}>
+              <TouchableOpacity
+                onPress={() => addToCart(item)}
+                style={styles.addBtn}>
                 <LinearGradient
                   colors={['#3B82F6', '#2563EB']}
-                  style={styles.addBtnGradient}
-                >
+                  style={styles.addBtnGradient}>
                   <MaterialIcons name="add" size={16} color="#FFF" />
                   <Text style={styles.addBtnText}>Add</Text>
                 </LinearGradient>
@@ -173,15 +233,17 @@ export default function LabDetailsPage({ route, navigation }) {
   };
 
   const HeaderComponent = () => (
-    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+    <Animated.View
+      style={{opacity: fadeAnim, transform: [{translateY: slideAnim}]}}>
       {/* Hero Banner */}
       <LinearGradient
         colors={['#3B82F6', '#2563EB']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.heroBanner}
-      >
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        start={{x: 0, y: 0}}
+        end={{x: 1, y: 1}}
+        style={styles.heroBanner}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
         <TouchableOpacity onPress={toggleModal} style={styles.infoBtn}>
@@ -194,16 +256,17 @@ export default function LabDetailsPage({ route, navigation }) {
         <View style={styles.labLogoWrapper}>
           <LinearGradient
             colors={['#EFF6FF', '#DBEAFE']}
-            style={styles.labLogoBg}
-          >
+            style={styles.labLogoBg}>
             <Image
               style={styles.labLogo}
-              source={{ uri: lab.image || DEFAULT_IMAGE }}
+              source={{uri: labInfo.image || lab.image || DEFAULT_IMAGE}}
               resizeMode="contain"
             />
           </LinearGradient>
         </View>
-        <Text style={styles.labName}>{lab.name}</Text>
+        <Text style={styles.labName}>
+          {labInfo.name || lab.name || 'Lab Name'}
+        </Text>
         <View style={styles.labRatingRow}>
           <View style={styles.ratingBadge}>
             <Ionicons name="star" size={14} color="#F59E0B" />
@@ -214,7 +277,7 @@ export default function LabDetailsPage({ route, navigation }) {
         <View style={styles.labStatsRow}>
           <View style={styles.labStat}>
             <Ionicons name="flask-outline" size={18} color="#3B82F6" />
-            <Text style={styles.labStatText}>{lab.testsOffered?.length || 0} Tests</Text>
+            <Text style={styles.labStatText}>1 Test</Text>
           </View>
           <View style={styles.labStatDivider} />
           <View style={styles.labStat}>
@@ -223,7 +286,11 @@ export default function LabDetailsPage({ route, navigation }) {
           </View>
           <View style={styles.labStatDivider} />
           <View style={styles.labStat}>
-            <Ionicons name="shield-checkmark-outline" size={18} color="#10B981" />
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={18}
+              color="#10B981"
+            />
             <Text style={styles.labStatText}>Certified</Text>
           </View>
         </View>
@@ -233,18 +300,24 @@ export default function LabDetailsPage({ route, navigation }) {
       <View style={styles.tabsContainer}>
         <TouchableOpacity
           style={[styles.tab, selectedTab === 'tests' && styles.tabActive]}
-          onPress={() => setSelectedTab('tests')}
-        >
-          <Text style={[styles.tabText, selectedTab === 'tests' && styles.tabTextActive]}>
-            Available Tests
+          onPress={() => setSelectedTab('tests')}>
+          <Text
+            style={[
+              styles.tabText,
+              selectedTab === 'tests' && styles.tabTextActive,
+            ]}>
+            Test Details
           </Text>
           <View style={selectedTab === 'tests' && styles.tabIndicator} />
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, selectedTab === 'info' && styles.tabActive]}
-          onPress={() => setSelectedTab('info')}
-        >
-          <Text style={[styles.tabText, selectedTab === 'info' && styles.tabTextActive]}>
+          onPress={() => setSelectedTab('info')}>
+          <Text
+            style={[
+              styles.tabText,
+              selectedTab === 'info' && styles.tabTextActive,
+            ]}>
             Lab Info
           </Text>
           <View style={selectedTab === 'info' && styles.tabIndicator} />
@@ -261,20 +334,20 @@ export default function LabDetailsPage({ route, navigation }) {
         </View>
         <View style={styles.infoContent}>
           <Text style={styles.infoTitle}>Address</Text>
-          <Text style={styles.infoValue}>
-            {`${lab?.address?.address || 'N/A'}, ${lab?.address?.city || 'N/A'}, ${lab?.address?.state || 'N/A'} - ${lab?.address?.pinCode || 'N/A'}`}
-          </Text>
+          <Text style={styles.infoValue}>{labInfo?.address || 'N/A'}</Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.infoCard} onPress={handlePressContactNumber}>
+      <TouchableOpacity
+        style={styles.infoCard}
+        onPress={handlePressContactNumber}>
         <View style={styles.infoIconBg}>
           <Ionicons name="call-outline" size={24} color="#10B981" />
         </View>
         <View style={styles.infoContent}>
           <Text style={styles.infoTitle}>Contact Number</Text>
-          <Text style={styles.infoValue}>{lab?.contactNumber || 'N/A'}</Text>
+          <Text style={styles.infoValue}>{labInfo?.mobile || 'N/A'}</Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
       </TouchableOpacity>
@@ -306,9 +379,9 @@ export default function LabDetailsPage({ route, navigation }) {
     <View style={styles.container}>
       <FlatList
         ListHeaderComponent={HeaderComponent}
-        data={selectedTab === 'tests' ? lab.testsOffered || [] : []}
-        renderItem={({ item }) => <TestCard item={item} />}
-        keyExtractor={(item) => item._id?.toString() || Math.random().toString()}
+        data={selectedTab === 'tests' ? [lab] : []}
+        renderItem={({item}) => <TestCard item={item} />}
+        keyExtractor={item => item._id?.toString() || Math.random().toString()}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
@@ -316,7 +389,9 @@ export default function LabDetailsPage({ route, navigation }) {
             <View style={styles.emptyTests}>
               <Ionicons name="flask-outline" size={50} color="#9CA3AF" />
               <Text style={styles.emptyTestsTitle}>No Tests Available</Text>
-              <Text style={styles.emptyTestsSubtitle}>Please check back later</Text>
+              <Text style={styles.emptyTestsSubtitle}>
+                Please check back later
+              </Text>
             </View>
           ) : (
             <InfoTab />
@@ -329,8 +404,7 @@ export default function LabDetailsPage({ route, navigation }) {
         <Animated.View style={styles.cartSheet}>
           <LinearGradient
             colors={['#FFF', '#F9FAFB']}
-            style={styles.cartSheetContent}
-          >
+            style={styles.cartSheetContent}>
             <View style={styles.cartSheetInfo}>
               <Text style={styles.cartSheetTitle}>
                 {cart.length} Test{cart.length > 1 ? 's' : ''} Selected
@@ -339,11 +413,12 @@ export default function LabDetailsPage({ route, navigation }) {
                 Total: ₹{cart.reduce((sum, item) => sum + (item.price || 0), 0)}
               </Text>
             </View>
-            <TouchableOpacity style={styles.cartSheetBtn} onPress={handleProceedToBook}>
+            <TouchableOpacity
+              style={styles.cartSheetBtn}
+              onPress={handleProceedToBook}>
               <LinearGradient
                 colors={['#3B82F6', '#2563EB']}
-                style={styles.cartSheetGradient}
-              >
+                style={styles.cartSheetGradient}>
                 <Text style={styles.cartSheetBtnText}>Proceed to Book</Text>
                 <Ionicons name="arrow-forward" size={18} color="#FFF" />
               </LinearGradient>
@@ -357,8 +432,7 @@ export default function LabDetailsPage({ route, navigation }) {
         animationType="slide"
         transparent={true}
         visible={isModalVisible}
-        onRequestClose={toggleModal}
-      >
+        onRequestClose={toggleModal}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
@@ -368,25 +442,33 @@ export default function LabDetailsPage({ route, navigation }) {
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <TouchableOpacity style={styles.modalInfoRow} onPress={handlePressAddress}>
+              <TouchableOpacity
+                style={styles.modalInfoRow}
+                onPress={handlePressAddress}>
                 <View style={styles.modalInfoIcon}>
                   <Ionicons name="location-outline" size={22} color="#3B82F6" />
                 </View>
                 <View style={styles.modalInfoText}>
                   <Text style={styles.modalInfoLabel}>Address</Text>
                   <Text style={styles.modalInfoValue}>
-                    {`${lab?.address?.address || 'N/A'}, ${lab?.address?.city || 'N/A'}, ${lab?.address?.state || 'N/A'}`}
+                    {`${lab?.address?.address || 'N/A'}, ${
+                      lab?.address?.city || 'N/A'
+                    }, ${lab?.address?.state || 'N/A'}`}
                   </Text>
                 </View>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.modalInfoRow} onPress={handlePressContactNumber}>
+              <TouchableOpacity
+                style={styles.modalInfoRow}
+                onPress={handlePressContactNumber}>
                 <View style={styles.modalInfoIcon}>
                   <Ionicons name="call-outline" size={22} color="#10B981" />
                 </View>
                 <View style={styles.modalInfoText}>
                   <Text style={styles.modalInfoLabel}>Contact</Text>
-                  <Text style={styles.modalInfoValue}>{lab?.contactNumber || 'N/A'}</Text>
+                  <Text style={styles.modalInfoValue}>
+                    {lab?.contactNumber || 'N/A'}
+                  </Text>
                 </View>
               </TouchableOpacity>
 
@@ -396,7 +478,9 @@ export default function LabDetailsPage({ route, navigation }) {
                 </View>
                 <View style={styles.modalInfoText}>
                   <Text style={styles.modalInfoLabel}>Email</Text>
-                  <Text style={styles.modalInfoValue}>{lab?.email || 'info@lab.com'}</Text>
+                  <Text style={styles.modalInfoValue}>
+                    {lab?.email || 'info@lab.com'}
+                  </Text>
                 </View>
               </View>
             </ScrollView>
@@ -486,7 +570,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 6,
@@ -745,7 +829,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
+    shadowOffset: {width: 0, height: -4},
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 10,
