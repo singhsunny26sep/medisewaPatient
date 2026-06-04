@@ -94,43 +94,50 @@ export default function Specialist_List({ route, navigation }) {
   };
 
   const initiateCall = async (doctor, type) => {
-    if (!doctor?.userId) {
-      console.log('Missing doctor.userId');
+    if (!doctor?.userId && !doctor?._id) {
+      console.log('Missing doctor.userId or doctor._id');
       return;
     }
+    // Use userId if available, otherwise use _id
+    const targetId = doctor.userId || doctor._id;
     try {
-      const data = await INITIATE_CALL({ recieverId: doctor.userId, callType: type });
-      if (data?.data) {
+      const data = await INITIATE_CALL({ recieverId: targetId, callType: type });
+      // Handle both wrapped and direct response formats
+      if (data?.data || data?.callId) {
         const callData = {
-          callId: data.data.callId,
-          channelName: data.data.channelName,
-          token: data.data.token,
-          callerId: data.data.callerId,
-          callerName: data.data.callerName,
-          callerAvatar: data.data.callerAvatar,
+          callId: data?.data?.callId || data?.callId,
+          channelName: data?.data?.channelName || data?.channelName,
+          token: data?.data?.token || data?.token,
+          callerId: data?.data?.callerId || data?.callerId,
+          callerName: data?.data?.callerName || data?.callerName,
+          callerAvatar: data?.data?.callerAvatar || data?.callerAvatar,
         };
 
         if (type === 'audio') {
-          await sendEnhancedAudioCallInvite(doctor.userId, {
+          await sendEnhancedAudioCallInvite(targetId, {
             callId: callData.callId,
             channel: callData.channelName,
             callerId: callData.callerId,
             callerName: callData.callerName,
             callerAvatar: callData.callerAvatar,
-          });
+          }).catch(err => console.warn('RTM send failed:', err));
         } else {
-          await sendEnhancedVideoCallInvite(doctor.userId, {
+          await sendEnhancedVideoCallInvite(targetId, {
             callId: callData.callId,
             channel: callData.channelName,
             callerId: callData.callerId,
             callerName: callData.callerName,
             callerAvatar: callData.callerAvatar,
-          });
+          }).catch(err => console.warn('RTM send failed:', err));
         }
       }
       return data;
     } catch (error) {
       console.error('Error initiating call:', error);
+      // Check if it's FCM error - call may still be created
+      if (error.response?.data?.error?.code === 'messaging/invalid-payload') {
+        Alert.alert('Call Error', 'Unable to reach doctor. Please try again or ensure the doctor has notifications enabled.');
+      }
       throw error;
     }
   };

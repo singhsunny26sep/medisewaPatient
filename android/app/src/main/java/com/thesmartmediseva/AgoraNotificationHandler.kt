@@ -27,36 +27,36 @@ class AgoraNotificationHandler {
 
             createNotificationChannel(context)
 
-            // Intent to handle call accept
             val acceptIntent = Intent(context, MainActivity::class.java).apply {
                 action = "ACCEPT_CALL"
                 putExtra("callId", callId)
                 putExtra("callType", callType)
                 putExtra("callerName", callerName)
                 putExtra("callerId", callerId)
+                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
 
             val acceptPendingIntent = PendingIntent.getActivity(
                 context, 0, acceptIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            // Intent to handle call decline
             val declineIntent = Intent(context, MainActivity::class.java).apply {
                 action = "DECLINE_CALL"
                 putExtra("callId", callId)
                 putExtra("callType", callType)
+                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
 
             val declinePendingIntent = PendingIntent.getActivity(
                 context, 1, declineIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            // Main intent when notification is tapped
             val mainIntent = Intent(context, MainActivity::class.java).apply {
                 action = "CALL_NOTIFICATION_TAPPED"
                 putExtra("callId", callId)
                 putExtra("callType", callType)
                 putExtra("callerName", callerName)
+                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
 
             val mainPendingIntent = PendingIntent.getActivity(
@@ -69,12 +69,14 @@ class AgoraNotificationHandler {
                 .setContentText("$callerName is calling you")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setAutoCancel(true)
                 .setFullScreenIntent(mainPendingIntent, true)
-                .setOngoing(true)
-                .setAutoCancel(false)
                 .addAction(R.drawable.notification_icon, "Accept", acceptPendingIntent)
                 .addAction(R.drawable.notification_icon, "Decline", declinePendingIntent)
                 .setContentIntent(mainPendingIntent)
+                .setTimeoutAfter(30000)
+                .setOngoing(false)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
             val notificationManager = NotificationManagerCompat.from(context)
             notificationManager.notify(callId.hashCode(), builder.build())

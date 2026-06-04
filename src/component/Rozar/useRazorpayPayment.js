@@ -39,6 +39,8 @@ const useRazorpayPayment = () => {
               data: data,
               paymentId: data.razorpay_payment_id,
               transactionId: data.razorpay_payment_id,
+              razorpayOrderId: data.razorpay_order_id,
+              razorpaySignature: data.razorpay_signature,
               paymentMethod: 'razorpay',
             });
           })

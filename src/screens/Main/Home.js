@@ -151,6 +151,7 @@ export default function Home({ navigation }) {
     setRefreshing(true);
     try {
       const token = await AsyncStorage.getItem('userToken');
+      console.log(token,"this is newtoken")
       if (token) {
         const response = await Instance.get('/api/v1/users/profile', {
           headers: { Authorization: `Bearer ${token}` },

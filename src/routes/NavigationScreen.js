@@ -1,15 +1,10 @@
-import React, { useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useEffect, forwardRef } from 'react';
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createDrawerNavigator } from '@react-navigation/drawer';
-import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
-import { useNavigationContainerRef } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { COLORS } from '../Theme/Colors';
 import { moderateScale, scale, verticalScale } from '../utils/Scaling';
 import { setNavigationRef } from '../utils/Firebase';
-import { notificationService } from '../utils/NotificationService';
 import Home from '../screens/Main/Home';
 import Profile from '../screens/Main/Profile';
 import Transactions from '../screens/SubProfile/Transactions';
@@ -58,13 +53,19 @@ import StatusBarManager from '../component/CustomStatusBar/StatusBarManager';
 
 const Stack = createNativeStackNavigator();
 
-export default function NavigationScreen() {
+const NavigationScreen = forwardRef((props, ref) => {
   const navigationRef = useNavigationContainerRef();
 
   useEffect(() => {
     setNavigationRef(navigationRef);
-    notificationService.setNavigationRef(navigationRef);
   }, [navigationRef]);
+
+  // Expose navigation ref to parent component
+  useEffect(() => {
+    if (ref) {
+      ref.current = navigationRef;
+    }
+  }, [ref, navigationRef]);
 
   return (
     <NavigationContainer ref={navigationRef}>
@@ -93,8 +94,7 @@ export default function NavigationScreen() {
         <Stack.Screen name="Dr_List" component={Dr_List} />
         <Stack.Screen
           name="Dr_AppointmentBook"
-          component={Dr_AppointmentBook}
-        />
+          component={Dr_AppointmentBook} />
         <Stack.Screen name="Pre_View_Order" component={Pre_View_Order} />
         <Stack.Screen name="OrderHistory" component={OrderHistory} />
         <Stack.Screen name="Add_FamilyMember" component={Add_FamilyMember} />
@@ -115,4 +115,6 @@ export default function NavigationScreen() {
       </Stack.Navigator>
     </NavigationContainer>
   );
-}
+});
+
+export default NavigationScreen;

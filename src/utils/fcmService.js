@@ -45,17 +45,20 @@ class FcmService {
       }
       const token = await messaging().getToken();
       console.log('✅ FCM Token obtained:', token);
+      console.log('📋 FCM Token length:', token?.length);
       this.fcmToken = token;
       this.isTokenRequested = true;
       // Store token for future use
       await this.storeToken(token);
+      // Also store in AsyncStorage with a different key for easy access
+      await AsyncStorage.setItem('fcmToken', token);
       return token;
     } catch (error) {
       console.log('❌ Error getting FCM token:', error);
       // Fallback: try to get stored token
       const storedToken = await this.getStoredToken();
       if (storedToken) {
-        console.log('🔄 Using fallback stored token');
+        console.log('🔄 Using fallback stored token:', storedToken?.substring(0, 30) + '...');
         this.fcmToken = storedToken;
         return storedToken;
       }
@@ -161,3 +164,15 @@ class FcmService {
   };
 }
 export default new FcmService();
+
+// Export utility function to get stored FCM token for debugging
+export const getStoredFcmToken = async () => {
+  try {
+    const token = await AsyncStorage.getItem('fcm_token');
+    console.log('📱 Stored FCM Token:', token?.substring(0, 50) + '...');
+    return token;
+  } catch (error) {
+    console.log('Error getting stored FCM token:', error);
+    return null;
+  }
+};

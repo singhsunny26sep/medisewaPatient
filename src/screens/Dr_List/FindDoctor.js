@@ -20,7 +20,6 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Instance } from '../../api/Instance';
 import { moderateScale, scale, verticalScale } from '../../utils/Scaling';
 import { Fonts } from '../../Theme/Fonts';
-
 const { width, height } = Dimensions.get('window');
 const isSmallScreen = width < 380;
 
@@ -61,8 +60,8 @@ export default function FindDoctor({ navigation }) {
   const fetchData = async () => {
     try {
       const [departmentsRes, specialistsRes] = await Promise.all([
-        Instance.get('/api/v1/departments'),
-        Instance.get('/api/v1/specializations'),
+        Instance.get('/api/v1/departments/getAll'),
+        Instance.get('/api/v1/specializations/getAll'),
       ]);
       if (departmentsRes.data.success) {
         setDepartments(departmentsRes.data.result);
@@ -71,7 +70,7 @@ export default function FindDoctor({ navigation }) {
         setSpecialists(specialistsRes.data.result);
       }
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('API Error:', error.message);
     } finally {
       setLoading(false);
     }
@@ -194,15 +193,7 @@ export default function FindDoctor({ navigation }) {
         <View style={styles.skeletonTitle} />
         <View style={styles.skeletonSeeAll} />
       </View>
-      <View style={styles.specialistsGrid}>
-        {[1, 2, 3, 4].map((item) => (
-          <View key={item} style={styles.skeletonSpecialistCard}>
-            <View style={styles.skeletonImage} />
-            <View style={styles.skeletonName} />
-            <View style={styles.skeletonDesc} />
-          </View>
-        ))}
-      </View>
+      
     </View>
   );
 

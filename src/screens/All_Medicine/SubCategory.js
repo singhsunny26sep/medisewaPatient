@@ -44,10 +44,11 @@ export default function SubCategory({navigation, route}) {
 
   useEffect(() => {
     const fetchBrandMedicines = async () => {
+      console.log('Fetching medicines for brand ID:', brandId);
       try {
         setLoading(true);
         const response = await Instance.get(
-          `/api/v1/medicines/brand/${brandId}`,
+          `api/v1/medicines/brand/${brandId}`,
         );
         if (response.data.success) {
           setBrandMedicines(response.data.result);

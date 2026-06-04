@@ -17,11 +17,15 @@ export const GET_HEALTH_ESSENTIALS = async (page = 1, limit = 20) => {
       const payload = { recieverId, callType };
       console.log('INITIATE_CALL: request ->', { url, payload });
       const response = await Instance.post(url, payload);
-      console.log('INITIATE_CALL: response summary:', {
+      console.log('INITIATE_CALL: response Summary:', {
         status: response?.status,
         success: response?.data?.success,
+        hasCallId: !!(response?.data?.callId || response?.data?.data?.callId),
       });
-      console.log('INITIATE_CALL: full response data:', response?.data);
+      // Log FULL response for debugging
+      console.log('INITIATE_CALL: FULL RESPONSE:', JSON.stringify(response.data, null, 2));
+      const callId = response?.data?.callId || response?.data?.data?.callId;
+      console.log('INITIATE_CALL: callId:', callId);
       return response.data;
     } catch (error) {
       console.log('INITIATE_CALL: error:', {
@@ -29,6 +33,26 @@ export const GET_HEALTH_ESSENTIALS = async (page = 1, limit = 20) => {
         status: error?.response?.status,
         data: error?.response?.data,
       });
+      // Check for FCM token issues
+      if (error.response?.data?.error?.code === 'messaging/invalid-payload') {
+        console.warn('🚨 BACKEND FCM ERROR: Recipient FCM token missing or invalid!');
+        console.warn('The call may still exist - check backend logs.');
+      }
+      throw error;
+    }
+  };
+
+  // Update FCM token on server
+  export const UPDATE_FCM_TOKEN = async (fcmToken) => {
+    try {
+      const url = `/api/v1/users/update-fcm-token`;
+      const payload = { fcmToken };
+      console.log('UPDATE_FCM_TOKEN: request ->', { url });
+      const response = await Instance.post(url, payload);
+      console.log('UPDATE_FCM_TOKEN: response:', response?.data);
+      return response.data;
+    } catch (error) {
+      console.log('UPDATE_FCM_TOKEN: error:', error?.response?.data);
       throw error;
     }
   };
@@ -140,7 +164,7 @@ export const GET_CART_DATA = async token => {
     }
   };
   
-  export const DELETE_CART_ITEM = async (cartItemId, token) => {
+export const DELETE_CART_ITEM = async (cartItemId, token) => {
     try {
       const response = await Instance.delete(
         `api/v1/medicineCarts/removeFromCart/${cartItemId}`,
@@ -150,6 +174,33 @@ export const GET_CART_DATA = async token => {
           },
         }
       );
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+export const ADD_MONEY_TO_WALLET = async amount => {
+    try {
+      const response = await Instance.post('/wallet/recharge', { amount });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+export const VERIFY_WALLET_PAYMENT = async payload => {
+    try {
+      const response = await Instance.post('/wallet/recharge/verify', payload);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+export const GET_WALLET_BALANCE = async () => {
+    try {
+      const response = await Instance.get('/wallet/balance');
       return response.data;
     } catch (error) {
       throw error;

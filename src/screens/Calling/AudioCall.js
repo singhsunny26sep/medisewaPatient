@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,19 +9,18 @@ import {
   Easing,
   Alert,
 } from 'react-native';
-import {Container} from '../../component/Container/Container';
-import {COLORS} from '../../Theme/Colors';
-import {moderateScale, scale, verticalScale} from '../../utils/Scaling';
-import {Fonts} from '../../Theme/Fonts';
+import { Container } from '../../component/Container/Container';
+import { COLORS } from '../../Theme/Colors';
+import { moderateScale, scale, verticalScale } from '../../utils/Scaling';
+import { Fonts } from '../../Theme/Fonts';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import {useAgoraCall} from '../../utils/useAgoraCall';
-import {buildChannelName} from '../../utils/agoraConfig';
-import {ACCEPT_CALL, END_CALL} from '../../api/Api_Controller';
-import {useCallManager} from '../../utils/CallManager';
-import {AgoraNotificationManager} from '../../utils/AgoraNotificationHandler';
+import { useAgoraCall } from '../../utils/useAgoraCall';
+import { buildChannelName } from '../../utils/agoraConfig';
+import { ACCEPT_CALL, END_CALL } from '../../api/Api_Controller';
+import { useCallManager } from '../../utils/CallManager';
 
-export default function AudioCall({route, navigation}) {
-  const {doctor, callData, callAccepted = false} = route?.params || {};
+export default function AudioCall({ route, navigation }) {
+  const { doctor, callData, callAccepted = false } = route?.params || {};
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -33,28 +32,19 @@ export default function AudioCall({route, navigation}) {
   const [callStatus, setCallStatus] = useState(callAccepted ? 'Connecting...' : 'Ringing...');
   const { initiateCall } = useCallManager();
 
-  // Validate required data
-  if (!doctor) {
-    console.error('AudioCall: No doctor data provided');
-    Alert.alert(
-      "Error",
-      "Doctor information is missing. Please try again.",
-      [{ text: "OK", onPress: () => navigation.goBack() }]
-    );
-    return null;
-  }
-
-  // Use call data from API response or fallback to doctor data
-  const channel = callData?.channelName || buildChannelName(doctor?.id ?? 'demo');
+  // Hooks must be called unconditionally - compute data first
+  const hasDoctor = !!doctor;
+  const channel = hasDoctor ? (callData?.channelName || buildChannelName(doctor?.id ?? 'demo')) : '';
   const uid = callData?.uid || 0;
   const token = callData?.token;
   const callId = callData?.callId;
-  
-  const {joined, toggleMute, setSpeakerphone, leave} = useAgoraCall({
-    channel, 
-    uid, 
-    withVideo: false, 
-    token
+
+  // Call hook unconditionally - this is required by React Hooks rules
+  const { joined, toggleMute, setSpeakerphone, leave } = useAgoraCall({
+    channel,
+    uid,
+    withVideo: false,
+    token,
   });
 
   const pulseAnim = new Animated.Value(1);
@@ -75,7 +65,7 @@ export default function AudioCall({route, navigation}) {
       }),
     ]).start();
   }, []);
-  
+
   useEffect(() => {
     // Only call ACCEPT_CALL API if this is the receiver who accepted the call
     if (callAccepted && callId && !hasAcceptedCall) {
@@ -105,6 +95,18 @@ export default function AudioCall({route, navigation}) {
       }
     };
   }, [joined, callId, hasAcceptedCall, callAccepted, isCallAccepted]);
+
+  // Show error if no doctor
+  useEffect(() => {
+    if (!hasDoctor) {
+      console.error('AudioCall: No doctor data provided');
+      Alert.alert(
+        'Error',
+        'Doctor information is missing. Please try again.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }],
+      );
+    }
+  }, [hasDoctor, navigation]);
 
 
   const timerLabel = React.useMemo(() => {
@@ -150,15 +152,14 @@ export default function AudioCall({route, navigation}) {
       setShowCallBackOptions(false);
     }
   };
-  
 
   return (
     <Container
-      statusBarStyle={'light-content'}
+      statusBarStyle="light-content"
       statusBarBackgroundColor={COLORS.DODGERBLUE}
-      backgroundColor={COLORS.DODGERBLUE}>
+      backgroundColor={COLORS.DODGERBLUE}
+    >
       <View style={styles.container}>
-
         {/* Call Back Button */}
         <View style={styles.statusBar}>
           <TouchableOpacity onPress={() => setShowCallBackOptions(!showCallBackOptions)}>
@@ -190,13 +191,13 @@ export default function AudioCall({route, navigation}) {
             style={[
               styles.imageContainer,
               {
-                transform: [{scale: pulseAnim}],
+                transform: [{ scale: pulseAnim }],
               },
             ]}>
-            <Image source={{uri: doctor.image}} style={styles.doctorImage} />
+            <Image source={{ uri: doctor?.image }} style={styles.doctorImage} />
           </Animated.View>
           <Text style={styles.doctorName}>
-            {callData?.receiver?.name || doctor?.name || "Doctor"}
+            {callData?.receiver?.name || doctor?.name || 'Doctor'}
           </Text>
           <Text style={styles.doctorSpecialization}>
             {isCallAccepted && joined ? timerLabel : callStatus}
@@ -211,10 +212,11 @@ export default function AudioCall({route, navigation}) {
           <TouchableOpacity
             style={[styles.controlButton, isMuted && styles.activeControl]}
             onPress={async () => {
-              const next = !isMuted
-              setIsMuted(next)
-              await toggleMute(next)
-            }}>
+              const next = !isMuted;
+              setIsMuted(next);
+              await toggleMute(next);
+            }}
+          >
             <Ionicons
               name={isMuted ? 'mic-off' : 'mic'}
               size={30}
@@ -229,7 +231,8 @@ export default function AudioCall({route, navigation}) {
               const next = !isSpeakerOn;
               setIsSpeakerOn(next);
               await setSpeakerphone(next);
-            }}>
+            }}
+          >
             <Ionicons
               name={isSpeakerOn ? 'volume-high' : 'volume-medium'}
               size={30}
@@ -266,7 +269,8 @@ export default function AudioCall({route, navigation}) {
               await leave();
               navigation.goBack();
             }
-          }}>
+          }}
+        >
           <Ionicons name="call" size={30} color={COLORS.white} />
         </TouchableOpacity>
       </View>
@@ -365,12 +369,6 @@ const styles = StyleSheet.create({
   activeControl: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
-  controlText: {
-    color: COLORS.white,
-    fontSize: moderateScale(14),
-    fontFamily: Fonts.Regular,
-    marginTop: verticalScale(5),
-  },
   endCallButton: {
     alignSelf: 'center',
     backgroundColor: COLORS.red,
@@ -382,7 +380,7 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(20),
     elevation: 5,
     shadowColor: COLORS.black,
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: scale(4),
   },

@@ -15,10 +15,14 @@ class AgoraNotificationModule(reactContext: ReactApplicationContext) : ReactCont
 
     override fun getName(): String = NAME
 
-    override fun initialize() {
-        super.initialize()
-        // Initialize notification system
-        Log.d("AgoraNotificationModule", "Module initialized")
+    @ReactMethod
+    fun initialize(promise: Promise) {
+        try {
+            Log.d("AgoraNotificationModule", "Module initialized")
+            promise.resolve(null)
+        } catch (e: Exception) {
+            promise.reject("INIT_ERROR", e.message)
+        }
     }
 
     @ReactMethod
@@ -57,23 +61,30 @@ class AgoraNotificationModule(reactContext: ReactApplicationContext) : ReactCont
     fun handleNotificationAction(callId: String, action: String, promise: Promise) {
         try {
             when (action) {
-                "accept" -> {
-                    // Navigate to call screen or handle accept
+                "accept", "ACCEPT_CALL" -> {
                     val intent = Intent(reactApplicationContext, MainActivity::class.java).apply {
                         putExtra("callId", callId)
                         putExtra("action", "ACCEPT_CALL")
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     }
                     reactApplicationContext.startActivity(intent)
                 }
-                "decline" -> {
-                    // Cancel the notification
+                "decline", "DECLINE_CALL", "decline_call" -> {
                     AgoraNotificationHandler.cancelCallNotification(reactApplicationContext, callId)
+                    val intent = Intent(reactApplicationContext, MainActivity::class.java).apply {
+                        putExtra("callId", callId)
+                        putExtra("action", "DECLINE_CALL")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    }
+                    reactApplicationContext.startActivity(intent)
+                }
+                else -> {
+                    Log.w("AgoraNotificationModule", "Unknown action received: $action")
                 }
             }
-
             promise.resolve(true)
         } catch (e: Exception) {
+            Log.e("AgoraNotificationModule", "Error handling notification action: ${e.message}", e)
             promise.reject("ACTION_ERROR", e.message)
         }
     }

@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
   View,
-  FlatList,
   TouchableOpacity,
   ScrollView,
   Dimensions,
@@ -12,6 +11,8 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import {GET_WALLET_BALANCE} from '../../api/Api_Controller';
+import AddMoneyModal from '../../component/AddMoneyModal/AddMoneyModal';
 import strings from '../../../localization';
 
 const { width } = Dimensions.get('window');
@@ -19,6 +20,53 @@ const { width } = Dimensions.get('window');
 export default function Wallet({ navigation }) {
   const [balance, setBalance] = useState(1250.50);
   const [refreshing, setRefreshing] = useState(false);
+  const [addMoneyVisible, setAddMoneyVisible] = useState(false);
+  const [transactions, setTransactions] = useState([]);
+
+  const fetchBalance = useCallback(async () => {
+    try {
+      const data = await GET_WALLET_BALANCE();
+      if (data?.balance !== undefined) {
+        setBalance(data.balance);
+      } else if (data?.data?.balance !== undefined) {
+        setBalance(data.data.balance);
+      }
+    } catch (error) {
+      console.log('Failed to fetch wallet balance');
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBalance();
+  }, [fetchBalance]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchBalance();
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 500);
+  };
+
+  const handleAddMoneySuccess = (amount, paymentId) => {
+    setBalance(prev => prev + amount);
+    setTransactions(prev => [
+      {
+        id: Date.now().toString(),
+        type: 'credit',
+        amount,
+        description: 'Added to wallet',
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        }),
+        orderId: paymentId || `TRX-${Date.now()}`,
+      },
+      ...prev,
+    ]);
+  };
 
   const quickActions = [
     {
@@ -27,7 +75,9 @@ export default function Wallet({ navigation }) {
       icon: 'add-circle-outline',
       color: '#3B82F6',
       bgColor: '#EFF6FF',
-      onPress: () => console.log('Add Money'),
+      onPress: () => {
+        setAddMoneyVisible(true);
+      },
     },
     {
       id: '2',
@@ -71,58 +121,11 @@ export default function Wallet({ navigation }) {
     },
   ];
 
-  const transactions = [
-    {
-      id: '1',
-      type: 'credit',
-      amount: 500,
-      description: 'Added to wallet',
-      date: '2024-01-15',
-      time: '10:30 AM',
-      orderId: 'TRX-001',
-    },
-    {
-      id: '2',
-      type: 'debit',
-      amount: 150,
-      description: 'Medicine purchase',
-      date: '2024-01-14',
-      time: '2:45 PM',
-      orderId: 'ORD-1234',
-    },
-    {
-      id: '3',
-      type: 'debit',
-      amount: 200,
-      description: 'Lab test booking',
-      date: '2024-01-13',
-      time: '9:15 AM',
-      orderId: 'LAB-5678',
-    },
-    {
-      id: '4',
-      type: 'credit',
-      amount: 50,
-      description: 'Cashback earned',
-      date: '2024-01-12',
-      time: '6:00 PM',
-      orderId: 'CB-9012',
-    },
-  ];
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    // Simulate refresh
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1500);
-  };
-
   const TransactionItem = ({ item }) => (
     <View style={styles.transactionItem}>
       <View style={[
         styles.transactionIcon,
-        { backgroundColor: item.type === 'credit' ? '#ECFDF5' : '#FEF2F2' }
+        { backgroundColor: item.type === 'credit' ? '#ECFDF5' : '#FEF2F2' },
       ]}>
         <Ionicons
           name={item.type === 'credit' ? 'arrow-down-circle' : 'arrow-up-circle'}
@@ -137,7 +140,7 @@ export default function Wallet({ navigation }) {
       </View>
       <Text style={[
         styles.transactionAmount,
-        { color: item.type === 'credit' ? '#10B981' : '#EF4444' }
+        { color: item.type === 'credit' ? '#10B981' : '#EF4444' },
       ]}>
         {item.type === 'credit' ? '+' : '-'}₹{item.amount}
       </Text>
@@ -158,7 +161,6 @@ export default function Wallet({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
@@ -173,7 +175,6 @@ export default function Wallet({ navigation }) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />
         }
       >
-        {/* Balance Card */}
         <LinearGradient
           colors={['#3B82F6', '#2563EB']}
           start={{ x: 0, y: 0 }}
@@ -198,7 +199,6 @@ export default function Wallet({ navigation }) {
           </View>
         </LinearGradient>
 
-        {/* Quick Actions */}
         <View style={styles.quickActionsSection}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActionsGrid}>
@@ -218,7 +218,6 @@ export default function Wallet({ navigation }) {
           </View>
         </View>
 
-        {/* Transaction History */}
         <View style={styles.transactionsSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Transactions</Text>
@@ -238,7 +237,6 @@ export default function Wallet({ navigation }) {
           </View>
         </View>
 
-        {/* Payment Methods */}
         <View style={styles.paymentSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Payment Methods</Text>
@@ -271,7 +269,6 @@ export default function Wallet({ navigation }) {
           </View>
         </View>
 
-        {/* FAQ Section */}
         <TouchableOpacity
           style={styles.faqCard}
           onPress={() => navigation.navigate('FAQ')}
@@ -283,15 +280,23 @@ export default function Wallet({ navigation }) {
             </View>
             <View style={styles.faqTextContent}>
               <Text style={styles.faqTitle}>Need Help?</Text>
-              <Text style={styles.faqSubtitle}>Check out our frequently asked questions</Text>
+              <Text style={styles.faqSubtitle}>
+                Check out our frequently asked questions
+              </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </View>
         </TouchableOpacity>
 
-        {/* Extra Padding for Bottom */}
         <View style={styles.bottomPadding} />
       </ScrollView>
+
+      <AddMoneyModal
+        visible={addMoneyVisible}
+        onClose={() => setAddMoneyVisible(false)}
+        onSuccess={handleAddMoneySuccess}
+        balance={balance}
+      />
     </View>
   );
 }

@@ -1,5 +1,4 @@
 import messaging from '@react-native-firebase/messaging';
-import { Platform } from 'react-native';
 import { AgoraNotificationManager } from './AgoraNotificationHandler';
 
 // Initialize Agora notification manager
@@ -57,28 +56,32 @@ class NotificationService {
       const { callType, callId, callerName } = data;
 
       console.log('Handling call notification tap:', {
-        callType, callId, callerName
+        callType, callId, callerName,
       });
 
-      // Navigate to appropriate call screen
-      if (this.navigationRef) {
+      const existingParams =
+        this.navigationRef?.current?.getCurrentRoute?.()?.params || {};
+      if (existingParams?.callId === callId) {
+        console.log('Already on this call, skipping navigation');
+        return;
+      }
+
+      if (this.navigationRef && this.navigationRef.current) {
         if (callType === 'video') {
-          this.navigationRef.navigate('VideoCall', {
+          this.navigationRef.current?.navigate('VideoCall', {
             doctor: { name: callerName },
-            callData: { callId }
+            callData: { callId },
           });
         } else {
-          this.navigationRef.navigate('AudioCall', {
+          this.navigationRef.current?.navigate('AudioCall', {
             doctor: { name: callerName },
-            callData: { callId }
+            callData: { callId },
           });
         }
       }
     }
   }
 
-  // Method to show incoming call notification (for server-side integration)
-  
   getCallNotificationPayload(callData) {
     const { callId, callType, callerName, callerId } = callData;
 

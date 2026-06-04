@@ -1,18 +1,18 @@
-import React, {useEffect, useMemo, useRef, useState} from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
-import {COLORS} from "../../Theme/Colors";
-import {Fonts} from "../../Theme/Fonts";
-import {moderateScale, scale, verticalScale} from "../../utils/Scaling";
-import {RtcLocalView, RtcRemoteView} from "react-native-agora";
-import {useAgoraCall} from "../../utils/useAgoraCall";
-import {buildChannelName} from "../../utils/agoraConfig";
-import {ACCEPT_CALL, END_CALL} from "../../api/Api_Controller";
-import {useCallManager} from "../../utils/CallManager";
-import {AgoraNotificationManager} from "../../utils/AgoraNotificationHandler";
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { COLORS } from '../../Theme/Colors';
+import { Fonts } from '../../Theme/Fonts';
+import { moderateScale, scale, verticalScale } from '../../utils/Scaling';
+import { RtcLocalView, RtcRemoteView } from 'react-native-agora';
+import { useAgoraCall } from '../../utils/useAgoraCall';
+import { buildChannelName } from '../../utils/agoraConfig';
+import { ACCEPT_CALL, END_CALL } from '../../api/Api_Controller';
+import { useCallManager } from '../../utils/CallManager';
+import { AgoraNotificationManager } from '../../utils/AgoraNotificationHandler';
 
-export default function VideoCall({route, navigation}) {
-  const {doctor, callData, callAccepted = false} = route?.params || {};
+export default function VideoCall({ route, navigation }) {
+  const { doctor, callData, callAccepted = false } = route?.params || {};
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [seconds, setSeconds] = useState(0);
@@ -23,27 +23,31 @@ export default function VideoCall({route, navigation}) {
   const intervalRef = useRef(null);
   const { initiateCall } = useCallManager();
 
-  if (!doctor) {
-    console.error('VideoCall: No doctor data provided');
-    Alert.alert(
-      "Error",
-      "Doctor information is missing. Please try again.",
-      [{ text: "OK", onPress: () => navigation.goBack() }]
-    );
-    return null;
-  }
-
-  const channel = callData?.channelName || buildChannelName(doctor?.id ?? "demo");
+  // Hooks must be called unconditionally - compute data first
+  const hasDoctor = !!doctor;
+  const channel = hasDoctor ? (callData?.channelName || buildChannelName(doctor?.id ?? 'demo')) : '';
   const uid = callData?.uid || 0;
   const token = callData?.token;
   const callId = callData?.callId;
-  
-  const {joined, remoteUsers, toggleMute, toggleVideo, switchCamera, leave} = useAgoraCall({
-    channel, 
-    uid, 
-    withVideo: true, 
-    token
+
+  // Call hook unconditionally - this is required by React Hooks rules
+  const { joined, remoteUsers, toggleMute, toggleVideo, switchCamera, leave } = useAgoraCall({
+    channel,
+    uid,
+    withVideo: true,
+    token,
   });
+
+  useEffect(() => {
+    if (!hasDoctor) return;
+
+    console.error('VideoCall: No doctor data provided');
+    Alert.alert(
+      'Error',
+      'Doctor information is missing. Please try again.',
+      [{ text: 'OK', onPress: () => navigation.goBack() }],
+    );
+  }, [hasDoctor]);
 
   useEffect(() => {
     // Only call ACCEPT_CALL API if this is the receiver who accepted the call
@@ -78,8 +82,8 @@ export default function VideoCall({route, navigation}) {
 
 
   const timerLabel = useMemo(() => {
-    const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
-    const ss = String(seconds % 60).padStart(2, "0");
+    const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
+    const ss = String(seconds % 60).padStart(2, '0');
     return `${mm}:${ss}`;
   }, [seconds]);
 
@@ -144,7 +148,7 @@ export default function VideoCall({route, navigation}) {
         </TouchableOpacity>
         <View style={styles.topBarCenter}>
           <Text style={styles.doctorName} numberOfLines={1}>
-            {callData?.receiver?.name || doctor?.name || "Doctor"}
+            {callData?.receiver?.name || doctor?.name || 'Doctor'}
           </Text>
           <Text style={styles.timer}>{isCallAccepted ? timerLabel : callStatus}</Text>
         </View>
@@ -185,7 +189,9 @@ export default function VideoCall({route, navigation}) {
               channelId={channel}
             />
           ) : (
-            <Text style={styles.videoLabel}>{joined ? "Waiting for remote..." : (isCallAccepted ? "Connecting..." : "Ringing...")}</Text>
+            <Text style={styles.videoLabel}>
+              {joined ? 'Waiting for remote...' : (isCallAccepted ? 'Connecting...' : 'Ringing...')}
+            </Text>
           )}
         </View>
         <View style={styles.localVideo}>
@@ -206,7 +212,7 @@ export default function VideoCall({route, navigation}) {
             await toggleMute(next);
           }}
         >
-          <Ionicons name={isMuted ? "mic-off" : "mic"} size={24} color={COLORS.white} />
+          <Ionicons name={isMuted ? 'mic-off' : 'mic'} size={24} color={COLORS.white} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -217,7 +223,7 @@ export default function VideoCall({route, navigation}) {
             await toggleVideo(!next);
           }}
         >
-          <Ionicons name={isCameraOn ? "videocam" : "videocam-off"} size={24} color={COLORS.white} />
+          <Ionicons name={isCameraOn ? 'videocam' : 'videocam-off'} size={24} color={COLORS.white} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.controlButton} onPress={switchCamera}>
@@ -240,14 +246,14 @@ const styles = StyleSheet.create({
   topBar: {
     height: verticalScale(56),
     paddingHorizontal: scale(16),
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: COLORS.DODGERBLUE,
   },
   topBarCenter: {
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
   },
   doctorName: {
     color: COLORS.white,
@@ -262,28 +268,28 @@ const styles = StyleSheet.create({
   },
   videoArea: {
     flex: 1,
-    position: "relative",
+    position: 'relative',
     backgroundColor: COLORS.black,
   },
   remoteVideo: {
     flex: 1,
-    backgroundColor: "#111",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: '#111',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   localVideo: {
-    position: "absolute",
+    position: 'absolute',
     right: scale(12),
     bottom: scale(12),
     width: scale(110),
     height: verticalScale(160),
-    backgroundColor: "#222",
+    backgroundColor: '#222',
     borderRadius: moderateScale(10),
-    overflow: "hidden",
-    justifyContent: "center",
-    alignItems: "center",
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: '#333',
   },
   videoLabel: {
     color: COLORS.white,
@@ -297,19 +303,19 @@ const styles = StyleSheet.create({
   },
   controls: {
     height: verticalScale(90),
-    backgroundColor: "rgba(0,0,0,0.6)",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-evenly",
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
     paddingHorizontal: scale(16),
   },
   controlButton: {
     width: scale(54),
     height: scale(54),
     borderRadius: scale(27),
-    backgroundColor: "#333",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: '#333',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   enabled: {
     backgroundColor: COLORS.DODGERBLUE,

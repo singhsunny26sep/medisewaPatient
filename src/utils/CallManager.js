@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { sendEnhancedAudioCallInvite, sendEnhancedVideoCallInvite } from './rtmService';
 import { INITIATE_CALL, ACCEPT_CALL, END_CALL } from '../api/Api_Controller';
-import { notificationService } from './NotificationService';
 
 class CallManager {
   constructor() {
@@ -47,25 +46,36 @@ class CallManager {
         recieverId: targetUser.id || targetUser.userId,
         callType,
       });
-
-      if (response?.data) {
+console.log(response.callId,"dsfkhjsdghfjkgsdf")
+      if (response?.data || response?.callId) {
+        // Handle both wrapped and direct response formats
+        
         const callData = {
-          callId: response.data.callId,
-          channelName: response.data.channelName,
-          token: response.data.token,
-          callerId: response.data.callerId,
-          callerName: response.data.callerName,
-          callerAvatar: response.data.callerAvatar,
+          callId: response?.data?.callId || response?.callId,
+          channelName: response?.data?.channelName || response?.channelName,
+          token: response?.data?.token || response?.token,
+          callerId: response?.data?.callerId || response?.callerId,
+          callerName: response?.data?.callerName || response?.callerName,
+          callerAvatar: response?.data?.callerAvatar || response?.callerAvatar,
           receiver: targetUser,
           callType,
           isDoctorInitiated,
           timestamp: new Date(),
         };
+console.log(callData,"***************")
+        console.log('Call initiated, sending RTM invitation:', {
+          callId: callData.callId,
+          channel: callData.channelName,
+        });
 
         this.currentCall = callData;
 
-        // Send enhanced call invitation through Agora
-        await this.sendCallInvitation(targetUser.id || targetUser.userId, callData);
+        // Send enhanced call invitation through Agora RTM
+        // This works even if FCM fails
+        await this.sendCallInvitation(targetUser.id || targetUser.userId, callData).catch(err => {
+          console.warn('RTM invitation failed, but call exists:', err);
+          // Continue - call is still valid
+        });
 
         this.notifyListeners('CALL_INITIATED', callData);
         return callData;
@@ -74,6 +84,12 @@ class CallManager {
       return null;
     } catch (error) {
       console.error('Error initiating call:', error);
+      // Check if it's a FCM token error - still might have created the call
+      if (error.response?.data?.error?.code === 'messaging/invalid-payload') {
+        console.warn('Backend FCM error - call may still be created, retrying without FCM...');
+        // The backend might have created the call despite FCM error
+        // Return null for now - user needs to refresh or retry
+      }
       this.notifyListeners('CALL_ERROR', { error, targetUser, callType });
       return null;
     } finally {

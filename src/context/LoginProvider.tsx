@@ -2,6 +2,7 @@ import React, { Children, Dispatch, SetStateAction, createContext, useContext, u
 import { jwtDecode, JwtPayload } from "jwt-decode";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RtmService } from "../utils/rtmService";
+import fcmService from "../utils/fcmService";;
 
 
 export type UserData = {
@@ -103,6 +104,16 @@ export default function LoginProvider({ children }: LoginProviderProps) {
 
     useEffect(() => {
         getTokenFromLocalstorage();
+        // Update FCM token after login
+        const updateFCMToken = async () => {
+            const fcmToken = await fcmService.getStoredToken();
+            if (fcmToken) {
+                console.log('[LoginProvider] FCM token available:', fcmToken.substring(0, 20) + '...');
+            } else {
+                console.log('[LoginProvider] No FCM token found, will request on next action');
+            }
+        };
+        updateFCMToken();
     }, [isLoggedIn]);
 
     useEffect(() => {

@@ -125,70 +125,55 @@ class RtmServiceSingleton {
     })
   }
 
-  // Send call notification through Agora's notification system
-  sendCallNotification = async (targetUserId, callData) => {
-    try {
-      console.log('[Agora] Sending call notification to user:', targetUserId);
+// Send call notification through Agora's notification system
+   sendCallNotification = async (targetUserId, callData) => {
+     try {
+       console.log('[Agora] Sending call notification to user:', targetUserId);
 
-      // Use Agora RTM to send call invitation
-      // This will trigger Agora's built-in notification system
-      const notificationMessage = {
-        type: 'CALL_NOTIFICATION',
-        payload: {
-          callId: callData.callId,
-          callType: callData.callType,
-          channelName: callData.channelName,
-          token: callData.token,
-          callerId: callData.callerId,
-          callerName: callData.callerName,
-          callerAvatar: callData.callerAvatar,
-          timestamp: new Date().toISOString(),
-          // Agora-specific notification fields
-          category: 'call',
-          priority: 'high',
-          persistent: true,
-        }
-      };
+       // Use Agora RTM to send call invitation
+       const notificationMessage = {
+         type: 'CALL_NOTIFICATION',
+         payload: {
+           callId: callData.callId,
+           callType: callData.callType,
+           channelName: callData.channelName,
+           token: callData.token,
+           callerId: callData.callerId,
+           callerName: callData.callerName,
+           callerAvatar: callData.callerAvatar,
+           timestamp: new Date().toISOString(),
+           category: 'call',
+           priority: 'high',
+           persistent: true,
+         }
+       };
 
-      // Send through RTM - Agora will handle the system notification
-      await this.engine.sendMessageByPeer({
-        peerId: String(targetUserId),
-        text: JSON.stringify(notificationMessage),
-        options: {
-          enableHistoricalMessaging: true,
-          enableOfflineMessaging: true,
-        }
-      });
+       await this.engine.sendMessageByPeer({
+         peerId: String(targetUserId),
+         text: JSON.stringify(notificationMessage),
+         options: {
+           enableHistoricalMessaging: true,
+           enableOfflineMessaging: true,
+         }
+       });
 
-      console.log('[Agora] Call notification sent successfully via RTM');
-      return true;
-    } catch (error) {
-      console.log('[Agora] Error sending call notification:', error);
+       // Also show system notification through Android native handler
+       if (Platform.OS === 'android' && AgoraNotificationManager?.isInitialized) {
+         await AgoraNotificationManager.showIncomingCallNotification({
+           callId: callData.callId,
+           callType: callData.callType,
+           callerName: callData.callerName,
+           callerId: callData.callerId
+         })
+       }
 
-      // Fallback: Try to send through your backend API
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/send-call-notification`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            targetUserId,
-            callData,
-          }),
-        });
-
-        if (response.ok) {
-          console.log('[Agora] Call notification sent via backend API');
-          return true;
-        }
-      } catch (apiError) {
-        console.log('[Agora] Backend API also failed:', apiError);
-      }
-
-      return false;
-    }
-  }
+       console.log('[Agora] Call notification sent successfully via RTM');
+       return true;
+     } catch (error) {
+       console.log('[Agora] Error sending call notification:', error);
+       return false;
+     }
+   }
 
   // Enhanced call invitation with Agora notification support
   sendEnhancedCallInvite = async (peerId, payload) => {
