@@ -36,15 +36,12 @@ const responsiveFont = (size) => {
   return Math.round(size * Math.min(scaleFactor, 1.5));
 };
 
-// Banner Data
 const banners = [
   { id: 1, title: '20% OFF', subtitle: 'on first medicine order', color1: '#3B82F6', color2: '#2563EB', icon: 'medkit-outline' },
   { id: 2, title: 'Free Delivery', subtitle: 'on orders above ₹499', color1: '#10B981', color2: '#059669', icon: 'car-outline' },
   { id: 3, title: 'Buy 1 Get 1', subtitle: 'on selected medicines', color1: '#8B5CF6', color2: '#6D28D9', icon: 'gift-outline' },
   { id: 4, title: 'Cashback', subtitle: 'upto ₹500 on prepaid', color1: '#F59E0B', color2: '#D97706', icon: 'wallet-outline' },
 ];
-
-// Featured categories
 const featuredCategories = [
   { id: 'f1', title: 'Pain Relief', icon: 'medkit-outline', color: '#EF4444' },
   { id: 'f2', title: 'Vitamins', icon: 'nutrition-outline', color: '#10B981' },
@@ -165,7 +162,10 @@ const MedicineCategory = ({ navigation }) => {
   const FeaturedCard = ({ item, index }) => (
     <TouchableOpacity
       style={styles.featuredCard}
-      onPress={() => navigation.navigate('SubCategory', { brandId: item.id })}
+      onPress={() => {
+        if (item.id.startsWith('f')) return;
+        navigation.navigate('SubCategory', { brandId: item.id })
+      }}
       activeOpacity={0.9}
     >
       <LinearGradient

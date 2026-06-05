@@ -29,7 +29,7 @@ export default function SelectHealthP({}) {
   useEffect(() => {
     const fetchHealthProblems = async () => {
       try {
-        const response = await Instance.get('/health-problems');
+        const response = await Instance.get('api/v1/health-problems');
         setHealthProblems(response.data.healthProblems);
       } catch (error) {
         setError('Failed to load health problems');

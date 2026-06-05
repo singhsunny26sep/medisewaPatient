@@ -38,11 +38,16 @@ export default function SubCategory({navigation, route}) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredMedicines = brandMedicines.filter(medicine => 
-    medicine.title.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredMedicines = (brandMedicines || []).filter(medicine => 
+    medicine.title?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   useEffect(() => {
+    if (!brandId) {
+      setLoading(false);
+      return;
+    }
+
     const fetchBrandMedicines = async () => {
       console.log('Fetching medicines for brand ID:', brandId);
       try {
@@ -103,20 +108,16 @@ export default function SubCategory({navigation, route}) {
     });
   };
 
-  return (
+return (
     <Container
       statusBarStyle={'dark-content'}
       statusBarBackgroundColor={COLORS.white}
       backgroundColor={COLORS.white}>
-      <MedicineHeader
-        onLocationPress={() => {}}
-        onCartPress={() => navigation.navigate('MainStack', { screen: 'Cart' })}
-        onBackPress={() => navigation.goBack()}
-        location={selectedLocation || defaultLocation}
-        showBackButton={true}
-        onSearch={setSearchQuery}
-      />
-      {loading ? (
+      {!brandId ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>Invalid brand selection.</Text>
+        </View>
+      ) : loading ? (
         <FlatList
           data={[1, 2, 3, 4, 5]}
           keyExtractor={(_, index) => index.toString()}
