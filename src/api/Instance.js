@@ -9,7 +9,7 @@ const Instance = axios.create({
 
 Instance.interceptors.request.use(
   async config => {
-    try { 
+    try {
       const token = await AsyncStorage.getItem('userToken');
       if (token) {
         if (!config.headers) {
@@ -38,6 +38,26 @@ export const fetchAgoraToken = async (channelName, uid) => {
     console.error('Error fetching Agora token:', error);
     console.error('Response data:', error.response?.data);
     console.error('Response status:', error.response?.status);
+    throw error;
+  }
+};
+
+export const fetchCallHistory = async userId => {
+  try {
+    const token = await AsyncStorage.getItem('userToken');
+    const url = `/api/v1/calls/get/history?userId=${encodeURIComponent(userId)}`;
+    console.log('fetchCallHistory - URL:', 'https://medisawabackend.onrender.com' + url, '| Token:', token ? 'present' : 'MISSING');
+    const res = await Instance.get(url, {
+      headers: {
+        Authorization: token ? `Bearer ${token}` : undefined,
+      },
+    });
+    console.log('fetchCallHistory - Success:', JSON.stringify(res.data));
+    return res.data;
+  } catch (error) {
+    console.error('fetchCallHistory - Error:', error.message);
+    console.error('fetchCallHistory - Status:', error.response?.status);
+    console.error('fetchCallHistory - Response:', JSON.stringify(error.response?.data));
     throw error;
   }
 };
