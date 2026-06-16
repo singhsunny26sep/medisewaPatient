@@ -10,6 +10,11 @@ class RtmServiceSingleton {
     this.appId = null
     this.loggedInUserId = null
     this.messageHandler = null
+    this._eventHandlers = {
+      call_invite: [],
+      call_cancelled: [],
+      call_declined: [],
+    }
   }
 
   initialize = async (appId = AGORA_APP_ID) => {
@@ -49,8 +54,20 @@ class RtmServiceSingleton {
 
         console.log('[RTM] Extracted - type:', type, 'payload keys:', Object.keys(payload))
 
+        const msg = { type, payload, from: peerId }
+        
+        // Dispatch to all registered event handlers
+        if (type === 'CALL_INVITE' || type === 'CALL_INVITE_ENHANCED') {
+          this._eventHandlers.call_invite?.forEach(h => h(msg))
+        } else if (type === 'CALL_CANCELLED') {
+          this._eventHandlers.call_cancelled?.forEach(h => h(msg))
+        } else if (type === 'CALL_DECLINED') {
+          this._eventHandlers.call_declined?.forEach(h => h(msg))
+        }
+
+        // Also call legacy messageHandler for backward compatibility
         if (this.messageHandler && type) {
-          this.messageHandler({ type, payload, from: peerId })
+          this.messageHandler(msg)
         } else {
           console.log('[RTM] No handler or type for message; dropping. Type:', type, 'Has handler:', !!this.messageHandler)
         }
@@ -78,6 +95,27 @@ class RtmServiceSingleton {
   setMessageHandler = (handler) => {
     this.messageHandler = handler
     console.log('[RTM] message handler', handler ? 'registered' : 'cleared')
+  }
+
+  on(event, handler) {
+    const wrappedHandler = (msg) => {
+      const { type, payload } = msg
+      if (event === 'call_invite' && (type === 'CALL_INVITE' || type === 'CALL_INVITE_ENHANCED')) {
+        handler(payload)
+      } else if (event === 'call_cancelled' && type === 'CALL_CANCELLED') {
+        handler()
+      } else if (event === 'call_declined' && type === 'CALL_DECLINED') {
+        handler()
+      }
+    }
+    if (this._eventHandlers[event]) {
+      this._eventHandlers[event].push(wrappedHandler)
+    }
+    return () => {
+      if (this._eventHandlers[event]) {
+        this._eventHandlers[event] = this._eventHandlers[event].filter(h => h !== wrappedHandler)
+      }
+    }
   }
 
   sendCallInvite = async (peerId, payload) => {

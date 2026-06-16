@@ -8,88 +8,40 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
-  Platform,
-  PermissionsAndroid,
-  Linking,
-  Dimensions
+  Dimensions,
 } from 'react-native';
 import {Container} from '../../component/Container/Container';
 import {COLORS} from '../../Theme/Colors';
 import CustomHeader from '../../component/header/CustomHeader';
 import {moderateScale, scale} from '../../utils/Scaling';
 import {Fonts} from '../../Theme/Fonts';
-import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import CustomTextInput from '../../component/texinput/CustomTextInput';
-import CustomDropdown from '../../component/CustomDropdown/CustomDropdown';
 import {Instance} from '../../api/Instance';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import moment from 'moment';
 import ToastMessage from '../../component/ToastMessage/ToastMessage';
-import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
-import useRazorpayPayment from '../../component/Rozar/useRazorpayPayment';
 
-const { width: screenWidth } = Dimensions.get('window');
+const atob = global.atob || (str => Buffer.from(str, 'base64').toString('binary'));
+const {width: screenWidth} = Dimensions.get('window');
 
 export default function Dr_AppointmentBook({route, navigation}) {
-  const {submitHandler: razorpaySubmitHandler, loading: paymentLoading} =
-    useRazorpayPayment();
-
   const {doctorId} = route.params;
-  console.log('🔍 route.params:', route.params);
-  console.log('🔍 doctorId from route.params:', doctorId);
-  console.log('🔍 Type of doctorId:', typeof doctorId);
-  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
-  const [checkupType, setCheckupType] = useState('');
-  const [gender, setGender] = useState('');
-  const [age, setAge] = useState('');
   const [doctorDetails, setDoctorDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [appointmentTypeOpen, setAppointmentTypeOpen] = useState(false);
-  const [appointmentType, setAppointmentType] = useState(null);
-  const [consultationType, setConsultationType] = useState('offline');
-  const [familyMemberName, setFamilyMemberName] = useState('');
-  const [familyMemberAge, setFamilyMemberAge] = useState('');
-  const [familyMemberGender, setFamilyMemberGender] = useState('');
-  const [familyMemberRelation, setFamilyMemberRelation] = useState('');
-  const [reports, setReports] = useState([]);
-  const [uploading, setUploading] = useState(false);
-  const [isTimePickerVisible, setTimePickerVisibility] = useState(false);
   const [availableSlots, setAvailableSlots] = useState([]);
   const [selectedDay, setSelectedDay] = useState(0);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
-  const appointmentTypeItems = [
-    {label: 'For Myself', value: 'self'},
-    {label: 'For Family Member', value: 'family'},
-  ];
-
-  const genderItems = [
-    {label: 'Male', value: 'male'},
-    {label: 'Female', value: 'female'},
-    {label: 'Other', value: 'other'},
-  ];
-
-  const relationItems = [
-    {label: 'Father', value: 'father'},
-    {label: 'Mother', value: 'mother'},
-    {label: 'Spouse', value: 'spouse'},
-    {label: 'Child', value: 'child'},
-    {label: 'Sibling', value: 'sibling'},
-    {label: 'Other', value: 'other'},
-  ];
-
-  const formatTimeSlotKey = (key) => {
+  const formatTimeSlotKey = key => {
     const timeMap = {
       'at9AM': '09:00 AM',
       'at9_30AM': '09:30 AM',
       'at10AM': '10:00 AM',
-      'at10_30AM': '10:30 AM', 
+      'at10_30AM': '10:30 AM',
       'at11AM': '11:00 AM',
       'at11_30AM': '11:30 AM',
       'at12PM': '12:00 PM',
@@ -109,79 +61,67 @@ export default function Dr_AppointmentBook({route, navigation}) {
       'at7PM': '07:00 PM',
       'at7_30PM': '07:30 PM',
       'at8PM': '08:00 PM',
-      'at8_30PM': '08:30 PM'
+      'at8_30PM': '08:30 PM',
     };
     return timeMap[key] || key;
   };
-  // Function to fetch time slots for a specific date
-  const fetchTimeSlots = async (date) => {
-    try {
-      setLoadingSlots(true);
-      const token = await AsyncStorage.getItem('userToken');
-      if (!token) {
-        console.log('Token not found!');
-        return;
+
+  const getUserId = async () => {
+    const userDataStr = await AsyncStorage.getItem('userData');
+    if (userDataStr) {
+      try {
+        const parsed = JSON.parse(userDataStr);
+        const id = parsed?.id || parsed?.userId || parsed?._id || parsed?.user_id;
+        if (id && typeof id === 'string') return id;
+      } catch (e) {
+        console.error('Error parsing userData:', e);
       }
-      const formattedDate = moment(date).format('YYYY-MM-DD');
-      const response = await Instance.get(`api/v1/time-slots/getAll?doctorId=${doctorId}&date=${formattedDate}&page=1&limit=10`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.data.success && response.data.data.timeSlots.length > 0) {
-        const timeSlotData = response.data.data.timeSlots[0];
-        return processTimeSlotData(timeSlotData, date);
-      } else {
-        return createEmptySlotData(date);
-      }
-    } catch (error) {
-      console.error('Error fetching time slots:', error.response?.data || error.message);
-      return createEmptySlotData(date);
-    } finally {
-      setLoadingSlots(false);
     }
+    const token = await AsyncStorage.getItem('userToken');
+    if (token && typeof token === 'string') {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        try {
+          const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+          const jsonStr = Buffer.from(base64, 'base64').toString('utf-8');
+          const payload = JSON.parse(jsonStr);
+          const id = payload?.id || payload?.userId || payload?._id || payload?.user_id || payload?.sub || payload?.uid;
+          if (id && typeof id === 'string') return id;
+        } catch (e) {
+          console.error('Error decoding token:', e);
+        }
+      }
+    }
+    return null;
   };
 
-  // Process time slot data from API
   const processTimeSlotData = (timeSlotData, date) => {
-    const { morning = {}, afternoon = {}, evening = {} } = timeSlotData;
-    
+    const {morning = {}, afternoon = {}, evening = {}} = timeSlotData;
+
     const morningSlots = [];
     const afternoonSlots = [];
     const eveningSlots = [];
 
-    // Process morning slots
     Object.keys(morning).forEach(key => {
       if (morning[key]) {
-        morningSlots.push({
-          time: formatTimeSlotKey(key),
-          available: true
-        });
+        morningSlots.push({time: formatTimeSlotKey(key), available: true});
       }
     });
 
-    // Process afternoon slots
     Object.keys(afternoon).forEach(key => {
       if (afternoon[key]) {
-        afternoonSlots.push({
-          time: formatTimeSlotKey(key),
-          available: true
-        });
+        afternoonSlots.push({time: formatTimeSlotKey(key), available: true});
       }
     });
 
-    // Process evening slots
     Object.keys(evening).forEach(key => {
       if (evening[key]) {
-        eveningSlots.push({
-          time: formatTimeSlotKey(key),
-          available: true
-        });
+        eveningSlots.push({time: formatTimeSlotKey(key), available: true});
       }
     });
 
     const totalSlots = morningSlots.length + afternoonSlots.length + eveningSlots.length;
-    
+
     return {
       id: timeSlotData._id,
       date: moment(date).format('ddd, D MMM'),
@@ -189,39 +129,29 @@ export default function Dr_AppointmentBook({route, navigation}) {
       slots: totalSlots,
       available: totalSlots > 0,
       fullDate: moment(date).format('YYYY-MM-DD'),
-      timeSlots: {
-        morning: morningSlots,
-        afternoon: afternoonSlots,
-        evening: eveningSlots
-      }
+      timeSlots: {morning: morningSlots, afternoon: afternoonSlots, evening: eveningSlots},
     };
   };
 
-  // Create empty slot data when no slots are available
-  const createEmptySlotData = (date) => {
-    return {
-      id: `empty-${moment(date).format('YYYY-MM-DD')}`,
-      date: moment(date).format('ddd, D MMM'),
-      day: getDayLabel(date),
-      slots: 0,
-      available: false,
-      fullDate: moment(date).format('YYYY-MM-DD'),
-      timeSlots: null
-    };
-  };
+  const createEmptySlotData = date => ({
+    id: `empty-${moment(date).format('YYYY-MM-DD')}`,
+    date: moment(date).format('ddd, D MMM'),
+    day: getDayLabel(date),
+    slots: 0,
+    available: false,
+    fullDate: moment(date).format('YYYY-MM-DD'),
+    timeSlots: null,
+  });
 
-  // Get day label (Today, Tomorrow, etc.)
-  const getDayLabel = (date) => {
+  const getDayLabel = date => {
     const today = moment().startOf('day');
     const tomorrow = moment().add(1, 'days').startOf('day');
     const targetDate = moment(date).startOf('day');
-
     if (targetDate.isSame(today)) return 'Today';
     if (targetDate.isSame(tomorrow)) return 'Tomorrow';
     return targetDate.format('dddd');
   };
 
-  // Generate dates for the next 7 days
   const generateDateRange = () => {
     const dates = [];
     for (let i = 0; i < 7; i++) {
@@ -230,44 +160,76 @@ export default function Dr_AppointmentBook({route, navigation}) {
     return dates;
   };
 
-  // Fetch time slots for all dates in range
+  const generateEmptySlotRange = () => generateDateRange().map(date => createEmptySlotData(date));
+      const userId =  getUserId();
+      console.log(userId,"*************************")
+
   const fetchAllTimeSlots = async () => {
-    const dates = generateDateRange();
-    const slotsPromises = dates.map(date => fetchTimeSlots(date));
-    
     try {
-      const slotsData = await Promise.all(slotsPromises);
-      setAvailableSlots(slotsData);
+      setLoadingSlots(true);
+      const userId = await getUserId();
+      console.log(userId, '*************************');
+      if (!userId) {
+        setAvailableSlots(generateEmptySlotRange());
+        return;
+      }
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await Instance.get(`api/v1/time-slots/getAll?userId=${userId}&page=1&limit=10`, {
+        headers: {Authorization: `Bearer ${token}`},
+      });
+      if (response.data.success && response.data.data.timeSlots.length > 0) {
+        const dates = generateDateRange();
+        const dateStrSet = new Set(dates.map(d => moment(d).format('YYYY-MM-DD')));
+        const slotsMap = {};
+        response.data.data.timeSlots.forEach(slot => {
+          const slotDate = moment(slot.date).format('YYYY-MM-DD');
+          if (dateStrSet.has(slotDate)) {
+            slotsMap[slotDate] = processTimeSlotData(slot, slotDate);
+          }
+        });
+        const slotsData = dates.map(d => {
+          const key = moment(d).format('YYYY-MM-DD');
+          return slotsMap[key] || createEmptySlotData(d);
+        });
+        setAvailableSlots(slotsData);
+      } else {
+        setAvailableSlots(generateEmptySlotRange());
+      }
     } catch (error) {
-      console.error('Error fetching all time slots:', error);
+      console.error('Error fetching time slots:', error.response?.data || error.message);
+      setAvailableSlots(generateEmptySlotRange());
+    } finally {
+      setLoadingSlots(false);
     }
   };
 
-  const handleConfirm = date => {
-    setSelectedDate(date);
-    setDatePickerVisibility(false);
-  };
+  const handleTimeSelect = time => setSelectedTime(time);
 
-  const showDatePicker = () => {
-    setDatePickerVisibility(true);
-  };
-
-  const handleTimeSelect = (time) => {
-    setSelectedTime(time);
-  };
-
-  const handleDaySelect = async (index) => {
+  const handleDaySelect = async index => {
     if (availableSlots[index]?.available) {
       setSelectedDay(index);
       setSelectedTime(null);
-      
-      // Refresh slots for selected day
       const date = generateDateRange()[index];
-      const updatedSlot = await fetchTimeSlots(date);
-      
-      const updatedSlots = [...availableSlots];
-      updatedSlots[index] = updatedSlot;
-      setAvailableSlots(updatedSlots);
+      const dateStr = moment(date).format('YYYY-MM-DD');
+      const userId = await getUserId();
+      if (!userId) return;
+      const token = await AsyncStorage.getItem('userToken');
+      try {
+        const response = await Instance.get(`api/v1/time-slots/getAll?userId=${userId}&page=1&limit=10`, {
+          headers: {Authorization: `Bearer ${token}`},
+        });
+        if (response.data.success && response.data.data.timeSlots.length > 0) {
+          const matched = response.data.data.timeSlots.find(slot => moment(slot.date).format('YYYY-MM-DD') === dateStr);
+          if (matched) {
+            const updatedSlot = processTimeSlotData(matched, date);
+            const updatedSlots = [...availableSlots];
+            updatedSlots[index] = updatedSlot;
+            setAvailableSlots(updatedSlots);
+          }
+        }
+      } catch (error) {
+        console.error('Error refreshing time slots:', error.response?.data || error.message);
+      }
     }
   };
 
@@ -275,24 +237,18 @@ export default function Dr_AppointmentBook({route, navigation}) {
     try {
       const token = await AsyncStorage.getItem('userToken');
       if (token) {
-        const response = await Instance.get(`/api/v1/doctors/${doctorId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        const response = await Instance.get(`api/v1/doctors/${doctorId}`, {
+          headers: {Authorization: `Bearer ${token}`},
         });
         if (response.data.success) {
           setDoctorDetails(response.data.result);
         }
         console.log('🔍 Doctor details response:', response.data);
-
       } else {
         console.log('Token not found!');
       }
     } catch (error) {
-      console.error(
-        'Error fetching doctor details:',
-        error.response ? error.response.data : error.message,
-      );
+      console.error('Error fetching doctor details:', error.response ? error.response.data : error.message);
     } finally {
       setLoading(false);
     }
@@ -349,52 +305,28 @@ export default function Dr_AppointmentBook({route, navigation}) {
               </Text>
             </View>
             <View style={styles.doctorInfoRow}>
-              <Icon
-                name="business"
-                size={scale(20)}
-                color={COLORS.DODGERBLUE}
-              />
+              <Icon name="business" size={scale(20)} color={COLORS.DODGERBLUE} />
               <Text style={styles.doctorInfoText}>{department?.name}</Text>
             </View>
             <View style={styles.doctorInfoRow}>
-              <Icon
-                name="accessibility"
-                size={scale(20)}
-                color={COLORS.DODGERBLUE}
-              />
+              <Icon name="accessibility" size={scale(20)} color={COLORS.DODGERBLUE} />
               <Text style={styles.doctorInfoText}>{doctorGender}</Text>
             </View>
             <View style={styles.doctorInfoRow}>
-              <Icon
-                name="location-on"
-                size={scale(20)}
-                color={COLORS.DODGERBLUE}
-              />
+              <Icon name="location-on" size={scale(20)} color={COLORS.DODGERBLUE} />
               <Text style={styles.doctorInfoText}>{clinicAddress}</Text>
             </View>
             <View style={styles.doctorInfoRow}>
-              <Icon
-                name="attach-money"
-                size={scale(20)}
-                color={COLORS.DODGERBLUE}
-              />
+              <Icon name="attach-money" size={scale(20)} color={COLORS.DODGERBLUE} />
               <Text style={styles.doctorInfoText}>
                 ₹{fee}{' '}
-                <Text
-                  style={{
-                    textDecorationLine: 'line-through',
-                    color: COLORS.gray,
-                  }}>
+                <Text style={{textDecorationLine: 'line-through', color: COLORS.gray}}>
                   ₹{oldFee}
                 </Text>
               </Text>
             </View>
             <View style={styles.doctorInfoRow}>
-              <Icon
-                name="access-time"
-                size={scale(20)}
-                color={COLORS.DODGERBLUE}
-              />
+              <Icon name="access-time" size={scale(20)} color={COLORS.DODGERBLUE} />
               <Text style={styles.doctorInfoText}>
                 {startTime} - {endTime}
               </Text>
@@ -416,21 +348,13 @@ export default function Dr_AppointmentBook({route, navigation}) {
         return;
       }
 
-      // Validation checks
-      if (!appointmentType) {
-        setToastMessage('Please select appointment type');
+      const userId = await getUserId();
+      console.log(userId,"*************************")
+      if (!userId) {
+        setToastMessage('User ID not found!');
         setToastType('danger');
         setIsSubmitting(false);
         return;
-      }
-
-      if (appointmentType === 'family') {
-        if (!familyMemberName || !familyMemberAge || !familyMemberGender || !familyMemberRelation) {
-          setToastMessage('Please fill all family member details');
-          setToastType('danger');
-          setIsSubmitting(false);
-          return;
-        }
       }
 
       if (!selectedTime) {
@@ -451,27 +375,17 @@ export default function Dr_AppointmentBook({route, navigation}) {
       const formattedDate = selectedSlot.fullDate;
       const formattedTime = moment(selectedTime, 'h:mm A').format('HH:mm');
 
-      const payload = {
+      const bookingPayload = {
         doctorId: doctorDetails?.doctorId?._id,
         appointmentDate: formattedDate,
         appointmentTime: formattedTime,
-        consultationFee: doctorDetails?.doctorId?.fee?.toString() || '500',
-        serviceCharge: '0',
-        appointmentType: appointmentType,
-        consultationType: consultationType,
-        familyMemberDetails: appointmentType === 'family' ? {
-          name: familyMemberName,
-          age: familyMemberAge,
-          gender: familyMemberGender,
-          relation: familyMemberRelation,
-        } : null,
+        consultationFee: doctorDetails?.doctorId?.fee || 50,
+        serviceCharge: 10,
       };
-
-      console.log('Booking payload:', JSON.stringify(payload, null, 2));
-
+      console.log('Booking payload:', JSON.stringify(bookingPayload, null, 2));
       const response = await Instance.post(
-        '/api/v1/bookings/book/appointment/null',
-        payload,
+        `/api/v1/bookings/book/appointment/${userId}`,
+        bookingPayload,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -482,158 +396,22 @@ export default function Dr_AppointmentBook({route, navigation}) {
       if (response.data.success) {
         setToastMessage('Appointment booked successfully!');
         setToastType('success');
-        setTimeout(() => {
-          navigation.goBack();
-        }, 2000);
+        setTimeout(() => navigation.goBack(), 2000);
       } else {
         setToastMessage(response.data.message || 'Failed to book appointment');
         setToastType('danger');
       }
     } catch (error) {
       console.error('Booking error:', error.response?.data || error.message);
-      setToastMessage(error.response?.data?.message || 'Failed to book appointment. Please try again.');
+      setToastMessage(
+        error.response?.data?.message || 'Failed to book appointment. Please try again.',
+      );
       setToastType('danger');
     } finally {
       setIsSubmitting(false);
     }
   };
-  
-  const requestCameraPermission = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.CAMERA,
-          {
-            title: 'Camera Permission',
-            message: 'App needs access to your camera to take photos',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          },
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
-        console.warn(err);
-        return false;
-      }
-    }
-    return true;
-  };
 
-  const handleImagePick = async type => {
-    try {
-      if (type === 'camera') {
-        const hasPermission = await requestCameraPermission();
-        if (!hasPermission) {
-          setToastMessage('Camera permission is required');
-          setToastType('danger');
-          return;
-        }
-      }
-
-      const options = {
-        mediaType: 'photo',
-        quality: 0.8,
-        includeBase64: false,
-        saveToPhotos: true,
-        cameraType: 'back',
-      };
-
-      const result =
-        type === 'camera'
-          ? await launchCamera(options)
-          : await launchImageLibrary(options);
-
-      if (result.didCancel) {
-        console.log('User cancelled image picker');
-        return;
-      }
-
-      if (result.errorCode) {
-        console.log('ImagePicker Error: ', result.errorMessage);
-        setToastMessage('Error capturing image');
-        setToastType('danger');
-        return;
-      }
-
-      if (result.assets && result.assets[0]) {
-        const newReport = {
-          type: 'image',
-          name: result.assets[0].fileName || 'image.jpg',
-          uri: result.assets[0].uri,
-          size: result.assets[0].fileSize,
-        };
-
-        setReports([...reports, newReport]);
-      }
-    } catch (err) {
-      console.error('Image picker error:', err);
-      setToastMessage('Error capturing image');
-      setToastType('danger');
-    }
-  };
-
-  const removeReport = index => {
-    const newReports = [...reports];
-    newReports.splice(index, 1);
-    setReports(newReports);
-  };
-
-  const renderReportItem = ({item, index}) => (
-    <View style={styles.reportItem}>
-      <Image source={{uri: item.uri}} style={styles.reportThumbnail} />
-      <Text style={styles.reportName} numberOfLines={1}>
-        {item.name}
-      </Text>
-      <TouchableOpacity onPress={() => removeReport(index)}>
-        <Icon name="close" size={scale(20)} color={COLORS.red} />
-      </TouchableOpacity>
-    </View>
-  );
-
-  const handleConsultationTypeChange = async type => {
-    setConsultationType(type);
-    if (type === 'online') {
-      try {
-        const paymentAmount = doctorDetails?.doctorId?.fee || 500;
-
-        const paymentResult = await razorpaySubmitHandler(paymentAmount, {
-          description: 'Doctor Consultation Fee',
-          appName: 'Mediseva',
-          doctorId: doctorDetails?.doctorId?._id,
-          appointmentType: 'online_consultation',
-        });
-
-        if (paymentResult.status === 'SUCCESS') {
-          setToastMessage(
-            'Payment successful! Proceeding with online consultation.',
-          );
-          setToastType('success');
-        } else if (paymentResult.status === 'CANCELLED') {
-          setToastMessage(
-            'Payment was cancelled. Please select offline consultation or try again.',
-          );
-          setToastType('warning');
-          setConsultationType('offline');
-        } else {
-          setToastMessage(
-            'Payment failed. Please try again or select offline consultation.',
-          );
-          setToastType('danger');
-          setConsultationType('offline');
-        }
-      } catch (error) {
-        console.error('Payment error:', error);
-        setToastMessage(
-          'Payment failed. Please try again or select offline consultation.',
-        );
-        setToastType('danger');
-        setConsultationType('offline');
-      }
-    }
-  };
-
-  // Enhanced renderDayButtons with horizontal FlatList
   const renderDayButtons = () => (
     <View style={styles.daysContainer}>
       {loadingSlots ? (
@@ -643,50 +421,50 @@ export default function Dr_AppointmentBook({route, navigation}) {
           data={availableSlots}
           horizontal
           showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) => item.id}
+          keyExtractor={item => item.id}
           contentContainerStyle={styles.daysListContent}
           renderItem={({item, index}) => (
             <TouchableOpacity
               style={[
                 styles.dayButton,
                 selectedDay === index && styles.selectedDayButton,
-                !item.available && styles.disabledDayButton
+                !item.available && styles.disabledDayButton,
               ]}
               onPress={() => handleDaySelect(index)}
-              disabled={!item.available}
-            >
-              <Text style={[
-                styles.dayText,
-                selectedDay === index && styles.selectedDayText,
-                !item.available && styles.disabledDayText
-              ]}>
+              disabled={!item.available}>
+              <Text
+                style={[
+                  styles.dayText,
+                  selectedDay === index && styles.selectedDayText,
+                  !item.available && styles.disabledDayText,
+                ]}>
                 {item.day}
               </Text>
-              <Text style={[
-                styles.dateText,
-                selectedDay === index && styles.selectedDayText,
-                !item.available && styles.disabledDayText
-              ]}>
+              <Text
+                style={[
+                  styles.dateText,
+                  selectedDay === index && styles.selectedDayText,
+                  !item.available && styles.disabledDayText,
+                ]}>
                 {item.date}
               </Text>
-              
               {item.available ? (
-                <View style={[
-                  styles.slotsBadge,
-                  selectedDay === index && styles.selectedSlotsBadge
-                ]}>
-                  <Text style={[
-                    styles.slotsText,
-                    selectedDay === index && styles.selectedSlotsText
+                <View
+                  style={[
+                    styles.slotsBadge,
+                    selectedDay === index && styles.selectedSlotsBadge,
                   ]}>
+                  <Text
+                    style={[
+                      styles.slotsText,
+                      selectedDay === index && styles.selectedSlotsText,
+                    ]}>
                     {item.slots} slots
                   </Text>
                 </View>
               ) : (
                 <View style={styles.unavailableBadge}>
-                  <Text style={styles.unavailableText}>
-                    Not available
-                  </Text>
+                  <Text style={styles.unavailableText}>Not available</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -696,7 +474,6 @@ export default function Dr_AppointmentBook({route, navigation}) {
     </View>
   );
 
-  // Enhanced renderTimeSlots with better UI
   const renderTimeSlots = () => {
     if (loadingSlots) {
       return (
@@ -711,24 +488,21 @@ export default function Dr_AppointmentBook({route, navigation}) {
     if (!selectedSlot || !selectedSlot.timeSlots) {
       return (
         <View style={styles.noSlotsContainer}>
-          <Icon name="event-busy" size={scale(40)} color={COLORS.gray} />
+          <Icon name="schedule" size={scale(40)} color={COLORS.gray} />
           <Text style={styles.noSlotsText}>No slots available for this day</Text>
         </View>
       );
     }
 
-    const { morning = [], afternoon = [], evening = [] } = selectedSlot.timeSlots;
+    const {morning = [], afternoon = [], evening = []} = selectedSlot.timeSlots;
 
     return (
       <View style={styles.timeSlotsContainer}>
-        {/* Morning Slots */}
         {morning.length > 0 && (
           <View style={styles.timeSlotSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.timeSlotSectionTitle}>Morning</Text>
-              <Text style={styles.timeSlotCount}>
-                {morning.length} slots
-              </Text>
+              <Text style={styles.timeSlotCount}>{morning.length} slots</Text>
             </View>
             <View style={styles.timeSlotsGrid}>
               {morning.map((timeSlot, index) => (
@@ -737,16 +511,16 @@ export default function Dr_AppointmentBook({route, navigation}) {
                   style={[
                     styles.timeSlotButton,
                     selectedTime === timeSlot.time && styles.selectedTimeSlotButton,
-                    !timeSlot.available && styles.disabledTimeSlotButton
+                    !timeSlot.available && styles.disabledTimeSlotButton,
                   ]}
                   onPress={() => timeSlot.available && handleTimeSelect(timeSlot.time)}
-                  disabled={!timeSlot.available}
-                >
-                  <Text style={[
-                    styles.timeSlotText,
-                    selectedTime === timeSlot.time && styles.selectedTimeSlotText,
-                    !timeSlot.available && styles.disabledTimeSlotText
-                  ]}>
+                  disabled={!timeSlot.available}>
+                  <Text
+                    style={[
+                      styles.timeSlotText,
+                      selectedTime === timeSlot.time && styles.selectedTimeSlotText,
+                      !timeSlot.available && styles.disabledTimeSlotText,
+                    ]}>
                     {timeSlot.time}
                   </Text>
                 </TouchableOpacity>
@@ -755,14 +529,11 @@ export default function Dr_AppointmentBook({route, navigation}) {
           </View>
         )}
 
-        {/* Afternoon Slots */}
         {afternoon.length > 0 && (
           <View style={styles.timeSlotSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.timeSlotSectionTitle}>Afternoon</Text>
-              <Text style={styles.timeSlotCount}>
-                {afternoon.length} slots
-              </Text>
+              <Text style={styles.timeSlotCount}>{afternoon.length} slots</Text>
             </View>
             <View style={styles.timeSlotsGrid}>
               {afternoon.map((timeSlot, index) => (
@@ -771,16 +542,16 @@ export default function Dr_AppointmentBook({route, navigation}) {
                   style={[
                     styles.timeSlotButton,
                     selectedTime === timeSlot.time && styles.selectedTimeSlotButton,
-                    !timeSlot.available && styles.disabledTimeSlotButton
+                    !timeSlot.available && styles.disabledTimeSlotButton,
                   ]}
                   onPress={() => timeSlot.available && handleTimeSelect(timeSlot.time)}
-                  disabled={!timeSlot.available}
-                >
-                  <Text style={[
-                    styles.timeSlotText,
-                    selectedTime === timeSlot.time && styles.selectedTimeSlotText,
-                    !timeSlot.available && styles.disabledTimeSlotText
-                  ]}>
+                  disabled={!timeSlot.available}>
+                  <Text
+                    style={[
+                      styles.timeSlotText,
+                      selectedTime === timeSlot.time && styles.selectedTimeSlotText,
+                      !timeSlot.available && styles.disabledTimeSlotText,
+                    ]}>
                     {timeSlot.time}
                   </Text>
                 </TouchableOpacity>
@@ -789,14 +560,11 @@ export default function Dr_AppointmentBook({route, navigation}) {
           </View>
         )}
 
-        {/* Evening Slots */}
         {evening.length > 0 && (
           <View style={styles.timeSlotSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.timeSlotSectionTitle}>Evening</Text>
-              <Text style={styles.timeSlotCount}>
-                {evening.length} slots
-              </Text>
+              <Text style={styles.timeSlotCount}>{evening.length} slots</Text>
             </View>
             <View style={styles.timeSlotsGrid}>
               {evening.map((timeSlot, index) => (
@@ -805,16 +573,16 @@ export default function Dr_AppointmentBook({route, navigation}) {
                   style={[
                     styles.timeSlotButton,
                     selectedTime === timeSlot.time && styles.selectedTimeSlotButton,
-                    !timeSlot.available && styles.disabledTimeSlotButton
+                    !timeSlot.available && styles.disabledTimeSlotButton,
                   ]}
                   onPress={() => timeSlot.available && handleTimeSelect(timeSlot.time)}
-                  disabled={!timeSlot.available}
-                >
-                  <Text style={[
-                    styles.timeSlotText,
-                    selectedTime === timeSlot.time && styles.selectedTimeSlotText,
-                    !timeSlot.available && styles.disabledTimeSlotText
-                  ]}>
+                  disabled={!timeSlot.available}>
+                  <Text
+                    style={[
+                      styles.timeSlotText,
+                      selectedTime === timeSlot.time && styles.selectedTimeSlotText,
+                      !timeSlot.available && styles.disabledTimeSlotText,
+                    ]}>
                     {timeSlot.time}
                   </Text>
                 </TouchableOpacity>
@@ -849,159 +617,40 @@ export default function Dr_AppointmentBook({route, navigation}) {
           <Text style={styles.errorText}>Failed to load doctor details</Text>
         )}
 
-        <View style={styles.dropdownContainer}>
-          <Text style={[styles.selectDateText, {marginHorizontal: scale(0)}]}>
-            Appointment For
-          </Text>
-          <CustomDropdown
-            data={appointmentTypeItems}
-            value={appointmentType}
-            onChange={setAppointmentType}
-            placeholder="Select appointment type"
-            style={styles.dropdown}
-            containerStyle={styles.dropdownContainerStyle}
-          />
-        </View>
-
-        <View style={styles.consultationTypeContainer}>
-          <Text style={[styles.selectDateText, {marginHorizontal: scale(0)}]}>
-            Consultation Type
-          </Text>
-          <View style={styles.radioContainer}>
-            <TouchableOpacity
-              style={styles.radioButton}
-              onPress={() => handleConsultationTypeChange('offline')}>
-              <View style={styles.radioOuter}>
-                {consultationType === 'offline' && (
-                  <View style={styles.radioInner} />
-                )}
-              </View>
-              <Text style={styles.radioText}>Clinic visit</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.radioButton}
-              onPress={() => handleConsultationTypeChange('online')}>
-              <View style={styles.radioOuter}>
-                {consultationType === 'online' && (
-                  <View style={styles.radioInner} />
-                )}
-              </View>
-              <Text style={styles.radioText}>Online Consultation</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {consultationType === 'offline' &&
-          doctorDetails?.doctorId?.clinicAddress && (
-            <TouchableOpacity
-              style={styles.getDirectionButton}
-              onPress={() => {
-                const address = encodeURIComponent(
-                  doctorDetails.doctorId.clinicAddress,
-                );
-                const url =
-                  Platform.OS === 'ios'
-                    ? `http://maps.apple.com/?daddr=${address}`
-                    : `https://www.google.com/maps/dir/?api=1&destination=${address}`;
-                Linking.openURL(url);
-              }}>
-              <Text style={styles.getDirectionButtonText}>Get Direction</Text>
-            </TouchableOpacity>
-          )}
-
-        {appointmentType === 'family' && (
-          <View style={styles.familyMemberContainer}>
-            <Text style={styles.sectionTitle}>Family Member Details</Text>
-            <CustomTextInput
-              placeholder="Enter Name"
-              value={familyMemberName}
-              onChangeText={setFamilyMemberName}
-              style={styles.input}
-            />
-            <CustomTextInput
-              placeholder="Enter Age"
-              value={familyMemberAge}
-              onChangeText={setFamilyMemberAge}
-              keyboardType="numeric"
-              style={styles.input}
-            />
-            <CustomDropdown
-              data={genderItems}
-              value={familyMemberGender}
-              onChange={setFamilyMemberGender}
-              placeholder="Select Gender"
-              style={styles.dropdown}
-              containerStyle={styles.dropdownContainerStyle}
-            />
-            <CustomDropdown
-              data={relationItems}
-              value={familyMemberRelation}
-              onChange={setFamilyMemberRelation}
-              placeholder="Select Relation"
-              style={[styles.dropdown, {marginTop: scale(12)}]}
-              containerStyle={styles.dropdownContainerStyle}
-            />
-          </View>
-        )}
-
         <View style={styles.slotsContainer}>
           <Text style={styles.selectDateText}>Available Slots</Text>
-          
-          {/* Day Selection Buttons */}
           {renderDayButtons()}
-          
-          {/* Time Slots for Selected Day */}
           {renderTimeSlots()}
         </View>
 
-        <View style={styles.reportsContainer}>
-          <Text style={styles.sectionTitle}>Past Reports</Text>
-          <View style={styles.uploadButtonsContainer}>
-            <TouchableOpacity
-              style={styles.uploadButton}
-              onPress={() => handleImagePick('gallery')}>
-              <Icon
-                name="photo-library"
-                size={scale(24)}
-                color={COLORS.DODGERBLUE}
-              />
-              <Text style={styles.uploadButtonText}>Gallery</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.uploadButton}
-              onPress={() => handleImagePick('camera')}>
-              <Icon
-                name="camera-alt"
-                size={scale(24)}
-                color={COLORS.DODGERBLUE}
-              />
-              <Text style={styles.uploadButtonText}>Camera</Text>
-            </TouchableOpacity>
+        <View style={styles.priceSummaryContainer}>
+          <Text style={styles.sectionTitle}>Price Details</Text>
+          <View style={styles.priceRow}>
+            <Text style={styles.priceLabel}>Consultation Fee</Text>
+            <Text style={styles.priceValue}>
+              ₹{doctorDetails?.doctorId?.fee || 50}
+            </Text>
           </View>
-
-          {reports.length > 0 && (
-            <View style={styles.reportsList}>
-              <Text style={styles.reportsListTitle}>Uploaded Reports</Text>
-              <FlatList
-                data={reports}
-                renderItem={renderReportItem}
-                keyExtractor={(item, index) => index.toString()}
-                scrollEnabled={false}
-              />
-            </View>
-          )}
+          <View style={styles.priceRow}>
+            <Text style={styles.priceLabel}>Service Charge</Text>
+            <Text style={styles.priceValue}>₹10</Text>
+          </View>
+          <View style={styles.dividerPrice} />
+          <View style={styles.priceRow}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalValue}>
+              ₹{(doctorDetails?.doctorId?.fee || 50) + 10}
+            </Text>
+          </View>
         </View>
 
         <TouchableOpacity
           style={[
             styles.submitButton,
-            isSubmitting && styles.submitButtonDisabled
+            isSubmitting && styles.submitButtonDisabled,
           ]}
           onPress={handleSubmitAppointment}
-          disabled={isSubmitting}
-        >
+          disabled={isSubmitting}>
           {isSubmitting ? (
             <ActivityIndicator size="small" color={COLORS.white} />
           ) : (
@@ -1010,12 +659,6 @@ export default function Dr_AppointmentBook({route, navigation}) {
         </TouchableOpacity>
       </ScrollView>
 
-      <DateTimePickerModal
-        isVisible={isDatePickerVisible}
-        mode="date"
-        onConfirm={handleConfirm}
-        onCancel={() => setDatePickerVisibility(false)}
-      />
       {toastMessage && <ToastMessage type={toastType} message={toastMessage} />}
     </Container>
   );
@@ -1093,13 +736,6 @@ const styles = StyleSheet.create({
     marginLeft: scale(12),
     flex: 1,
   },
-  inputContainer: {
-    paddingHorizontal: scale(15),
-    borderTopWidth: 0.5,
-    borderColor: COLORS.AshGray,
-    paddingTop: scale(15),
-    marginTop: scale(5),
-  },
   selectDateText: {
     fontFamily: Fonts.Light,
     color: COLORS.black,
@@ -1107,32 +743,6 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(16),
     marginBottom: scale(10),
     marginTop: scale(15),
-  },
-  availableSlotsText: {
-    marginTop: scale(15),
-  },
-  dateContainer: {
-    padding: scale(12),
-    borderWidth: 1,
-    borderColor: COLORS.AshGray,
-    borderRadius: scale(12),
-    backgroundColor: COLORS.white,
-    marginHorizontal: scale(15),
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: COLORS.black,
-    shadowOpacity: 0.05,
-    shadowOffset: {width: 0, height: 2},
-    shadowRadius: scale(4),
-    elevation: 2,
-  },
-  icon: {
-    marginRight: scale(10),
-  },
-  selectedDate: {
-    fontFamily: Fonts.Medium,
-    color: COLORS.black,
-    fontSize: moderateScale(15),
   },
   submitButton: {
     marginTop: scale(30),
@@ -1146,6 +756,7 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 4},
     shadowRadius: scale(8),
     elevation: 0,
+    marginBottom: scale(30),
   },
   submitButtonDisabled: {
     backgroundColor: COLORS.gray,
@@ -1156,179 +767,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.SemiBold,
     fontSize: moderateScale(16),
   },
-  dropdownContainer: {
-    marginHorizontal: scale(15),
-    marginTop: scale(10),
-    zIndex: 3000,
-    marginBottom: scale(10),
-  },
-  dropdown: {
-    borderColor: COLORS.AshGray,
-    borderRadius: scale(12),
-    height: scale(50),
-    backgroundColor: COLORS.white,
-    shadowColor: COLORS.black,
-    shadowOpacity: 0.05,
-    shadowOffset: {width: 0, height: 2},
-    shadowRadius: scale(4),
-    elevation: 2,
-  },
-  dropdownContainerStyle: {
-    borderColor: COLORS.AshGray,
-    borderRadius: scale(12),
-    backgroundColor: COLORS.white,
-  },
-  familyMemberContainer: {
-    marginHorizontal: scale(15),
-    marginTop: scale(10),
-    backgroundColor: COLORS.white,
-    padding: scale(15),
-    borderRadius: scale(15),
-    shadowColor: COLORS.black,
-    shadowOpacity: 0.1,
-    shadowOffset: {width: 0, height: 4},
-    shadowRadius: scale(8),
-    elevation: 5,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.AshGray,
-    borderRadius: scale(12),
-    paddingHorizontal: scale(15),
-    height: scale(50),
-    marginBottom: scale(12),
-    fontFamily: Fonts.Medium,
-    backgroundColor: COLORS.white,
-    shadowColor: COLORS.black,
-    shadowOpacity: 0.05,
-    shadowOffset: {width: 0, height: 2},
-    shadowRadius: scale(4),
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontFamily: Fonts.Light,
-    color: COLORS.black,
-    fontSize: moderateScale(16),
-    marginBottom: scale(10),
-  },
-  divider: {
-    height: 1,
-    backgroundColor: COLORS.AshGray,
-    marginVertical: scale(15),
-    opacity: 0.5,
-  },
-  reportsContainer: {
-    marginHorizontal: scale(15),
-    marginTop: scale(20),
-    backgroundColor: COLORS.white,
-    padding: scale(15),
-    borderRadius: scale(15),
-    shadowColor: COLORS.black,
-    shadowOpacity: 0.1,
-    shadowOffset: {width: 0, height: 4},
-    shadowRadius: scale(8),
-    elevation: 5,
-  },
-  uploadButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: scale(10),
-  },
-  uploadButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.lightGray,
-    padding: scale(12),
-    borderRadius: scale(12),
-    marginHorizontal: scale(10),
-  },
-  uploadButtonText: {
-    fontFamily: Fonts.Medium,
-    color: COLORS.black,
-    fontSize: moderateScale(12),
-    marginTop: scale(5),
-  },
-  reportsList: {
-    marginTop: scale(15),
-  },
-  reportsListTitle: {
-    fontFamily: Fonts.Light,
-    color: COLORS.black,
-    fontSize: moderateScale(16),
-    marginBottom: scale(10),
-  },
-  reportItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.lightGray,
-    padding: scale(12),
-    borderRadius: scale(8),
-    marginBottom: scale(8),
-  },
-  reportThumbnail: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(4),
-  },
-  reportName: {
-    flex: 1,
-    fontFamily: Fonts.Medium,
-    fontSize: moderateScale(14),
-    color: COLORS.black,
-    marginLeft: scale(10),
-  },
-  consultationTypeContainer: {
-    marginHorizontal: scale(15),
-    marginBottom: scale(10),
-  },
-  radioContainer: {
-    flexDirection: 'row',
-    marginTop: scale(5),
-  },
-  radioButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: scale(20),
-  },
-  radioOuter: {
-    height: scale(20),
-    width: scale(20),
-    borderRadius: scale(10),
-    borderWidth: 2,
-    borderColor: COLORS.DODGERBLUE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioInner: {
-    height: scale(10),
-    width: scale(10),
-    borderRadius: scale(5),
-    backgroundColor: COLORS.DODGERBLUE,
-  },
-  radioText: {
-    marginLeft: scale(8),
-    fontSize: moderateScale(14),
-    fontFamily: Fonts.Medium,
-    color: COLORS.black,
-  },
-  getDirectionButton: {
-    marginTop: scale(8),
-    marginBottom: scale(8),
-    backgroundColor: COLORS.DODGERBLUE,
-    paddingVertical: scale(8),
-    paddingHorizontal: scale(16),
-    borderRadius: scale(8),
-    alignSelf: 'flex-start',
-    marginLeft: scale(15),
-  },
-  getDirectionButtonText: {
-    color: COLORS.white,
-    fontFamily: Fonts.Medium,
-    fontSize: moderateScale(14),
-  },
-
-  // New enhanced styles for timing slots UI
   slotsContainer: {
     marginHorizontal: scale(15),
     marginTop: scale(10),
@@ -1502,5 +940,49 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(14),
     color: COLORS.gray,
     marginTop: scale(10),
+  },
+  priceSummaryContainer: {
+    marginHorizontal: scale(15),
+    marginTop: scale(20),
+    backgroundColor: COLORS.white,
+    padding: scale(15),
+    borderRadius: scale(15),
+    shadowColor: COLORS.black,
+    shadowOpacity: 0.1,
+    shadowOffset: {width: 0, height: 4},
+    shadowRadius: scale(8),
+    elevation: 5,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: scale(6),
+  },
+  priceLabel: {
+    fontFamily: Fonts.Medium,
+    fontSize: moderateScale(14),
+    color: COLORS.black,
+  },
+  priceValue: {
+    fontFamily: Fonts.Medium,
+    fontSize: moderateScale(14),
+    color: COLORS.black,
+  },
+  dividerPrice: {
+    height: 1,
+    backgroundColor: COLORS.AshGray,
+    marginVertical: scale(10),
+    opacity: 0.5,
+  },
+  totalLabel: {
+    fontFamily: Fonts.SemiBold,
+    fontSize: moderateScale(16),
+    color: COLORS.black,
+  },
+  totalValue: {
+    fontFamily: Fonts.SemiBold,
+    fontSize: moderateScale(16),
+    color: COLORS.DODGERBLUE,
   },
 });

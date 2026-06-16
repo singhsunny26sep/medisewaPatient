@@ -20,14 +20,21 @@ type CallContextType = {
 
 const CallContext = createContext<Partial<CallContextType>>({})
 
+const navigationRef: { current: any } = { current: null }
+
 export const useCallCenter = () => useContext(CallContext)
 
+export const setCallNavigationRef = (ref: any) => {
+    navigationRef.current = ref
+}
+
 const IncomingCallModal = ({ visible, onAccept, onDecline, callerName, callType }: any) => {
+    const displayCallType = callType === 'video' ? 'Video' : 'Audio'
     return (
         <Modal visible={visible} transparent animationType='fade'>
             <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
                 <View style={{ width: '80%', backgroundColor: COLORS.white, borderRadius: 12, padding: 16 }}>
-                    <Text style={{ fontSize: 16, color: COLORS.black, marginBottom: 6 }}>Incoming {callType} call</Text>
+                    <Text style={{ fontSize: 16, color: COLORS.black, marginBottom: 6 }}>Incoming {displayCallType} call</Text>
                     <Text style={{ fontSize: 18, color: COLORS.black, fontWeight: '600', marginBottom: 16 }}>{callerName || 'Unknown'}</Text>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                         <TouchableOpacity onPress={onDecline} style={{ flex: 1, marginRight: 8, padding: 12, borderRadius: 8, backgroundColor: COLORS.red, alignItems: 'center' }}>
@@ -71,7 +78,16 @@ const CallProvider = ({ children }: { children: React.ReactNode }) => {
     }, [])
 
     const onAccept = async () => {
-        // Placeholder: integrate navigation to VideoCall if available
+        if (incoming && navigationRef.current) {
+            navigationRef.current.navigate(
+                incoming.callType === 'video' ? 'VideoCall' : 'AudioCall',
+                {
+                    doctor: { name: incoming.callerName },
+                    callData: { callId: incoming.callId },
+                    callAccepted: true,
+                }
+            )
+        }
         setIncoming(null)
     }
 

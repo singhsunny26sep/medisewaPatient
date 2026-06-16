@@ -16,6 +16,7 @@ import { StatusBarProvider } from './src/utils/StatusBarContext';
 import { requestUserPermission } from './src/utils/Firebase';
 import { notificationService } from './src/utils/NotificationService';
 import { AgoraNotificationManager } from './src/utils/AgoraNotificationHandler';
+import CallProvider, { setCallNavigationRef } from './src/utils/CallProvider';
 
 function App(): React.JSX.Element {
   const navigationRef = useRef(null);
@@ -53,6 +54,7 @@ function App(): React.JSX.Element {
       AgoraNotificationManager.setNavigationRef(navigationRef.current);
 
       // Initialize call manager (for handling call states)
+      setCallNavigationRef(navigationRef.current);
       console.log('Call manager initialized');
     };
 
@@ -65,9 +67,10 @@ function App(): React.JSX.Element {
       const intentData = await AgoraNotificationManager.checkNotificationIntent();
       if (intentData && intentData.action === 'ACCEPT_CALL_FROM_NOTIFICATION') {
         const { callId, callType, callerName } = intentData;
-        if (navigationRef.current) {
+        const nav = navigationRef.current;
+        if (nav && callId) {
           setTimeout(() => {
-            navigationRef.current.navigate(
+            nav.navigate(
               callType === 'video' ? 'VideoCall' : 'AudioCall',
               {
                 doctor: { name: callerName },
@@ -90,7 +93,9 @@ function App(): React.JSX.Element {
           <ToastProvider>
             <LoginProvider>
               <StatusBarProvider>
-                <NavigationScreen ref={navigationRef} />
+                <CallProvider>
+                  <NavigationScreen ref={navigationRef} />
+                </CallProvider>
               </StatusBarProvider>
             </LoginProvider>
           </ToastProvider>

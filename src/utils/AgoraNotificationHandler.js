@@ -5,6 +5,12 @@ const { AgoraNotificationHandler } = NativeModules
 class AgoraNotificationManager {
   constructor() {
     this.isInitialized = false
+    this.navigationRef = null
+  }
+
+  // Set navigation ref for handling notification actions
+  setNavigationRef(navigation) {
+    this.navigationRef = navigation
   }
 
   // Initialize Agora notification system

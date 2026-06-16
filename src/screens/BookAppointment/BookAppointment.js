@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Image,
   Alert,
+  Dimensions,
 } from 'react-native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -28,25 +29,22 @@ import CustomRadioButton from '../../component/CustomRadioButton';
 
 import {Instance} from '../../api/Instance';
 
+const {width} = Dimensions.get('window');
+
 export default function BookAppointment({route, navigation}) {
   const {
-    labId,
-    selectedTestIds,
-    labName,
-    selectedTestsname,
-    locationAddress,
-  } = route.params;
-
+    labId = null,
+    selectedTestIds = [],
+    labName = '',
+    selectedTestsname = [],
+    locationAddress = '',
+  } = route.params || {};
   const [loading, setLoading] = useState(false);
   const [successModal, setSuccessModal] = useState(false);
-
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
-
   const [date, setDate] = useState('');
   const [textShowDate, setTextShowDate] = useState('');
-
-  const [selectedHealthProblem, setSelectedHealthProblem] =
-    useState(null);
+  const [selectedHealthProblem, setSelectedHealthProblem] = useState(null);
 
   const [formData, setFormData] = useState({
     age: '',
@@ -66,8 +64,8 @@ export default function BookAppointment({route, navigation}) {
   ];
 
   const visitOptions = [
-    {label: 'Home', value: 'home'},
-    {label: 'Lab', value: 'lab'},
+    {label: 'Home Visit', value: 'home'},
+    {label: 'Lab Visit', value: 'lab'},
   ];
 
   const handleInputChange = (name, value) => {
@@ -120,10 +118,7 @@ export default function BookAppointment({route, navigation}) {
       }
 
       if (!selectedHealthProblem) {
-        Alert.alert(
-          'Validation',
-          'Please select health problem',
-        );
+        Alert.alert('Validation', 'Please select health problem');
         return;
       }
 
@@ -141,12 +136,10 @@ export default function BookAppointment({route, navigation}) {
 
         appointmentDate: date,
 
-        problemDescription:
-          formData.problemDescription,
+        problemDescription: formData.problemDescription,
 
         labs: {
           lab: labId,
-
           tests: selectedTestIds.map(testId => ({
             test: testId,
           })),
@@ -160,24 +153,17 @@ export default function BookAppointment({route, navigation}) {
         },
       };
 
-      await Instance.post(
-        'api/v1/appointments',
-        appointmentData,
-        {
-          headers: {
-            authorization: userToken,
-          },
+      await Instance.post('api/v1/appointments', appointmentData, {
+        headers: {
+          authorization: userToken,
         },
-      );
+      });
 
       setSuccessModal(true);
     } catch (error) {
       console.log(error);
 
-      Alert.alert(
-        'Error',
-        'Something went wrong. Please try again.',
-      );
+      Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -190,277 +176,286 @@ export default function BookAppointment({route, navigation}) {
   };
 
   return (
-    <Container
-      backgroundColor={'#F5F7FB'}
-      statusBarStyle={'dark-content'}>
-      <CustomHeader
-        title="Book Appointment"
-        navigation={navigation}
-      />
+    <Container backgroundColor={COLORS.white} statusBarStyle={'dark-content'}>
+      <CustomHeader title="Book Appointment" navigation={navigation} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingBottom: verticalScale(30),
-        }}
-        style={styles.container}>
-        {/* TOP CARD */}
-
-        <View style={styles.topCard}>
-          <View style={styles.row}>
-            <Icon
-              name="business-outline"
-              size={20}
-              color="#2563EB"
-            />
-
-            <Text style={styles.labTitle}>
-              {' '}
-              {labName}
+          paddingBottom: verticalScale(40),
+        }}>
+        {/* HERO HEADER */}
+        <LinearGradient
+          colors={[COLORS.DODGERBLUE, '#4A90E2']}
+          start={{x: 0, y: 0}}
+          end={{x: 1, y: 0}}
+          style={styles.heroSection}>
+          <View style={styles.heroContent}>
+            <View style={styles.iconCircle}>
+              <Icon name="calendar" size={28} color={COLORS.white} />
+            </View>
+            <Text style={styles.heroTitle}>Book Your Appointment</Text>
+            <Text style={styles.heroSubtitle}>
+              Schedule your lab test with trusted diagnostic centers
             </Text>
           </View>
+        </LinearGradient>
 
-          <Text style={styles.selectedText}>
-            Selected Tests
-          </Text>
+        {/* LAB INFO CARD */}
+        {labName ? (
+          <View style={styles.section}>
+            <View style={styles.labCard}>
+              <View style={styles.labIconWrapper}>
+                <Icon name="business" size={24} color={COLORS.white} />
+              </View>
+              <View style={styles.labInfo}>
+                <Text style={styles.labLabel}>Selected Lab</Text>
+                <Text style={styles.labName}>{labName}</Text>
+              </View>
+            </View>
 
-          <View style={styles.badgeWrapper}>
-            {selectedTestsname.map((item, index) => (
-              <View key={index} style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {item}
+            {selectedTestsname.length > 0 && (
+              <View style={styles.testsCard}>
+                <Text style={styles.testsLabel}>
+                  Selected Tests ({selectedTestsname.length})
+                </Text>
+                <View style={styles.testsGrid}>
+                  {selectedTestsname.map((item, index) => (
+                    <View key={index} style={styles.testBadge}>
+                      <Icon name="flask" size={14} color={COLORS.DODGERBLUE} />
+                      <Text style={styles.testBadgeText}>{item}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+          </View>
+        ) : null}
+
+        {/* FORM CARD */}
+        <View style={styles.section}>
+          <View style={styles.formCard}>
+            <Text style={styles.sectionTitle}>Personal Details</Text>
+
+            <View style={styles.row}>
+              <View style={styles.halfField}>
+                <CustomTextInput
+                  label="Age"
+                  placeholder="Enter age"
+                  keyboardType="numeric"
+                  maxLength={2}
+                  value={formData.age}
+                  onChangeText={value => handleInputChange('age', value)}
+                />
+              </View>
+              <View style={styles.halfField}>
+                <Text style={styles.label}>Appointment Date</Text>
+                <TouchableOpacity
+                  style={styles.dateBox}
+                  onPress={showDatePicker}>
+                  <Icon
+                    name="calendar-outline"
+                    size={20}
+                    color={textShowDate ? COLORS.DODGERBLUE : COLORS.silver}
+                  />
+                  <Text
+                    style={[
+                      styles.dateText,
+                      !textShowDate && styles.placeholderText,
+                    ]}>
+                    {textShowDate || 'Select date'}
+                  </Text>
+                  <Icon
+                    name="chevron-forward"
+                    size={18}
+                    color={COLORS.silver}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <Text style={styles.label}>Gender</Text>
+            <View style={styles.radioContainer}>
+              <CustomRadioButton
+                options={genderOptions}
+                selectedValue={formData.gender}
+                onValueChange={gender =>
+                  setFormData(prev => ({
+                    ...prev,
+                    gender,
+                  }))
+                }
+              />
+            </View>
+
+            <Text style={styles.label}>Visit Type</Text>
+            <View style={styles.radioContainer}>
+              <CustomRadioButton
+                options={visitOptions}
+                selectedValue={formData.visittype}
+                onValueChange={visittype =>
+                  setFormData(prev => ({
+                    ...prev,
+                    visittype,
+                  }))
+                }
+              />
+            </View>
+
+            <CustomTextInput
+              label="Referral Mobile"
+              placeholder="Enter referral mobile"
+              keyboardType="phone-pad"
+              maxLength={10}
+              value={formData.mobile}
+              onChangeText={value => handleInputChange('mobile', value)}
+            />
+
+            <Text style={styles.label}>Health Problem</Text>
+            <TouchableOpacity
+              style={styles.problemBox}
+              onPress={() =>
+                navigation.navigate('SelectHealthP', {
+                  onSelectProblem: setSelectedHealthProblem,
+                })
+              }>
+              <View style={styles.problemLeft}>
+                <Icon
+                  name="medical"
+                  size={20}
+                  color={
+                    selectedHealthProblem ? COLORS.DODGERBLUE : COLORS.silver
+                  }
+                />
+                <Text
+                  style={[
+                    styles.problemText,
+                    !selectedHealthProblem && styles.placeholderText,
+                  ]}>
+                  {selectedHealthProblem?.name || 'Select health problem'}
                 </Text>
               </View>
-            ))}
-          </View>
-        </View>
+              <Icon name="chevron-forward" size={20} color={COLORS.silver} />
+            </TouchableOpacity>
 
-        {/* FORM */}
-
-        <View style={styles.formCard}>
-          <CustomTextInput
-            label="Age"
-            placeholder="Enter age"
-            keyboardType="numeric"
-            maxLength={2}
-            value={formData.age}
-            onChangeText={value =>
-              handleInputChange('age', value)
-            }
-          />
-
-          {/* DATE */}
-
-          <Text style={styles.label}>
-            Appointment Date
-          </Text>
-
-          <TouchableOpacity
-            style={styles.dateBox}
-            onPress={showDatePicker}>
-            <Text style={styles.dateText}>
-              {textShowDate ||
-                'Select appointment date'}
-            </Text>
-
-            <Icon
-              name="calendar-outline"
-              size={22}
-              color="#2563EB"
+            <CustomTextInput
+              label="Pincode"
+              placeholder="Enter pincode"
+              keyboardType="number-pad"
+              maxLength={6}
+              value={formData.pincode}
+              onChangeText={value => handleInputChange('pincode', value)}
             />
-          </TouchableOpacity>
 
-          {/* GENDER */}
+            <CustomTextInput
+              label="Address"
+              placeholder="Enter full address"
+              value={formData.address}
+              onChangeText={value => handleInputChange('address', value)}
+            />
 
-          <View style={styles.radioSection}>
-            <Text style={styles.label}>Gender</Text>
+            <View style={styles.row}>
+              <View style={styles.halfField}>
+                <CustomTextInput
+                  label="City"
+                  placeholder="City"
+                  value={formData.city}
+                  onChangeText={value => handleInputChange('city', value)}
+                />
+              </View>
 
-            <CustomRadioButton
-              options={genderOptions}
-              selectedValue={formData.gender}
-              onValueChange={gender =>
-                setFormData(prev => ({
-                  ...prev,
-                  gender,
-                }))
+              <View style={styles.halfField}>
+                <CustomTextInput
+                  label="State"
+                  placeholder="State"
+                  value={formData.state}
+                  onChangeText={value => handleInputChange('state', value)}
+                />
+              </View>
+            </View>
+
+            <CustomTextInput
+              label="Symptoms Description"
+              placeholder="Describe your symptoms..."
+              value={formData.problemDescription}
+              onChangeText={value =>
+                handleInputChange('problemDescription', value)
               }
-            />
-          </View>
-
-          {/* VISIT TYPE */}
-
-          <View style={styles.radioSection}>
-            <Text style={styles.label}>
-              Visit Type
-            </Text>
-
-            <CustomRadioButton
-              options={visitOptions}
-              selectedValue={formData.visittype}
-              onValueChange={visittype =>
-                setFormData(prev => ({
-                  ...prev,
-                  visittype,
-                }))
-              }
-            />
-          </View>
-
-          <CustomTextInput
-            label="Referral Mobile"
-            placeholder="Enter referral mobile"
-            keyboardType="phone-pad"
-            maxLength={10}
-            value={formData.mobile}
-            onChangeText={value =>
-              handleInputChange('mobile', value)
-            }
-          />
-
-          {/* HEALTH PROBLEM */}
-
-          <Text style={styles.label}>
-            Health Problem
-          </Text>
-
-          <TouchableOpacity
-            style={styles.problemBox}
-            onPress={() =>
-              navigation.navigate(
-                'SelectHealthP',
-                {
-                  onSelectProblem:
-                    setSelectedHealthProblem,
-                },
-              )
-            }>
-            <Text style={styles.problemText}>
-              {selectedHealthProblem?.name ||
-                'Select health problem'}
-            </Text>
-
-            <Icon
-              name="chevron-forward"
-              size={22}
-              color="#2563EB"
-            />
-          </TouchableOpacity>
-
-          <CustomTextInput
-            label="Pincode"
-            placeholder="Enter pincode"
-            keyboardType="number-pad"
-            maxLength={6}
-            value={formData.pincode}
-            onChangeText={value =>
-              handleInputChange('pincode', value)
-            }
-          />
-
-          <CustomTextInput
-            label="Address"
-            placeholder="Enter address"
-            value={formData.address}
-            onChangeText={value =>
-              handleInputChange('address', value)
-            }
-          />
-
-          <CustomTextInput
-            label="City"
-            placeholder="Enter city"
-            value={formData.city}
-            onChangeText={value =>
-              handleInputChange('city', value)
-            }
-          />
-
-          <CustomTextInput
-            label="State"
-            placeholder="Enter state"
-            value={formData.state}
-            onChangeText={value =>
-              handleInputChange('state', value)
-            }
-          />
-
-          <CustomTextInput
-            label="Tell us more about symptoms"
-            placeholder="Write symptoms..."
-            value={formData.problemDescription}
-            onChangeText={value =>
-              handleInputChange(
-                'problemDescription',
-                value,
-              )
-            }
-          />
-
-          {/* SECURITY BOX */}
-
-          <View style={styles.securityBox}>
-            <MaterialCommunityIcons
-              name="shield-check"
-              size={18}
-              color="#2563EB"
+              multiline
+              numberOfLines={3}
             />
 
-            <Text style={styles.securityText}>
-              Your appointment is secure &
-              private
-            </Text>
-          </View>
-
-          {/* BUTTON */}
-
-          <TouchableOpacity
-            disabled={loading}
-            onPress={handleSubmit}>
-            <LinearGradient
-              colors={['#2563EB', '#3B82F6']}
-              start={{x: 0, y: 0}}
-              end={{x: 1, y: 1}}
-              style={styles.button}>
-              {loading ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <Text style={styles.buttonText}>
-                  Book Appointment
+            {/* SECURITY BOX */}
+            <View style={styles.securityBox}>
+              <MaterialCommunityIcons
+                name="shield-check"
+                size={20}
+                color={COLORS.DODGERBLUE}
+              />
+              <View style={styles.securityTextWrapper}>
+                <Text style={styles.securityTitle}>Secure & Private</Text>
+                <Text style={styles.securityDesc}>
+                  Your appointment details are encrypted and secure
                 </Text>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* SUBMIT BUTTON */}
+            <TouchableOpacity
+              disabled={loading}
+              onPress={handleSubmit}
+              activeOpacity={0.9}>
+              <LinearGradient
+                colors={[COLORS.DODGERBLUE, '#4A90E2']}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 0}}
+                style={styles.submitButton}>
+                {loading ? (
+                  <ActivityIndicator color={COLORS.white} />
+                ) : (
+                  <>
+                    <Icon
+                      name="checkmark-circle"
+                      size={22}
+                      color={COLORS.white}
+                    />
+                    <Text style={styles.submitButtonText}>
+                      Book Appointment
+                    </Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 
       {/* SUCCESS MODAL */}
-
       <Modal transparent visible={successModal}>
-        <View style={styles.modalContainer}>
+        <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Image
-              source={require('../../assets/done-icon.jpg')}
-              style={styles.successImage}
-            />
+            <View style={styles.successIconWrapper}>
+              <Icon
+                name="checkmark-circle"
+                size={80}
+                color={COLORS.greenViridian}
+              />
+            </View>
 
-            <Text style={styles.successTitle}>
-              Appointment Booked
+            <Text style={styles.successTitle}>Appointment Booked!</Text>
+            <Text style={styles.successSubtitle}>
+              Your appointment has been confirmed successfully. You will receive
+              a confirmation shortly.
             </Text>
 
-            <Text style={styles.successSubTitle}>
-              Your appointment has been booked
-              successfully
-            </Text>
-
-            <TouchableOpacity
-              onPress={closeModal}>
+            <TouchableOpacity onPress={closeModal} activeOpacity={0.9}>
               <LinearGradient
-                colors={['#2563EB', '#3B82F6']}
+                colors={[COLORS.DODGERBLUE, '#4A90E2']}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 0}}
                 style={styles.modalButton}>
-                <Text
-                  style={styles.modalButtonText}>
-                  Continue
-                </Text>
+                <Text style={styles.modalButtonText}>View Appointments</Text>
+                <Icon name="arrow-forward" size={18} color={COLORS.white} />
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -468,7 +463,6 @@ export default function BookAppointment({route, navigation}) {
       </Modal>
 
       {/* DATE PICKER */}
-
       <DateTimePickerModal
         isVisible={isDatePickerVisible}
         mode="date"
@@ -480,211 +474,300 @@ export default function BookAppointment({route, navigation}) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingHorizontal: 16,
+  section: {
+    paddingHorizontal: scale(16),
+    marginTop: verticalScale(16),
   },
-
-  topCard: {
-    backgroundColor: '#FFFFFF',
-    marginTop: 18,
-    borderRadius: 22,
-    padding: 18,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowRadius: 6,
+  heroSection: {
+    marginHorizontal: scale(16),
+    marginTop: verticalScale(16),
+    borderRadius: moderateScale(20),
+    padding: scale(20),
+    shadowColor: COLORS.DODGERBLUE,
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
-
-  row: {
-    flexDirection: 'row',
+  heroContent: {
     alignItems: 'center',
   },
-
-  labTitle: {
-    fontSize: 17,
-    color: '#111827',
+  iconCircle: {
+    width: scale(56),
+    height: scale(56),
+    borderRadius: moderateScale(28),
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: verticalScale(12),
+  },
+  heroTitle: {
+    fontSize: moderateScale(20),
     fontFamily: Fonts.Bold,
-    marginLeft: 6,
+    color: COLORS.white,
+    marginBottom: verticalScale(4),
+  },
+  heroSubtitle: {
+    fontSize: moderateScale(13),
+    fontFamily: Fonts.Regular,
+    color: 'rgba(255,255,255,0.9)',
+    textAlign: 'center',
+    lineHeight: moderateScale(18),
   },
 
-  selectedText: {
-    fontSize: 15,
-    color: '#111827',
+  labCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: moderateScale(16),
+    padding: scale(16),
+    shadowColor: COLORS.black,
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: COLORS.lightTurquoise,
+  },
+  labIconWrapper: {
+    width: scale(48),
+    height: scale(48),
+    borderRadius: moderateScale(14),
+    backgroundColor: COLORS.DODGERBLUE,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: scale(14),
+  },
+  labInfo: {
+    flex: 1,
+  },
+  labLabel: {
+    fontSize: moderateScale(12),
+    fontFamily: Fonts.Regular,
+    color: COLORS.silver,
+    marginBottom: verticalScale(2),
+  },
+  labName: {
+    fontSize: moderateScale(16),
     fontFamily: Fonts.Bold,
-    marginTop: 18,
+    color: COLORS.black,
   },
 
-  badgeWrapper: {
+  testsCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: moderateScale(16),
+    padding: scale(16),
+    marginTop: verticalScale(10),
+    shadowColor: COLORS.black,
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: COLORS.lightTurquoise,
+  },
+  testsLabel: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Bold,
+    color: COLORS.black,
+    marginBottom: verticalScale(10),
+  },
+  testsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 12,
+    gap: scale(8),
   },
-
-  badge: {
-    backgroundColor: '#E8F0FF',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 25,
-    marginRight: 10,
-    marginBottom: 10,
+  testBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.lightTurquoise,
+    paddingHorizontal: scale(12),
+    paddingVertical: verticalScale(8),
+    borderRadius: moderateScale(20),
+    gap: scale(6),
   },
-
-  badgeText: {
-    color: '#2563EB',
+  testBadgeText: {
+    fontSize: moderateScale(12),
     fontFamily: Fonts.Medium,
-    fontSize: 13,
+    color: COLORS.DODGERBLUE,
   },
 
   formCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    padding: 18,
-    marginTop: 18,
-    marginBottom: 30,
-
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowRadius: 6,
+    backgroundColor: COLORS.white,
+    borderRadius: moderateScale(20),
+    padding: scale(18),
+    shadowColor: COLORS.black,
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: '#F0F4F8',
   },
-
-  label: {
-    fontSize: 15,
-    color: '#111827',
+  sectionTitle: {
+    fontSize: moderateScale(18),
     fontFamily: Fonts.Bold,
-    marginBottom: 10,
+    color: COLORS.black,
+    marginBottom: verticalScale(16),
   },
-
+  row: {
+    flexDirection: 'row',
+    gap: scale(12),
+  },
+  halfField: {
+    flex: 1,
+  },
+  label: {
+    fontSize: moderateScale(13),
+    fontFamily: Fonts.Bold,
+    color: COLORS.black,
+    marginBottom: verticalScale(8),
+    marginTop: verticalScale(4),
+  },
   dateBox: {
-    height: 54,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 15,
-    paddingHorizontal: 15,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 18,
+    height: verticalScale(52),
+    borderWidth: 1.5,
+    borderColor: COLORS.lightTurquoise,
+    backgroundColor: COLORS.whiteSeasalt,
+    borderRadius: moderateScale(14),
+    paddingHorizontal: scale(14),
+    gap: scale(10),
   },
-
   dateText: {
-    color: '#111827',
+    flex: 1,
+    fontSize: moderateScale(14),
     fontFamily: Fonts.Medium,
-    fontSize: 14,
+    color: COLORS.black,
   },
-
-  radioSection: {
-    marginBottom: 18,
+  placeholderText: {
+    color: COLORS.silver,
   },
-
+  radioContainer: {
+    marginBottom: verticalScale(4),
+  },
   problemBox: {
-    height: 54,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 15,
-    paddingHorizontal: 15,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 18,
+    justifyContent: 'space-between',
+    height: verticalScale(52),
+    borderWidth: 1.5,
+    borderColor: COLORS.lightTurquoise,
+    backgroundColor: COLORS.whiteSeasalt,
+    borderRadius: moderateScale(14),
+    paddingHorizontal: scale(14),
+    marginBottom: verticalScale(14),
   },
-
+  problemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(10),
+    flex: 1,
+  },
   problemText: {
-    color: '#111827',
+    fontSize: moderateScale(14),
     fontFamily: Fonts.Medium,
-    fontSize: 14,
+    color: COLORS.black,
   },
-
   securityBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    padding: 12,
-    borderRadius: 14,
-    marginTop: 10,
+    backgroundColor: COLORS.lightTurquoise,
+    padding: scale(14),
+    borderRadius: moderateScale(14),
+    marginTop: verticalScale(6),
+    marginBottom: verticalScale(20),
+    gap: scale(12),
   },
-
-  securityText: {
-    color: '#2563EB',
-    marginLeft: 8,
-    fontSize: 13,
-    fontFamily: Fonts.Medium,
-  },
-
-  button: {
-    height: 56,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 22,
-  },
-
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: Fonts.Bold,
-  },
-
-  modalContainer: {
+  securityTextWrapper: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'center',
+  },
+  securityTitle: {
+    fontSize: moderateScale(13),
+    fontFamily: Fonts.Bold,
+    color: COLORS.DODGERBLUE,
+    marginBottom: verticalScale(2),
+  },
+  securityDesc: {
+    fontSize: moderateScale(11),
+    fontFamily: Fonts.Regular,
+    color: COLORS.DODGERBLUE,
+    opacity: 0.8,
+  },
+  submitButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 22,
+    justifyContent: 'center',
+    height: verticalScale(56),
+    borderRadius: moderateScale(16),
+    gap: scale(10),
+    shadowColor: COLORS.DODGERBLUE,
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  submitButtonText: {
+    fontSize: moderateScale(16),
+    fontFamily: Fonts.Bold,
+    color: COLORS.white,
   },
 
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: scale(24),
+  },
   modalContent: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 26,
-    padding: 24,
+    backgroundColor: COLORS.white,
+    borderRadius: moderateScale(24),
+    padding: scale(28),
     alignItems: 'center',
+    shadowColor: COLORS.black,
+    shadowOffset: {width: 0, height: 10},
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 12,
   },
-
-  successImage: {
-    width: 120,
-    height: 120,
-    resizeMode: 'contain',
-  },
-
-  successTitle: {
-    fontSize: 22,
-    color: '#111827',
-    fontFamily: Fonts.Bold,
-    marginTop: 12,
-  },
-
-  successSubTitle: {
-    color: '#6B7280',
-    fontFamily: Fonts.Medium,
-    textAlign: 'center',
-    marginTop: 10,
-    lineHeight: 22,
-  },
-
-  modalButton: {
-    width: 220,
-    height: 50,
-    borderRadius: 14,
+  successIconWrapper: {
+    width: scale(100),
+    height: scale(100),
+    borderRadius: moderateScale(50),
+    backgroundColor: '#E6F9F0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 25,
+    marginBottom: verticalScale(16),
   },
-
-  modalButtonText: {
-    color: '#FFFFFF',
+  successTitle: {
+    fontSize: moderateScale(22),
     fontFamily: Fonts.Bold,
-    fontSize: 15,
+    color: COLORS.black,
+    marginBottom: verticalScale(8),
+  },
+  successSubtitle: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Regular,
+    color: COLORS.silver,
+    textAlign: 'center',
+    lineHeight: moderateScale(20),
+    marginBottom: verticalScale(24),
+  },
+  modalButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: verticalScale(52),
+    borderRadius: moderateScale(14),
+    gap: scale(8),
+  },
+  modalButtonText: {
+    fontSize: moderateScale(15),
+    fontFamily: Fonts.Bold,
+    color: COLORS.white,
   },
 });

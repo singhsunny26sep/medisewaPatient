@@ -61,5 +61,4 @@ export const fetchCallHistory = async userId => {
     throw error;
   }
 };
-
 export {Instance};
