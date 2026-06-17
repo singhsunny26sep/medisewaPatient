@@ -3,7 +3,7 @@ import { Instance } from "./Instance";
 export const GET_HEALTH_ESSENTIALS = async (page = 1, limit = 20) => {
     try {
       const response = await Instance.get(
-        `/api/v1/categories/pagination?page=${page}&limit=${limit}`,
+        `api/v1/categories/pagination?page=${page}&limit=${limit}`,
       );
       return response.data;
     } catch (error) {
@@ -45,7 +45,7 @@ export const GET_HEALTH_ESSENTIALS = async (page = 1, limit = 20) => {
   // Update FCM token on server
   export const UPDATE_FCM_TOKEN = async (fcmToken) => {
     try {
-      const url = `/api/v1/users/update-fcm-token`;
+      const url = `api/v1/users/update-fcm-token`;
       const payload = { fcmToken };
       console.log('UPDATE_FCM_TOKEN: request ->', { url });
       const response = await Instance.post(url, payload);

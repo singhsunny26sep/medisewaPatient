@@ -36,7 +36,7 @@ export default function ProfileScreen({ navigation }) {
   const getProfileData = async () => {
     try {
       const token = await AsyncStorage.getItem('userToken');
-      const response = await Instance.get('/api/v1/users/profile', {
+      const response = await Instance.get('api/v1/users/profile', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
