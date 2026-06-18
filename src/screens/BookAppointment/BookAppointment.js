@@ -7,16 +7,15 @@ import {
   ScrollView,
   Modal,
   ActivityIndicator,
-  Image,
   Alert,
   Dimensions,
   Animated,
   KeyboardAvoidingView,
   Platform,
-  TextInput,
 } from 'react-native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {jwtDecode} from 'jwt-decode';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
@@ -38,19 +37,17 @@ const {width, height} = Dimensions.get('window');
 export default function BookAppointment({route, navigation}) {
   const {
     labId = null,
-    selectedTestIds = [],
     labName = '',
     selectedTestsname = [],
     locationAddress = '',
+    paidAmount = '',
   } = route.params || {};
-  
+
   const [loading, setLoading] = useState(false);
   const [successModal, setSuccessModal] = useState(false);
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   const [date, setDate] = useState('');
   const [textShowDate, setTextShowDate] = useState('');
-  const [selectedHealthProblem, setSelectedHealthProblem] = useState(null);
-  const [currentStep, setCurrentStep] = useState(1);
   const [errors, setErrors] = useState({});
 
   // Animation refs
@@ -64,22 +61,9 @@ export default function BookAppointment({route, navigation}) {
     gender: '',
     visittype: '',
     mobile: '',
-    problemDescription: '',
-    address: '',
-    city: '',
-    state: '',
-    pincode: '',
   });
 
-  const genderOptions = [
-    {label: 'Male', value: 'male'},
-    {label: 'Female', value: 'female'},
-  ];
-
-  const visitOptions = [
-    {label: '🏠 Home Visit', value: 'home'},
-    {label: '🔬 Lab Visit', value: 'lab'},
-  ];
+ 
 
   useEffect(() => {
     Animated.parallel([
@@ -135,68 +119,33 @@ export default function BookAppointment({route, navigation}) {
       newErrors.age = 'Please enter a valid age (1-120)';
     }
     if (!formData.gender) newErrors.gender = 'Please select gender';
-    // if (!selectedHealthProblem) newErrors.problem = 'Please select health problem';
     if (!textShowDate) newErrors.date = 'Please select appointment date';
-    if (!formData.address) newErrors.address = 'Address is required';
-    if (!formData.city) newErrors.city = 'City is required';
-    if (!formData.state) newErrors.state = 'State is required';
-    if (!formData.pincode) newErrors.pincode = 'Pincode is required';
-    else if (!/^\d{6}$/.test(formData.pincode)) {
-      newErrors.pincode = 'Please enter a valid 6-digit pincode';
-    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) {
-      // Scroll to first error
-      return;
-    }
-
     try {
       setLoading(true);
-
       const userToken = await AsyncStorage.getItem('userToken');
-
       if (!userToken) {
         Alert.alert('Error', 'Please login again');
         return;
       }
-
+      const decodedToken = jwtDecode(userToken);
       const appointmentData = {
-        type: 'General Checkup',
-        age: Number(formData.age),
-        gender: formData.gender,
-        referral: formData.mobile,
-        vistType: formData.visittype,
-        locationAddress: locationAddress,
-        problem: selectedHealthProblem?.name,
-        // healthProblem: [selectedHealthProblem?._id],
-        appointmentDate: date,
-        problemDescription: formData.problemDescription,
-        labs: {
-          lab: labId,
-          tests: selectedTestIds.map(testId => ({
-            test: testId,
-          })),
-        },
-        address: {
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
-          pincode: formData.pincode,
-        },
+        patientId: decodedToken?._id || decodedToken?.id || '',
+        paidAmount: paidAmount || '',
       };
-
-      await Instance.post('api/v1/book/:id', appointmentData, {
+      console.log(
+        appointmentData,"this is appointmentData"
+      )
+      await Instance.post(`api/v1/labs/book/${labId}`, appointmentData, {
         headers: {
           authorization: userToken,
         },
       });
-
-      // Animate modal in
       Animated.parallel([
         Animated.spring(modalScaleAnim, {
           toValue: 1,
@@ -278,7 +227,7 @@ export default function BookAppointment({route, navigation}) {
               transform: [{translateY: slideAnim}],
             },
           ]}>
-            {/* HERO HEADER */}
+
             <LinearGradient
               colors={['#4A90D9', '#357ABD', '#2C6EAD']}
               start={{x: 0, y: 0}}
@@ -335,176 +284,7 @@ export default function BookAppointment({route, navigation}) {
               </View>
             ) : null}
 
-            {/* FORM CARD */}
-            <View style={styles.section}>
-              <View style={styles.formCard}>
-                <Text style={styles.sectionTitle}>
-                  <Icon name="person-outline" size={20} color={COLORS.DODGERBLUE} />
-                  {' '}Personal Details
-                </Text>
-
-                <View style={styles.row}>
-                  <View style={styles.halfField}>
-                    <CustomTextInput
-                      label="Age"
-                      placeholder="Enter age"
-                      keyboardType="numeric"
-                      maxLength={3}
-                      value={formData.age}
-                      onChangeText={value => handleInputChange('age', value)}
-                      error={errors.age}
-                    />
-                  </View>
-                  <View style={styles.halfField}>
-                    <Text style={styles.label}>Appointment Date</Text>
-                    <TouchableOpacity
-                      style={[
-                        styles.dateBox,
-                        errors.date && styles.inputError,
-                      ]}
-                      onPress={showDatePicker}
-                      activeOpacity={0.7}>
-                      <Icon
-                        name="calendar-outline"
-                        size={20}
-                        color={textShowDate ? COLORS.DODGERBLUE : COLORS.silver}
-                      />
-                      <Text
-                        style={[
-                          styles.dateText,
-                          !textShowDate && styles.placeholderText,
-                        ]}>
-                        {textShowDate || 'Select date'}
-                      </Text>
-                      <Icon
-                        name="chevron-forward"
-                        size={18}
-                        color={COLORS.silver}
-                      />
-                    </TouchableOpacity>
-                    {errors.date && (
-                      <Text style={styles.errorText}>{errors.date}</Text>
-                    )}
-                  </View>
-                </View>
-
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.label}>Gender</Text>
-                  <View style={styles.radioContainer}>
-                    <CustomRadioButton
-                      options={genderOptions}
-                      selectedValue={formData.gender}
-                      onValueChange={gender =>
-                        handleInputChange('gender', gender)
-                      }
-                      error={errors.gender}
-                    />
-                  </View>
-                  {errors.gender && (
-                    <Text style={styles.errorText}>{errors.gender}</Text>
-                  )}
-                </View>
-
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.label}>Visit Type</Text>
-                  <View style={styles.radioContainer}>
-                    <CustomRadioButton
-                      options={visitOptions}
-                      selectedValue={formData.visittype}
-                      onValueChange={visittype =>
-                        handleInputChange('visittype', visittype)
-                      }
-                    />
-                  </View>
-                </View>
-
-                <CustomTextInput
-                  label="Referral Mobile (Optional)"
-                  placeholder="Enter referral mobile number"
-                  keyboardType="phone-pad"
-                  maxLength={10}
-                  value={formData.mobile}
-                  onChangeText={value => handleInputChange('mobile', value)}
-                />
-
-           
-                <View style={styles.row}>
-                  <View style={styles.halfField}>
-                    <CustomTextInput
-                      label="Pincode"
-                      placeholder="Enter pincode"
-                      keyboardType="number-pad"
-                      maxLength={6}
-                      value={formData.pincode}
-                      onChangeText={value => handleInputChange('pincode', value)}
-                      error={errors.pincode}
-                    />
-                  </View>
-                </View>
-
-                <CustomTextInput
-                  label="Address"
-                  placeholder="Enter full address"
-                  value={formData.address}
-                  onChangeText={value => handleInputChange('address', value)}
-                  error={errors.address}
-                  multiline
-                  numberOfLines={2}
-                />
-
-                <View style={styles.row}>
-                  <View style={styles.halfField}>
-                    <CustomTextInput
-                      label="City"
-                      placeholder="City"
-                      value={formData.city}
-                      onChangeText={value => handleInputChange('city', value)}
-                      error={errors.city}
-                    />
-                  </View>
-
-                  <View style={styles.halfField}>
-                    <CustomTextInput
-                      label="State"
-                      placeholder="State"
-                      value={formData.state}
-                      onChangeText={value => handleInputChange('state', value)}
-                      error={errors.state}
-                    />
-                  </View>
-                </View>
-
-                <CustomTextInput
-                  label="Symptoms Description"
-                  placeholder="Describe your symptoms in detail..."
-                  value={formData.problemDescription}
-                  onChangeText={value =>
-                    handleInputChange('problemDescription', value)
-                  }
-                  multiline
-                  numberOfLines={4}
-                  containerStyle={styles.symptomsInput}
-                />
-
-                {/* SECURITY BOX */}
-                <View style={styles.securityBox}>
-                  <View style={styles.securityIconWrapper}>
-                    <MaterialCommunityIcons
-                      name="shield-check"
-                      size={24}
-                      color={COLORS.DODGERBLUE}
-                    />
-                  </View>
-                  <View style={styles.securityTextWrapper}>
-                    <Text style={styles.securityTitle}>Secure & Private</Text>
-                    <Text style={styles.securityDesc}>
-                      Your appointment details are encrypted and secure
-                    </Text>
-                  </View>
-                </View>
-
-                {/* SUBMIT BUTTON */}
-                <TouchableOpacity
+         <TouchableOpacity
                   disabled={loading}
                   onPress={handleSubmit}
                   activeOpacity={0.9}>
@@ -529,8 +309,6 @@ export default function BookAppointment({route, navigation}) {
                     )}
                   </LinearGradient>
                 </TouchableOpacity>
-              </View>
-            </View>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -918,9 +696,6 @@ const styles = StyleSheet.create({
     color: COLORS.DODGERBLUE,
     opacity: 0.8,
   },
-  symptomsInput: {
-    marginTop: verticalScale(4),
-  },
   submitButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -933,6 +708,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
+    width: '80%',
+    alignSelf: 'center',
+    marginTop: verticalScale(10),
   },
   submitButtonText: {
     fontSize: moderateScale(16),

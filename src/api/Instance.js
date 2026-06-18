@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const Instance = axios.create({
   // baseURL: 'https://pathology-server.onrender.com/',
   // baseURL: 'http://192.168.115.164:5000/',
-  baseURL: 'https://medisawabackend.onrender.com/',
+  baseURL: 'https://f74f-157-34-41-92.ngrok-free.app/',
 });
 
 Instance.interceptors.request.use(

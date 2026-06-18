@@ -75,6 +75,7 @@ export default function LabDetailsPage({route, navigation}) {
       if (response.data?.success && response.data?.result) {
         setLabData(response.data.result);
       }
+      console.log(response.data, 'this is lab details response');
     } catch (error) {
       console.error('Error fetching lab details:', error);
       Alert.alert('Error', 'Failed to load lab details');
@@ -147,12 +148,13 @@ export default function LabDetailsPage({route, navigation}) {
       Alert.alert('Error', 'Please select at least one test');
       return;
     }
+    const totalAmount = cart.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
     navigation.navigate('BookAppointment', {
       labName: labInfo?.name || lab.name,
       labId: lab._id,
-      selectedTestIds: cart.map(item => item._id),
       selectedTestsname: cart.map(item => item.name),
       locationAddress: locationAddress,
+      paidAmount: totalAmount,
     });
   };
 
