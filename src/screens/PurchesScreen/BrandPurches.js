@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,26 +7,37 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Dimensions,
 } from 'react-native';
-import {Container} from '../../component/Container/Container';
-import {COLORS} from '../../Theme/Colors';
+import { Container } from '../../component/Container/Container';
+import { COLORS } from '../../Theme/Colors';
 import CustomHeader from '../../component/header/CustomHeader';
-import {Fonts} from '../../Theme/Fonts';
-import {moderateScale, scale, verticalScale} from '../../utils/Scaling';
+import { Fonts } from '../../Theme/Fonts';
 import AntDesign from 'react-native-vector-icons/AntDesign';
-import {useRoute} from '@react-navigation/native';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import LinearGradient from 'react-native-linear-gradient';
+import { useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {ADD_TO_CART} from '../../api/Api_Controller';
+import { ADD_TO_CART } from '../../api/Api_Controller';
 import ToastMessage from '../../component/ToastMessage/ToastMessage';
-import {useDispatch} from 'react-redux';
+import { useDispatch } from 'react-redux';
 
-export default function BrandPurches({navigation}) {
+const { width } = Dimensions.get('window');
+
+export default function BrandPurches({ navigation }) {
   const route = useRoute();
   const dispatch = useDispatch();
-  const {item} = route.params || {};
+  const { item } = route.params || {};
 
   if (!item) {
-    return <Text>Loading...</Text>;
+    return (
+      <Container backgroundColor={COLORS.white}>
+        <CustomHeader title="Product" navigation={navigation} />
+        <View style={styles.centered}>
+          <Text style={styles.errorText}>Product not found</Text>
+        </View>
+      </Container>
+    );
   }
 
   const images =
@@ -43,6 +54,7 @@ export default function BrandPurches({navigation}) {
       stock: pack.quntity > 0 ? 'In stock' : 'Out of stock',
       discount: pack.discount,
       discountType: pack.discountType,
+      quantity: pack.quntity,
     })) || [];
 
   const [mainImage, setMainImage] = useState(images[0]?.uri || '');
@@ -83,7 +95,7 @@ export default function BrandPurches({navigation}) {
 
   const totalPrice = discountedPrice * quantity;
 
-  const handleAddToCart = async item => {
+  const handleAddToCart = async () => {
     try {
       const token = await AsyncStorage.getItem('userToken');
       if (!token) {
@@ -93,7 +105,8 @@ export default function BrandPurches({navigation}) {
       }
       const payload = {
         id: item._id,
-        quantity: item.quntity,
+        quantity: quantity,
+        selectedPack: selectedPackId,
       };
 
       const data = await ADD_TO_CART(payload, token);
@@ -101,7 +114,7 @@ export default function BrandPurches({navigation}) {
       if (data.success) {
         setToastType('success');
         setToastMessage('Item added to cart!');
-        dispatch({type: 'ADD_TO_CART', payload: item});
+        dispatch({ type: 'ADD_TO_CART', payload: { ...item, quantity } });
       } else {
         setToastType('error');
         setToastMessage('Failed to add item to cart');
@@ -118,77 +131,95 @@ export default function BrandPurches({navigation}) {
       statusBarStyle={'dark-content'}
       statusBarBackgroundColor={COLORS.white}
       backgroundColor={COLORS.white}>
-      <CustomHeader title="Product Screen" navigation={navigation} />
-      <ScrollView>
-        <View style={styles.titleContainer}>
-          <Text style={styles.productTitle}>{item.title}</Text>
-        </View>
-        <View style={styles.mainImageContainer}>
-          <Image source={{uri: mainImage}} style={styles.mainImage} />
+      <CustomHeader title="Product Detail" navigation={navigation} />
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}>
+        {/* Product Title */}
+        <Text style={styles.productTitle}>{item.title}</Text>
+
+        {/* Main Image with Shadow */}
+        <View style={styles.mainImageWrapper}>
+          <Image source={{ uri: mainImage }} style={styles.mainImage} />
+          {discount > 0 && (
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountBadgeText}>
+                {discountType === 'percentage' ? `${discount}% OFF` : `₹${discount} OFF`}
+              </Text>
+            </View>
+          )}
         </View>
 
+        {/* Thumbnail Gallery */}
         <FlatList
           data={images}
           horizontal
-          renderItem={({item}) => {
+          renderItem={({ item }) => {
             const isSelected = item.id === selectedImageId;
             return (
               <TouchableOpacity
                 onPress={() => handleImageChange(item.uri, item.id)}
+                activeOpacity={0.8}
                 style={[
-                  styles.imageContainer,
-                  isSelected && {
-                    borderColor: COLORS.primary,
-                    borderWidth: 2,
-                    borderRadius: 12,
-                  },
+                  styles.thumbnailWrapper,
+                  isSelected && styles.selectedThumbnail,
                 ]}>
-                <Image
-                  source={{uri: item.uri}}
-                  style={[
-                    styles.thumbnailImage,
-                    isSelected && {borderColor: COLORS.primary, borderWidth: 2},
-                  ]}
-                />
+                <Image source={{ uri: item.uri }} style={styles.thumbnailImage} />
+                {isSelected && <View style={styles.thumbnailOverlay} />}
               </TouchableOpacity>
             );
           }}
           keyExtractor={item => item.id}
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.flatListContainer}
+          contentContainerStyle={styles.thumbnailList}
         />
-        <Text style={styles.SELECTETXT}>Select Pack Size</Text>
+
+        {/* Pack Size Selection */}
+        <Text style={styles.sectionLabel}>Select Pack Size</Text>
         <View style={styles.packContainer}>
           {packSizes.map(pack => {
             const isSelected = selectedPackId === pack.id;
             const isOutOfStock = pack.stock === 'Out of stock';
+            const discountValue = pack.discount;
+            const discountType = pack.discountType;
+            let discountText = '';
+            if (discountValue > 0) {
+              discountText =
+                discountType === 'percentage'
+                  ? `${discountValue}% off`
+                  : `₹${discountValue} off`;
+            }
             return (
               <TouchableOpacity
                 key={pack.id}
                 onPress={() => {
                   if (!isOutOfStock) setSelectedPackId(pack.id);
                 }}
+                activeOpacity={0.7}
                 style={[
-                  styles.packBox,
-                  isSelected && styles.selectedPackBox,
-                  isOutOfStock && styles.outOfStockBox,
-                ]}>
-                <Text
-                  style={[
-                    styles.sizeText,
-                    {
-                      backgroundColor: isSelected
-                        ? COLORS.DODGERBLUE
-                        : COLORS.TEAL,
-                    },
-                  ]}>
-                  {pack.size}
+                  styles.packCard,
+                  isSelected && styles.selectedPackCard,
+                  isOutOfStock && styles.outOfStockPack,
+                ]}
+                disabled={isOutOfStock}>
+                <View style={styles.packHeader}>
+                  <Text style={[styles.packSize, isSelected && styles.selectedPackText]}>
+                    {pack.size}
+                  </Text>
+                  {discountText !== '' && !isOutOfStock && (
+                    <View style={styles.packDiscountBadge}>
+                      <Text style={styles.packDiscountText}>{discountText}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.packPrice, isSelected && styles.selectedPackText]}>
+                  {pack.price}
                 </Text>
-                <Text style={styles.priceText}>{pack.price}</Text>
                 <Text
                   style={[
-                    styles.stockText,
-                    {color: isOutOfStock ? COLORS.red : COLORS.green},
+                    styles.packStock,
+                    isOutOfStock ? styles.outOfStockText : styles.inStockText,
                   ]}>
                   {isOutOfStock ? 'Out of stock' : 'In stock'}
                 </Text>
@@ -196,193 +227,367 @@ export default function BrandPurches({navigation}) {
             );
           })}
         </View>
-        <Text style={styles.PRICETXT}>
-          ₹{discountedPrice.toFixed(2)}{' '}
-          <Text style={{textDecorationLine: 'line-through'}}>
-            {' '}
-            ₹{originalPrice.toFixed(2)}
-          </Text>
-        </Text>
-        <View style={styles.MenufactirDetailsContainer}>
-          <Text style={styles.Title1}>Manufacturer</Text>
-          <Text style={styles.Title2}>{item.manufacturer}</Text>
+
+        {/* Price Display */}
+        <View style={styles.priceContainer}>
+          <Text style={styles.discountedPrice}>₹{discountedPrice.toFixed(2)}</Text>
+          {discount > 0 && (
+            <>
+              <Text style={styles.originalPrice}>₹{originalPrice.toFixed(2)}</Text>
+              <View style={styles.saveBadge}>
+                <Text style={styles.saveText}>
+                  Save ₹{(originalPrice - discountedPrice).toFixed(2)}
+                </Text>
+              </View>
+            </>
+          )}
         </View>
+
+        {/* Manufacturer Details */}
+        <View style={styles.manufacturerCard}>
+          <MaterialIcons name="store" size={24} color={COLORS.DODGERBLUE} />
+          <View style={styles.manufacturerInfo}>
+            <Text style={styles.manufacturerLabel}>Manufacturer</Text>
+            <Text style={styles.manufacturerName}>{item.manufacturer}</Text>
+          </View>
+        </View>
+
+        {/* Description (if available) */}
+        {item.description && (
+          <View style={styles.descriptionCard}>
+            <Text style={styles.descriptionTitle}>Description</Text>
+            <Text style={styles.descriptionText}>{item.description}</Text>
+          </View>
+        )}
       </ScrollView>
-      <View style={styles.bottomCartSection}>
+
+      {/* Bottom Fixed Bar */}
+      <LinearGradient
+        colors={['#FFFFFF', '#F8FAFE']}
+        style={styles.bottomBar}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}>
         <View style={styles.quantityContainer}>
-          <TouchableOpacity
-            onPress={decreaseQuantity}
-            style={styles.iconButton}>
-            <AntDesign name="minus" size={18} color={COLORS.black} />
+          <TouchableOpacity onPress={decreaseQuantity} style={styles.qtyButton} activeOpacity={0.7}>
+            <AntDesign name="minus" size={20} color={COLORS.DODGERBLUE} />
           </TouchableOpacity>
           <Text style={styles.quantityText}>{quantity}</Text>
-          <TouchableOpacity
-            onPress={increaseQuantity}
-            style={styles.iconButton}>
-            <AntDesign name="plus" size={18} color={COLORS.black} />
+          <TouchableOpacity onPress={increaseQuantity} style={styles.qtyButton} activeOpacity={0.7}>
+            <AntDesign name="plus" size={20} color={COLORS.DODGERBLUE} />
           </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={styles.cartButton}
-          onPress={() => handleAddToCart(item)}>
-          <Text style={styles.cartButtonText}>Add to Cart</Text>
-          <Text style={[styles.cartButtonText, {color: COLORS.white}]}>
-            ₹{totalPrice.toFixed(2)}
-          </Text>
+
+        <TouchableOpacity activeOpacity={0.8} onPress={handleAddToCart} style={styles.cartButtonWrapper}>
+          <LinearGradient
+            colors={[COLORS.DODGERBLUE, '#4A90E2']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.cartButton}>
+            <AntDesign name="shoppingcart" size={22} color="#fff" />
+            <Text style={styles.cartButtonText}>Add to Cart</Text>
+            <Text style={styles.cartTotal}>₹{totalPrice.toFixed(2)}</Text>
+          </LinearGradient>
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
+
       {toastMessage && <ToastMessage type={toastType} message={toastMessage} />}
     </Container>
   );
 }
 
 const styles = StyleSheet.create({
-  productTitle: {
-    fontSize: moderateScale(15),
-    fontFamily: Fonts.Bold,
-    color: COLORS.black,
-    marginBottom: scale(10),
-    marginLeft: scale(15),
-    marginTop: scale(8),
-  },
-  mainImageContainer: {
+  centered: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: scale(20),
+  },
+  errorText: {
+    fontSize: 16,
+    fontFamily: Fonts.Medium,
+    color: COLORS.red,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+    paddingHorizontal: 16,
+  },
+  productTitle: {
+    fontSize: 20,
+    fontFamily: Fonts.Bold,
+    color: COLORS.black,
+    marginVertical: 12,
+    letterSpacing: 0.5,
+  },
+  mainImageWrapper: {
+    alignItems: 'center',
+    marginBottom: 16,
+    position: 'relative',
   },
   mainImage: {
-    width: scale(250),
-    height: scale(250),
+    width: width - 32,
+    height: 280,
+    borderRadius: 16,
+    resizeMode: 'cover',
+    backgroundColor: '#F0F4F8',
+  },
+  discountBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  discountBadgeText: {
+    color: '#fff',
+    fontFamily: Fonts.Bold,
+    fontSize: 12,
+  },
+  thumbnailList: {
+    paddingVertical: 8,
+  },
+  thumbnailWrapper: {
+    marginRight: 10,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    overflow: 'hidden',
+  },
+  selectedThumbnail: {
+    borderColor: COLORS.DODGERBLUE,
+  },
+  thumbnailImage: {
+    width: 60,
+    height: 60,
     borderRadius: 10,
     resizeMode: 'cover',
   },
-  flatListContainer: {
-    paddingHorizontal: scale(15),
+  thumbnailOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(74,144,217,0.1)',
   },
-  imageContainer: {
-    marginRight: scale(8),
-    padding: scale(2),
-    borderRadius: moderateScale(10),
-  },
-  thumbnailImage: {
-    width: scale(50),
-    height: scale(50),
-    borderRadius: moderateScale(8),
-    borderWidth: moderateScale(1),
-    borderColor: COLORS.gray,
-    resizeMode: 'cover',
-  },
-  SELECTETXT: {
-    marginHorizontal: scale(15),
-    fontSize: moderateScale(15),
-    fontFamily: Fonts.Light,
+  sectionLabel: {
+    fontSize: 16,
+    fontFamily: Fonts.SemiBold,
     color: COLORS.black,
-    marginTop: scale(15),
+    marginTop: 16,
+    marginBottom: 10,
   },
   packContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    paddingHorizontal: scale(15),
-    marginTop: scale(10),
   },
-  PRICETXT: {
-    marginHorizontal: scale(15),
-    color: COLORS.black,
-    fontSize: moderateScale(15),
-    fontFamily: Fonts.Light,
-  },
-  packBox: {
-    width: '47%',
-    borderRadius: moderateScale(10),
+  packCard: {
+    width: '48%',
     backgroundColor: COLORS.white,
-    marginBottom: scale(12),
-    borderWidth: 1,
-    borderColor: COLORS.gray,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1.5,
+    borderColor: '#E8ECF4',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  selectedPackBox: {
+  selectedPackCard: {
     borderColor: COLORS.DODGERBLUE,
-    backgroundColor: COLORS.white,
+    backgroundColor: '#F0F7FF',
+    shadowColor: COLORS.DODGERBLUE,
+    shadowOpacity: 0.1,
+    elevation: 4,
   },
-  outOfStockBox: {
+  outOfStockPack: {
     opacity: 0.6,
+    backgroundColor: '#F5F6FA',
   },
-  sizeText: {
-    fontFamily: Fonts.Bold,
-    fontSize: moderateScale(14),
-    color: COLORS.white,
-    marginBottom: scale(4),
-    backgroundColor: COLORS.DODGERBLUE,
-    textAlign: 'center',
-    borderTopRightRadius: moderateScale(8),
-    borderTopLeftRadius: moderateScale(8),
-    paddingVertical: verticalScale(3),
-  },
-  priceText: {
-    fontFamily: Fonts.Bold,
-    fontSize: moderateScale(13),
-    color: COLORS.darkGray,
-    marginBottom: scale(3),
-    textAlign: 'center',
-  },
-  stockText: {
-    fontFamily: Fonts.Regular,
-    fontSize: moderateScale(15),
-    textAlign: 'center',
-  },
-  bottomCartSection: {
+  packHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: scale(15),
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  packSize: {
+    fontSize: 14,
+    fontFamily: Fonts.Bold,
+    color: COLORS.black,
+  },
+  selectedPackText: {
+    color: COLORS.DODGERBLUE,
+  },
+  packDiscountBadge: {
+    backgroundColor: '#FFE8E8',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  packDiscountText: {
+    fontSize: 10,
+    fontFamily: Fonts.Medium,
+    color: '#FF6B6B',
+  },
+  packPrice: {
+    fontSize: 16,
+    fontFamily: Fonts.Bold,
+    color: COLORS.black,
+    marginVertical: 2,
+  },
+  packStock: {
+    fontSize: 12,
+    fontFamily: Fonts.Medium,
+  },
+  inStockText: {
+    color: COLORS.green,
+  },
+  outOfStockText: {
+    color: COLORS.red,
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 16,
+    flexWrap: 'wrap',
+  },
+  discountedPrice: {
+    fontSize: 24,
+    fontFamily: Fonts.Bold,
+    color: COLORS.DODGERBLUE,
+    marginRight: 12,
+  },
+  originalPrice: {
+    fontSize: 16,
+    fontFamily: Fonts.Medium,
+    color: '#A0A8B4',
+    textDecorationLine: 'line-through',
+    marginRight: 12,
+  },
+  saveBadge: {
+    backgroundColor: '#E6F9F0',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  saveText: {
+    fontSize: 12,
+    fontFamily: Fonts.Medium,
+    color: COLORS.greenViridian,
+  },
+  manufacturerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.white,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E8ECF4',
+    marginVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  manufacturerInfo: {
+    marginLeft: 12,
+  },
+  manufacturerLabel: {
+    fontSize: 12,
+    fontFamily: Fonts.Regular,
+    color: '#7F8C8D',
+  },
+  manufacturerName: {
+    fontSize: 15,
+    fontFamily: Fonts.Bold,
+    color: COLORS.black,
+  },
+  descriptionCard: {
+    backgroundColor: COLORS.white,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E8ECF4',
+    marginVertical: 8,
+  },
+  descriptionTitle: {
+    fontSize: 15,
+    fontFamily: Fonts.Bold,
+    color: COLORS.black,
+    marginBottom: 6,
+  },
+  descriptionText: {
+    fontSize: 14,
+    fontFamily: Fonts.Regular,
+    color: '#5A6A7E',
+    lineHeight: 20,
+  },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: COLORS.gray,
+    borderTopColor: '#E8ECF4',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 10,
   },
   quantityContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.AshGray,
-    borderRadius: moderateScale(100),
-    paddingHorizontal: scale(10),
-    paddingVertical: verticalScale(5),
+    backgroundColor: '#F0F4F8',
+    borderRadius: 30,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
   },
-  iconButton: {
-    paddingHorizontal: scale(10),
-    paddingVertical: verticalScale(4),
+  qtyButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   quantityText: {
-    fontFamily: Fonts.Medium,
-    fontSize: moderateScale(15),
+    fontSize: 18,
+    fontFamily: Fonts.Bold,
     color: COLORS.black,
+    minWidth: 30,
+    textAlign: 'center',
+  },
+  cartButtonWrapper: {
+    flex: 1,
+    marginLeft: 12,
+    borderRadius: 30,
+    overflow: 'hidden',
   },
   cartButton: {
-    backgroundColor: COLORS.DODGERBLUE,
-    borderRadius: moderateScale(30),
-    paddingVertical: verticalScale(9),
-    paddingHorizontal: scale(20),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
   cartButtonText: {
-    fontSize: moderateScale(14),
+    fontSize: 14,
     fontFamily: Fonts.Bold,
-    color: COLORS.white,
-    marginRight: scale(10),
+    color: '#fff',
+    marginLeft: 6,
+    flex: 1,
   },
-
-  MenufactirDetailsContainer: {
-    marginHorizontal: scale(15),
-  },
-  Title1: {
+  cartTotal: {
+    fontSize: 16,
     fontFamily: Fonts.Bold,
-    color: COLORS.black,
-    fontSize: moderateScale(15),
-    marginTop: scale(10),
-  },
-  Title2: {
-    fontFamily: Fonts.Regular,
-    fontSize: moderateScale(15),
-    color: COLORS.DODGERBLUE,
+    color: '#fff',
   },
 });

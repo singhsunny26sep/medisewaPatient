@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useState, useRef} from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   FlatList,
   ActivityIndicator,
   Dimensions,
+  Animated,
+  Platform,
 } from 'react-native';
 import {Container} from '../../component/Container/Container';
 import {COLORS} from '../../Theme/Colors';
@@ -22,7 +24,11 @@ import moment from 'moment';
 import ToastMessage from '../../component/ToastMessage/ToastMessage';
 
 const atob = global.atob || (str => Buffer.from(str, 'base64').toString('binary'));
-const {width: screenWidth} = Dimensions.get('window');
+const {width: screenWidth, height: screenHeight} = Dimensions.get('window');
+
+// Responsive helpers
+const isSmallDevice = screenWidth < 375;
+const isTablet = screenWidth >= 768;
 
 export default function Dr_AppointmentBook({route, navigation}) {
   const {doctorId} = route.params;
@@ -35,6 +41,33 @@ export default function Dr_AppointmentBook({route, navigation}) {
   const [availableSlots, setAvailableSlots] = useState([]);
   const [selectedDay, setSelectedDay] = useState(0);
   const [loadingSlots, setLoadingSlots] = useState(false);
+
+  // Animation refs
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+
+  // Trigger entrance animation
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const formatTimeSlotKey = key => {
     const timeMap = {
@@ -161,14 +194,11 @@ export default function Dr_AppointmentBook({route, navigation}) {
   };
 
   const generateEmptySlotRange = () => generateDateRange().map(date => createEmptySlotData(date));
-      const userId =  getUserId();
-      console.log(userId,"*************************")
 
   const fetchAllTimeSlots = async () => {
     try {
       setLoadingSlots(true);
       const userId = await getUserId();
-      console.log(userId, '*************************');
       if (!userId) {
         setAvailableSlots(generateEmptySlotRange());
         return;
@@ -243,7 +273,6 @@ export default function Dr_AppointmentBook({route, navigation}) {
         if (response.data.success) {
           setDoctorDetails(response.data.result);
         }
-        console.log('🔍 Doctor details response:', response.data);
       } else {
         console.log('Token not found!');
       }
@@ -259,9 +288,10 @@ export default function Dr_AppointmentBook({route, navigation}) {
     fetchAllTimeSlots();
   }, [doctorId]);
 
+  // ---- RENDER FUNCTIONS ----
+
   const renderDoctorItem = () => {
     if (!doctorDetails) return null;
-    console.log('🔍 Fetching doctor details for doctorId:', doctorId);
     const {
       doctorId: {
         name,
@@ -278,61 +308,240 @@ export default function Dr_AppointmentBook({route, navigation}) {
         endTime,
       },
     } = doctorDetails;
+
     return (
-      <View style={styles.container}>
-        <Image
-          source={{
-            uri:
-              image ||
-              'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSLU7h0cdnX8yFq-73gpabJjRLSJDVu7oQZ4w&s',
-          }}
-          style={styles.doctorImage}
-        />
-        <View style={styles.detailsContainer}>
+      <Animated.View
+        style={[
+          styles.doctorCard,
+          {
+            opacity: fadeAnim,
+            transform: [{translateY: slideAnim}, {scale: scaleAnim}],
+          },
+        ]}>
+        <View style={styles.doctorImageWrapper}>
+          <Image
+            source={{
+              uri:
+                image ||
+                'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSLU7h0cdnX8yFq-73gpabJjRLSJDVu7oQZ4w&s',
+            }}
+            style={styles.doctorImage}
+          />
+          <View style={styles.verifiedBadge}>
+            <Icon name="verified" size={scale(16)} color="#fff" />
+          </View>
+        </View>
+
+        <View style={styles.doctorInfoCard}>
           <Text style={styles.doctorName}>Dr. {name}</Text>
-          <Text style={styles.doctorSpecialization}>
-            {specialization?.name}
-          </Text>
-          <View style={styles.doctorInfoContainer}>
-            <View style={styles.doctorInfoRow}>
-              <Icon name="phone" size={scale(20)} color={COLORS.DODGERBLUE} />
-              <Text style={styles.doctorInfoText}>{contactNumber}</Text>
+          <View style={styles.specialtyBadge}>
+            <Text style={styles.specialtyText}>{specialization?.name}</Text>
+          </View>
+
+          <View style={styles.infoGrid}>
+            <View style={styles.infoItem}>
+              <View style={styles.infoIconCircle}>
+                <Icon name="phone" size={scale(18)} color="#4A90D9" />
+              </View>
+              <Text style={styles.infoText}>{contactNumber}</Text>
             </View>
-            <View style={styles.doctorInfoRow}>
-              <Icon name="work" size={scale(20)} color={COLORS.DODGERBLUE} />
-              <Text style={styles.doctorInfoText}>
-                {experience} years of experience
+            <View style={styles.infoItem}>
+              <View style={styles.infoIconCircle}>
+                <Icon name="work" size={scale(18)} color="#4A90D9" />
+              </View>
+              <Text style={styles.infoText}>{experience} yrs exp</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <View style={styles.infoIconCircle}>
+                <Icon name="business" size={scale(18)} color="#4A90D9" />
+              </View>
+              <Text style={styles.infoText}>{department?.name}</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <View style={styles.infoIconCircle}>
+                <Icon name="accessibility" size={scale(18)} color="#4A90D9" />
+              </View>
+              <Text style={styles.infoText}>{doctorGender}</Text>
+            </View>
+            <View style={[styles.infoItem, styles.infoItemFull]}>
+              <View style={styles.infoIconCircle}>
+                <Icon name="location-on" size={scale(18)} color="#4A90D9" />
+              </View>
+              <Text style={styles.infoText} numberOfLines={1}>
+                {clinicAddress}
               </Text>
             </View>
-            <View style={styles.doctorInfoRow}>
-              <Icon name="business" size={scale(20)} color={COLORS.DODGERBLUE} />
-              <Text style={styles.doctorInfoText}>{department?.name}</Text>
+            <View style={styles.infoItem}>
+              <View style={styles.infoIconCircle}>
+                <Icon name="attach-money" size={scale(18)} color="#4A90D9" />
+              </View>
+              <View style={styles.feeContainer}>
+                <Text style={styles.infoText}>₹{fee}</Text>
+                {oldFee && (
+                  <Text style={styles.oldFeeText}>₹{oldFee}</Text>
+                )}
+              </View>
             </View>
-            <View style={styles.doctorInfoRow}>
-              <Icon name="accessibility" size={scale(20)} color={COLORS.DODGERBLUE} />
-              <Text style={styles.doctorInfoText}>{doctorGender}</Text>
-            </View>
-            <View style={styles.doctorInfoRow}>
-              <Icon name="location-on" size={scale(20)} color={COLORS.DODGERBLUE} />
-              <Text style={styles.doctorInfoText}>{clinicAddress}</Text>
-            </View>
-            <View style={styles.doctorInfoRow}>
-              <Icon name="attach-money" size={scale(20)} color={COLORS.DODGERBLUE} />
-              <Text style={styles.doctorInfoText}>
-                ₹{fee}{' '}
-                <Text style={{textDecorationLine: 'line-through', color: COLORS.gray}}>
-                  ₹{oldFee}
-                </Text>
-              </Text>
-            </View>
-            <View style={styles.doctorInfoRow}>
-              <Icon name="access-time" size={scale(20)} color={COLORS.DODGERBLUE} />
-              <Text style={styles.doctorInfoText}>
+            <View style={styles.infoItem}>
+              <View style={styles.infoIconCircle}>
+                <Icon name="access-time" size={scale(18)} color="#4A90D9" />
+              </View>
+              <Text style={styles.infoText}>
                 {startTime} - {endTime}
               </Text>
             </View>
           </View>
         </View>
+      </Animated.View>
+    );
+  };
+
+  const renderDayButtons = () => (
+    <View style={styles.daysContainer}>
+      {loadingSlots ? (
+        <ActivityIndicator size="small" color="#4A90D9" />
+      ) : (
+        <FlatList
+          data={availableSlots}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.daysListContent}
+          renderItem={({item, index}) => {
+            const isSelected = selectedDay === index;
+            return (
+              <TouchableOpacity
+                style={[
+                  styles.dayButton,
+                  isSelected && styles.selectedDayButton,
+                  !item.available && styles.disabledDayButton,
+                ]}
+                onPress={() => handleDaySelect(index)}
+                disabled={!item.available}
+                activeOpacity={0.7}>
+                <Text
+                  style={[
+                    styles.dayText,
+                    isSelected && styles.selectedDayText,
+                    !item.available && styles.disabledDayText,
+                  ]}>
+                  {item.day}
+                </Text>
+                <Text
+                  style={[
+                    styles.dateText,
+                    isSelected && styles.selectedDayText,
+                    !item.available && styles.disabledDayText,
+                  ]}>
+                  {item.date}
+                </Text>
+                {item.available ? (
+                  <View
+                    style={[
+                      styles.slotsBadge,
+                      isSelected && styles.selectedSlotsBadge,
+                    ]}>
+                    <Text
+                      style={[
+                        styles.slotsText,
+                        isSelected && styles.selectedSlotsText,
+                      ]}>
+                      {item.slots} slots
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.unavailableBadge}>
+                    <Text style={styles.unavailableText}>Unavailable</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          }}
+        />
+      )}
+    </View>
+  );
+
+  const renderTimeSlots = () => {
+    if (loadingSlots) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4A90D9" />
+          <Text style={styles.loadingText}>Loading time slots...</Text>
+        </View>
+      );
+    }
+
+    const selectedSlot = availableSlots[selectedDay];
+    if (!selectedSlot || !selectedSlot.timeSlots) {
+      return (
+        <View style={styles.noSlotsContainer}>
+          <Icon name="schedule" size={scale(48)} color="#B0B0B0" />
+          <Text style={styles.noSlotsText}>No slots available for this day</Text>
+        </View>
+      );
+    }
+
+    const {morning = [], afternoon = [], evening = []} = selectedSlot.timeSlots;
+    const hasAnySlots = morning.length > 0 || afternoon.length > 0 || evening.length > 0;
+
+    if (!hasAnySlots) {
+      return (
+        <View style={styles.noSlotsContainer}>
+          <Icon name="event-busy" size={scale(48)} color="#B0B0B0" />
+          <Text style={styles.noSlotsText}>No time slots available</Text>
+        </View>
+      );
+    }
+
+    const renderSlotGroup = (slots, title) => {
+      if (slots.length === 0) return null;
+      return (
+        <View style={styles.timeSlotSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.timeSlotSectionTitle}>{title}</Text>
+            <Text style={styles.timeSlotCount}>{slots.length} slots</Text>
+          </View>
+          <View style={styles.timeSlotsGrid}>
+            {slots.map((timeSlot, index) => {
+              const isSelected = selectedTime === timeSlot.time;
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.timeSlotButton,
+                    isSelected && styles.selectedTimeSlotButton,
+                    !timeSlot.available && styles.disabledTimeSlotButton,
+                  ]}
+                  onPress={() => timeSlot.available && handleTimeSelect(timeSlot.time)}
+                  disabled={!timeSlot.available}
+                  activeOpacity={0.7}>
+                  <Text
+                    style={[
+                      styles.timeSlotText,
+                      isSelected && styles.selectedTimeSlotText,
+                      !timeSlot.available && styles.disabledTimeSlotText,
+                    ]}>
+                    {timeSlot.time}
+                  </Text>
+                  {isSelected && (
+                    <View style={styles.checkMark}>
+                      <Icon name="check" size={scale(10)} color="#fff" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      );
+    };
+
+    return (
+      <View style={styles.timeSlotsContainer}>
+        {renderSlotGroup(morning, 'Morning')}
+        {renderSlotGroup(afternoon, 'Afternoon')}
+        {renderSlotGroup(evening, 'Evening')}
       </View>
     );
   };
@@ -349,7 +558,6 @@ export default function Dr_AppointmentBook({route, navigation}) {
       }
 
       const userId = await getUserId();
-      console.log(userId,"*************************")
       if (!userId) {
         setToastMessage('User ID not found!');
         setToastType('danger');
@@ -382,7 +590,7 @@ export default function Dr_AppointmentBook({route, navigation}) {
         consultationFee: doctorDetails?.doctorId?.fee || 50,
         serviceCharge: 10,
       };
-      console.log('Booking payload:', JSON.stringify(bookingPayload, null, 2));
+
       const response = await Instance.post(
         `/api/v1/bookings/book/appointment/${userId}`,
         bookingPayload,
@@ -412,219 +620,39 @@ export default function Dr_AppointmentBook({route, navigation}) {
     }
   };
 
-  const renderDayButtons = () => (
-    <View style={styles.daysContainer}>
-      {loadingSlots ? (
-        <ActivityIndicator size="small" color={COLORS.DODGERBLUE} />
-      ) : (
-        <FlatList
-          data={availableSlots}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.daysListContent}
-          renderItem={({item, index}) => (
-            <TouchableOpacity
-              style={[
-                styles.dayButton,
-                selectedDay === index && styles.selectedDayButton,
-                !item.available && styles.disabledDayButton,
-              ]}
-              onPress={() => handleDaySelect(index)}
-              disabled={!item.available}>
-              <Text
-                style={[
-                  styles.dayText,
-                  selectedDay === index && styles.selectedDayText,
-                  !item.available && styles.disabledDayText,
-                ]}>
-                {item.day}
-              </Text>
-              <Text
-                style={[
-                  styles.dateText,
-                  selectedDay === index && styles.selectedDayText,
-                  !item.available && styles.disabledDayText,
-                ]}>
-                {item.date}
-              </Text>
-              {item.available ? (
-                <View
-                  style={[
-                    styles.slotsBadge,
-                    selectedDay === index && styles.selectedSlotsBadge,
-                  ]}>
-                  <Text
-                    style={[
-                      styles.slotsText,
-                      selectedDay === index && styles.selectedSlotsText,
-                    ]}>
-                    {item.slots} slots
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.unavailableBadge}>
-                  <Text style={styles.unavailableText}>Not available</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          )}
-        />
-      )}
-    </View>
-  );
-
-  const renderTimeSlots = () => {
-    if (loadingSlots) {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.DODGERBLUE} />
-          <Text style={styles.loadingText}>Loading time slots...</Text>
-        </View>
-      );
-    }
-
-    const selectedSlot = availableSlots[selectedDay];
-    if (!selectedSlot || !selectedSlot.timeSlots) {
-      return (
-        <View style={styles.noSlotsContainer}>
-          <Icon name="schedule" size={scale(40)} color={COLORS.gray} />
-          <Text style={styles.noSlotsText}>No slots available for this day</Text>
-        </View>
-      );
-    }
-
-    const {morning = [], afternoon = [], evening = []} = selectedSlot.timeSlots;
-
-    return (
-      <View style={styles.timeSlotsContainer}>
-        {morning.length > 0 && (
-          <View style={styles.timeSlotSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.timeSlotSectionTitle}>Morning</Text>
-              <Text style={styles.timeSlotCount}>{morning.length} slots</Text>
-            </View>
-            <View style={styles.timeSlotsGrid}>
-              {morning.map((timeSlot, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.timeSlotButton,
-                    selectedTime === timeSlot.time && styles.selectedTimeSlotButton,
-                    !timeSlot.available && styles.disabledTimeSlotButton,
-                  ]}
-                  onPress={() => timeSlot.available && handleTimeSelect(timeSlot.time)}
-                  disabled={!timeSlot.available}>
-                  <Text
-                    style={[
-                      styles.timeSlotText,
-                      selectedTime === timeSlot.time && styles.selectedTimeSlotText,
-                      !timeSlot.available && styles.disabledTimeSlotText,
-                    ]}>
-                    {timeSlot.time}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {afternoon.length > 0 && (
-          <View style={styles.timeSlotSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.timeSlotSectionTitle}>Afternoon</Text>
-              <Text style={styles.timeSlotCount}>{afternoon.length} slots</Text>
-            </View>
-            <View style={styles.timeSlotsGrid}>
-              {afternoon.map((timeSlot, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.timeSlotButton,
-                    selectedTime === timeSlot.time && styles.selectedTimeSlotButton,
-                    !timeSlot.available && styles.disabledTimeSlotButton,
-                  ]}
-                  onPress={() => timeSlot.available && handleTimeSelect(timeSlot.time)}
-                  disabled={!timeSlot.available}>
-                  <Text
-                    style={[
-                      styles.timeSlotText,
-                      selectedTime === timeSlot.time && styles.selectedTimeSlotText,
-                      !timeSlot.available && styles.disabledTimeSlotText,
-                    ]}>
-                    {timeSlot.time}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {evening.length > 0 && (
-          <View style={styles.timeSlotSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.timeSlotSectionTitle}>Evening</Text>
-              <Text style={styles.timeSlotCount}>{evening.length} slots</Text>
-            </View>
-            <View style={styles.timeSlotsGrid}>
-              {evening.map((timeSlot, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.timeSlotButton,
-                    selectedTime === timeSlot.time && styles.selectedTimeSlotButton,
-                    !timeSlot.available && styles.disabledTimeSlotButton,
-                  ]}
-                  onPress={() => timeSlot.available && handleTimeSelect(timeSlot.time)}
-                  disabled={!timeSlot.available}>
-                  <Text
-                    style={[
-                      styles.timeSlotText,
-                      selectedTime === timeSlot.time && styles.selectedTimeSlotText,
-                      !timeSlot.available && styles.disabledTimeSlotText,
-                    ]}>
-                    {timeSlot.time}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-      </View>
-    );
-  };
-
   return (
     <Container
       statusBarStyle={'dark-content'}
       statusBarBackgroundColor={COLORS.white}
       backgroundColor={COLORS.white}>
-      <CustomHeader title="Dr. Appointment Booking" navigation={navigation} />
-      <ScrollView contentContainerStyle={styles.scrollView}>
+      <CustomHeader title="Book Appointment" navigation={navigation} />
+      <ScrollView
+        contentContainerStyle={styles.scrollView}
+        showsVerticalScrollIndicator={false}>
         {loading ? (
-          <ActivityIndicator
-            size="large"
-            color={COLORS.DODGERBLUE}
-            style={styles.loader}
-          />
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="large" color="#4A90D9" />
+          </View>
         ) : doctorDetails ? (
-          <FlatList
-            data={[doctorDetails]}
-            renderItem={renderDoctorItem}
-            keyExtractor={item => item?.doctorId?._id?.toString()}
-          />
+          renderDoctorItem()
         ) : (
           <Text style={styles.errorText}>Failed to load doctor details</Text>
         )}
 
         <View style={styles.slotsContainer}>
-          <Text style={styles.selectDateText}>Available Slots</Text>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionTitle}>Available Slots</Text>
+            <View style={styles.sectionTitleLine} />
+          </View>
           {renderDayButtons()}
           {renderTimeSlots()}
         </View>
 
         <View style={styles.priceSummaryContainer}>
-          <Text style={styles.sectionTitle}>Price Details</Text>
+          <View style={styles.priceHeader}>
+            <Text style={styles.priceSummaryTitle}>Price Details</Text>
+            <Icon name="receipt-long" size={scale(20)} color="#4A90D9" />
+          </View>
           <View style={styles.priceRow}>
             <Text style={styles.priceLabel}>Consultation Fee</Text>
             <Text style={styles.priceValue}>
@@ -637,7 +665,7 @@ export default function Dr_AppointmentBook({route, navigation}) {
           </View>
           <View style={styles.dividerPrice} />
           <View style={styles.priceRow}>
-            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalLabel}>Total Amount</Text>
             <Text style={styles.totalValue}>
               ₹{(doctorDetails?.doctorId?.fee || 50) + 10}
             </Text>
@@ -650,11 +678,15 @@ export default function Dr_AppointmentBook({route, navigation}) {
             isSubmitting && styles.submitButtonDisabled,
           ]}
           onPress={handleSubmitAppointment}
-          disabled={isSubmitting}>
+          disabled={isSubmitting}
+          activeOpacity={0.8}>
           {isSubmitting ? (
-            <ActivityIndicator size="small" color={COLORS.white} />
+            <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>Submit Appointment</Text>
+            <>
+              <Text style={styles.submitButtonText}>Book Appointment</Text>
+              <Icon name="arrow-forward" size={scale(20)} color="#fff" />
+            </>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -664,269 +696,331 @@ export default function Dr_AppointmentBook({route, navigation}) {
   );
 }
 
+// ─── STYLES ──────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   scrollView: {
-    paddingBottom: scale(20),
-    backgroundColor: COLORS.white,
+    paddingBottom: scale(30),
+    backgroundColor: '#F8FAFE',
   },
-  loader: {
+
+  // ── Loader ──
+  loaderContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: scale(20),
+    minHeight: screenHeight * 0.5,
   },
   errorText: {
     fontSize: moderateScale(16),
-    color: COLORS.red,
+    color: '#E74C3C',
     textAlign: 'center',
     marginTop: scale(20),
+    fontFamily: Fonts.Medium,
   },
-  container: {
-    paddingHorizontal: scale(15),
-    marginTop: scale(20),
+
+  // ── Doctor Card ──
+  doctorCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: scale(16),
+    marginTop: scale(16),
+    borderRadius: scale(20),
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowOffset: {width: 0, height: 6},
+    shadowRadius: scale(16),
+    elevation: 4,
+    overflow: 'hidden',
+    paddingBottom: scale(16),
+  },
+  doctorImageWrapper: {
+    alignItems: 'center',
+    paddingTop: scale(20),
+    position: 'relative',
   },
   doctorImage: {
-    height: scale(120),
-    width: scale(120),
-    alignSelf: 'center',
-    borderRadius: scale(60),
-    borderWidth: 2,
-    borderColor: COLORS.DODGERBLUE,
-    marginBottom: scale(15),
+    height: scale(110),
+    width: scale(110),
+    borderRadius: scale(55),
+    borderWidth: 3,
+    borderColor: '#4A90D9',
+    backgroundColor: '#E8F0FE',
   },
-  detailsContainer: {
-    marginTop: scale(5),
-    padding: scale(15),
-    backgroundColor: COLORS.white,
-    borderRadius: scale(15),
-    shadowColor: COLORS.black,
-    shadowOpacity: 0.1,
-    shadowOffset: {width: 0, height: 4},
-    shadowRadius: scale(8),
-    elevation: 5,
-    marginBottom: scale(15),
+  verifiedBadge: {
+    position: 'absolute',
+    bottom: scale(4),
+    right: screenWidth / 2 - scale(50),
+    backgroundColor: '#4A90D9',
+    borderRadius: scale(12),
+    padding: scale(3),
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  doctorInfoCard: {
+    paddingHorizontal: scale(16),
+    paddingTop: scale(12),
   },
   doctorName: {
     fontFamily: Fonts.Bold,
-    color: COLORS.black,
-    fontSize: moderateScale(22),
+    color: '#1A2B4A',
+    fontSize: isSmallDevice ? moderateScale(20) : moderateScale(24),
     textAlign: 'center',
-    marginBottom: scale(5),
+    marginBottom: scale(4),
   },
-  doctorSpecialization: {
+  specialtyBadge: {
+    alignSelf: 'center',
+    backgroundColor: '#E8F0FE',
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(4),
+    borderRadius: scale(20),
+    marginBottom: scale(12),
+  },
+  specialtyText: {
     fontFamily: Fonts.Medium,
-    color: COLORS.DODGERBLUE,
-    fontSize: moderateScale(16),
-    textAlign: 'center',
-    marginBottom: scale(5),
+    color: '#4A90D9',
+    fontSize: moderateScale(14),
   },
-  doctorInfoContainer: {
-    borderRadius: scale(10),
+
+  // ── Doctor Info Grid ──
+  infoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: scale(4),
   },
-  doctorInfoRow: {
+  infoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: scale(8),
-    paddingHorizontal: scale(5),
+    width: '48%',
+    marginVertical: scale(5),
   },
-  doctorInfoText: {
+  infoItemFull: {
+    width: '100%',
+  },
+  infoIconCircle: {
+    width: scale(32),
+    height: scale(32),
+    borderRadius: scale(16),
+    backgroundColor: '#E8F0FE',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: scale(10),
+  },
+  infoText: {
     fontFamily: Fonts.Medium,
-    color: COLORS.black,
-    fontSize: moderateScale(14),
-    marginLeft: scale(12),
+    color: '#2C3E50',
+    fontSize: isSmallDevice ? moderateScale(12) : moderateScale(14),
     flex: 1,
   },
-  selectDateText: {
-    fontFamily: Fonts.Light,
-    color: COLORS.black,
-    marginHorizontal: scale(15),
-    fontSize: moderateScale(16),
-    marginBottom: scale(10),
-    marginTop: scale(15),
-  },
-  submitButton: {
-    marginTop: scale(30),
-    marginHorizontal: scale(15),
-    backgroundColor: COLORS.DODGERBLUE,
-    paddingVertical: scale(15),
-    borderRadius: scale(12),
+  feeContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: COLORS.DODGERBLUE,
-    shadowOpacity: 0.3,
-    shadowOffset: {width: 0, height: 4},
-    shadowRadius: scale(8),
-    elevation: 0,
-    marginBottom: scale(30),
   },
-  submitButtonDisabled: {
-    backgroundColor: COLORS.gray,
-    opacity: 0.6,
+  oldFeeText: {
+    fontFamily: Fonts.Medium,
+    fontSize: moderateScale(12),
+    color: '#B0B0B0',
+    textDecorationLine: 'line-through',
+    marginLeft: scale(6),
   },
-  submitButtonText: {
-    color: COLORS.white,
-    fontFamily: Fonts.SemiBold,
-    fontSize: moderateScale(16),
-  },
+
+  // ── Slots Container ──
   slotsContainer: {
-    marginHorizontal: scale(15),
-    marginTop: scale(10),
+    marginHorizontal: scale(16),
+    marginTop: scale(20),
   },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: scale(14),
+  },
+  sectionTitle: {
+    fontFamily: Fonts.SemiBold,
+    fontSize: moderateScale(18),
+    color: '#1A2B4A',
+    marginRight: scale(12),
+  },
+  sectionTitleLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: '#E8ECF4',
+    borderRadius: 1,
+  },
+
+  // ── Day Buttons ──
   daysContainer: {
-    marginBottom: scale(20),
+    marginBottom: scale(12),
   },
   daysListContent: {
-    paddingHorizontal: scale(5),
+    paddingVertical: scale(4),
+    paddingHorizontal: scale(2),
   },
   dayButton: {
-    width: scale(100),
-    padding: scale(12),
+    width: isSmallDevice ? scale(88) : scale(100),
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(8),
     marginHorizontal: scale(5),
-    borderRadius: scale(12),
-    backgroundColor: COLORS.white,
+    borderRadius: scale(16),
+    backgroundColor: '#fff',
     borderWidth: 1.5,
-    borderColor: COLORS.lightGray,
+    borderColor: '#E8ECF4',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: COLORS.black,
-    shadowOpacity: 0.08,
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
     shadowOffset: {width: 0, height: 2},
     shadowRadius: scale(6),
-    elevation: 3,
+    elevation: 2,
   },
   selectedDayButton: {
-    backgroundColor: COLORS.DODGERBLUE,
-    borderColor: COLORS.DODGERBLUE,
-    shadowColor: COLORS.DODGERBLUE,
+    backgroundColor: '#4A90D9',
+    borderColor: '#4A90D9',
+    shadowColor: '#4A90D9',
     shadowOpacity: 0.2,
-    elevation: 5,
+    elevation: 6,
   },
   disabledDayButton: {
-    backgroundColor: COLORS.extraLightGray,
-    borderColor: COLORS.lightGray,
+    backgroundColor: '#F2F4F8',
+    borderColor: '#E0E4EC',
     opacity: 0.6,
   },
   dayText: {
     fontFamily: Fonts.SemiBold,
-    fontSize: moderateScale(14),
-    color: COLORS.black,
+    fontSize: isSmallDevice ? moderateScale(12) : moderateScale(14),
+    color: '#1A2B4A',
     marginBottom: scale(2),
   },
   dateText: {
     fontFamily: Fonts.Medium,
-    fontSize: moderateScale(12),
-    color: COLORS.darkGray,
+    fontSize: isSmallDevice ? moderateScale(10) : moderateScale(12),
+    color: '#7F8C8D',
     marginBottom: scale(6),
   },
   selectedDayText: {
-    color: COLORS.white,
+    color: '#fff',
   },
   disabledDayText: {
-    color: COLORS.gray,
+    color: '#A0A8B4',
   },
   slotsBadge: {
-    backgroundColor: COLORS.lightBlue,
+    backgroundColor: '#E8F0FE',
     paddingHorizontal: scale(8),
-    paddingVertical: scale(4),
+    paddingVertical: scale(3),
     borderRadius: scale(12),
   },
   selectedSlotsBadge: {
-    backgroundColor: COLORS.white,
+    backgroundColor: 'rgba(255,255,255,0.25)',
   },
   slotsText: {
     fontFamily: Fonts.Medium,
-    fontSize: moderateScale(10),
-    color: COLORS.DODGERBLUE,
+    fontSize: isSmallDevice ? moderateScale(8) : moderateScale(10),
+    color: '#4A90D9',
   },
   selectedSlotsText: {
-    color: COLORS.DODGERBLUE,
+    color: '#fff',
   },
   unavailableBadge: {
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: '#F2F4F8',
     paddingHorizontal: scale(8),
-    paddingVertical: scale(4),
+    paddingVertical: scale(3),
     borderRadius: scale(12),
   },
   unavailableText: {
     fontFamily: Fonts.Medium,
-    fontSize: moderateScale(10),
-    color: COLORS.gray,
+    fontSize: isSmallDevice ? moderateScale(8) : moderateScale(10),
+    color: '#A0A8B4',
   },
+
+  // ── Time Slots ──
   timeSlotsContainer: {
-    marginTop: scale(10),
+    marginTop: scale(8),
   },
   timeSlotSection: {
-    marginBottom: scale(25),
+    marginBottom: scale(20),
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: scale(12),
+    marginBottom: scale(10),
   },
   timeSlotSectionTitle: {
     fontFamily: Fonts.SemiBold,
-    fontSize: moderateScale(16),
-    color: COLORS.black,
+    fontSize: moderateScale(15),
+    color: '#1A2B4A',
   },
   timeSlotCount: {
     fontFamily: Fonts.Medium,
     fontSize: moderateScale(12),
-    color: COLORS.gray,
+    color: '#7F8C8D',
   },
   timeSlotsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: scale(-4),
+    marginHorizontal: scale(-3),
   },
   timeSlotButton: {
-    paddingVertical: scale(12),
-    paddingHorizontal: scale(16),
-    margin: scale(4),
-    borderRadius: scale(10),
-    backgroundColor: COLORS.white,
-    borderWidth: 1.5,
-    borderColor: COLORS.lightGray,
-    minWidth: scale(85),
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: COLORS.black,
-    shadowOpacity: 0.05,
+    justifyContent: 'center',
+    paddingVertical: isSmallDevice ? scale(10) : scale(12),
+    paddingHorizontal: isSmallDevice ? scale(12) : scale(16),
+    margin: scale(4),
+    borderRadius: scale(12),
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#E8ECF4',
+    minWidth: isSmallDevice ? scale(72) : scale(85),
+    shadowColor: '#000',
+    shadowOpacity: 0.02,
     shadowOffset: {width: 0, height: 1},
-    shadowRadius: scale(3),
-    elevation: 2,
+    shadowRadius: scale(4),
+    elevation: 1,
   },
   selectedTimeSlotButton: {
-    backgroundColor: COLORS.DODGERBLUE,
-    borderColor: COLORS.DODGERBLUE,
-    shadowColor: COLORS.DODGERBLUE,
-    shadowOpacity: 0.2,
+    backgroundColor: '#4A90D9',
+    borderColor: '#4A90D9',
+    shadowColor: '#4A90D9',
+    shadowOpacity: 0.15,
     elevation: 4,
   },
   disabledTimeSlotButton: {
-    backgroundColor: COLORS.extraLightGray,
-    borderColor: COLORS.lightGray,
+    backgroundColor: '#F2F4F8',
+    borderColor: '#E8ECF4',
     opacity: 0.5,
   },
   timeSlotText: {
     fontFamily: Fonts.Medium,
-    fontSize: moderateScale(14),
-    color: COLORS.black,
+    fontSize: isSmallDevice ? moderateScale(12) : moderateScale(14),
+    color: '#1A2B4A',
   },
   selectedTimeSlotText: {
-    color: COLORS.white,
+    color: '#fff',
     fontFamily: Fonts.SemiBold,
   },
   disabledTimeSlotText: {
-    color: COLORS.gray,
+    color: '#A0A8B4',
   },
+  checkMark: {
+    marginLeft: scale(4),
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderRadius: scale(10),
+    padding: scale(2),
+  },
+
+  // ── Empty / Loading States ──
   noSlotsContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: scale(40),
+    paddingVertical: scale(36),
+    backgroundColor: '#F8FAFE',
+    borderRadius: scale(16),
+    marginTop: scale(8),
   },
   noSlotsText: {
     fontFamily: Fonts.Medium,
     fontSize: moderateScale(14),
-    color: COLORS.gray,
+    color: '#7F8C8D',
     marginTop: scale(10),
     textAlign: 'center',
   },
@@ -938,51 +1032,92 @@ const styles = StyleSheet.create({
   loadingText: {
     fontFamily: Fonts.Medium,
     fontSize: moderateScale(14),
-    color: COLORS.gray,
+    color: '#7F8C8D',
     marginTop: scale(10),
   },
+
+  // ── Price Summary ──
   priceSummaryContainer: {
-    marginHorizontal: scale(15),
-    marginTop: scale(20),
-    backgroundColor: COLORS.white,
-    padding: scale(15),
-    borderRadius: scale(15),
-    shadowColor: COLORS.black,
-    shadowOpacity: 0.1,
+    marginHorizontal: scale(16),
+    marginTop: scale(24),
+    backgroundColor: '#fff',
+    padding: scale(18),
+    borderRadius: scale(18),
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
     shadowOffset: {width: 0, height: 4},
-    shadowRadius: scale(8),
-    elevation: 5,
+    shadowRadius: scale(12),
+    elevation: 3,
+  },
+  priceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: scale(12),
+  },
+  priceSummaryTitle: {
+    fontFamily: Fonts.SemiBold,
+    fontSize: moderateScale(16),
+    color: '#1A2B4A',
   },
   priceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: scale(6),
+    marginVertical: scale(5),
   },
   priceLabel: {
     fontFamily: Fonts.Medium,
     fontSize: moderateScale(14),
-    color: COLORS.black,
+    color: '#5A6A7E',
   },
   priceValue: {
     fontFamily: Fonts.Medium,
     fontSize: moderateScale(14),
-    color: COLORS.black,
+    color: '#1A2B4A',
   },
   dividerPrice: {
     height: 1,
-    backgroundColor: COLORS.AshGray,
+    backgroundColor: '#E8ECF4',
     marginVertical: scale(10),
-    opacity: 0.5,
   },
   totalLabel: {
     fontFamily: Fonts.SemiBold,
     fontSize: moderateScale(16),
-    color: COLORS.black,
+    color: '#1A2B4A',
   },
   totalValue: {
+    fontFamily: Fonts.Bold,
+    fontSize: moderateScale(18),
+    color: '#4A90D9',
+  },
+
+  // ── Submit Button ──
+  submitButton: {
+    marginTop: scale(28),
+    marginHorizontal: scale(16),
+    backgroundColor: '#4A90D9',
+    paddingVertical: scale(16),
+    borderRadius: scale(16),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#4A90D9',
+    shadowOpacity: 0.25,
+    shadowOffset: {width: 0, height: 6},
+    shadowRadius: scale(16),
+    elevation: 6,
+    marginBottom: scale(20),
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#A0A8B4',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  submitButtonText: {
+    color: '#fff',
     fontFamily: Fonts.SemiBold,
     fontSize: moderateScale(16),
-    color: COLORS.DODGERBLUE,
+    marginRight: scale(10),
   },
 });

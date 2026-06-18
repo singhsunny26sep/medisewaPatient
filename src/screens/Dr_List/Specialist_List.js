@@ -233,7 +233,7 @@ export default function Specialist_List({ route, navigation }) {
           <TouchableOpacity
             style={styles.bookBtn}
             onPress={() =>
-              navigation.navigate('Dr_AppointmentBook', { doctorId: item._id })
+              navigation.navigate('Dr_AppointmentBook', { doctorId: item.userId || item._id })
             }
           >
             <LinearGradient
