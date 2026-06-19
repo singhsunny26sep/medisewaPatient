@@ -23,7 +23,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import moment from 'moment';
 import ToastMessage from '../../component/ToastMessage/ToastMessage';
 
-const atob = global.atob || (str => Buffer.from(str, 'base64').toString('binary'));
 const {width: screenWidth, height: screenHeight} = Dimensions.get('window');
 
 // Responsive helpers
@@ -71,30 +70,30 @@ export default function Dr_AppointmentBook({route, navigation}) {
 
   const formatTimeSlotKey = key => {
     const timeMap = {
-      'at9AM': '09:00 AM',
-      'at9_30AM': '09:30 AM',
-      'at10AM': '10:00 AM',
-      'at10_30AM': '10:30 AM',
-      'at11AM': '11:00 AM',
-      'at11_30AM': '11:30 AM',
-      'at12PM': '12:00 PM',
-      'at12_30PM': '12:30 PM',
-      'at1PM': '01:00 PM',
-      'at1_30PM': '01:30 PM',
-      'at2PM': '02:00 PM',
-      'at2_30PM': '02:30 PM',
-      'at3PM': '03:00 PM',
-      'at3_30PM': '03:30 PM',
-      'at4PM': '04:00 PM',
-      'at4_30PM': '04:30 PM',
-      'at5PM': '05:00 PM',
-      'at5_30PM': '05:30 PM',
-      'at6PM': '06:00 PM',
-      'at6_30PM': '06:30 PM',
-      'at7PM': '07:00 PM',
-      'at7_30PM': '07:30 PM',
-      'at8PM': '08:00 PM',
-      'at8_30PM': '08:30 PM',
+      at9AM: '09:00 AM',
+      at9_30AM: '09:30 AM',
+      at10AM: '10:00 AM',
+      at10_30AM: '10:30 AM',
+      at11AM: '11:00 AM',
+      at11_30AM: '11:30 AM',
+      at12PM: '12:00 PM',
+      at12_30PM: '12:30 PM',
+      at1PM: '01:00 PM',
+      at1_30PM: '01:30 PM',
+      at2PM: '02:00 PM',
+      at2_30PM: '02:30 PM',
+      at3PM: '03:00 PM',
+      at3_30PM: '03:30 PM',
+      at4PM: '04:00 PM',
+      at4_30PM: '04:30 PM',
+      at5PM: '05:00 PM',
+      at5_30PM: '05:30 PM',
+      at6PM: '06:00 PM',
+      at6_30PM: '06:30 PM',
+      at7PM: '07:00 PM',
+      at7_30PM: '07:30 PM',
+      at8PM: '08:00 PM',
+      at8_30PM: '08:30 PM',
     };
     return timeMap[key] || key;
   };
@@ -104,7 +103,8 @@ export default function Dr_AppointmentBook({route, navigation}) {
     if (userDataStr) {
       try {
         const parsed = JSON.parse(userDataStr);
-        const id = parsed?.id || parsed?.userId || parsed?._id || parsed?.user_id;
+        const id =
+          parsed?.id || parsed?.userId || parsed?._id || parsed?.user_id;
         if (id && typeof id === 'string') return id;
       } catch (e) {
         console.error('Error parsing userData:', e);
@@ -116,9 +116,15 @@ export default function Dr_AppointmentBook({route, navigation}) {
       if (parts.length === 3) {
         try {
           const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-          const jsonStr = Buffer.from(base64, 'base64').toString('utf-8');
+          const jsonStr = global.atob(base64);
           const payload = JSON.parse(jsonStr);
-          const id = payload?.id || payload?.userId || payload?._id || payload?.user_id || payload?.sub || payload?.uid;
+          const id =
+            payload?.id ||
+            payload?.userId ||
+            payload?._id ||
+            payload?.user_id ||
+            payload?.sub ||
+            payload?.uid;
           if (id && typeof id === 'string') return id;
         } catch (e) {
           console.error('Error decoding token:', e);
@@ -153,7 +159,8 @@ export default function Dr_AppointmentBook({route, navigation}) {
       }
     });
 
-    const totalSlots = morningSlots.length + afternoonSlots.length + eveningSlots.length;
+    const totalSlots =
+      morningSlots.length + afternoonSlots.length + eveningSlots.length;
 
     return {
       id: timeSlotData._id,
@@ -162,7 +169,11 @@ export default function Dr_AppointmentBook({route, navigation}) {
       slots: totalSlots,
       available: totalSlots > 0,
       fullDate: moment(date).format('YYYY-MM-DD'),
-      timeSlots: {morning: morningSlots, afternoon: afternoonSlots, evening: eveningSlots},
+      timeSlots: {
+        morning: morningSlots,
+        afternoon: afternoonSlots,
+        evening: eveningSlots,
+      },
     };
   };
 
@@ -193,23 +204,30 @@ export default function Dr_AppointmentBook({route, navigation}) {
     return dates;
   };
 
-  const generateEmptySlotRange = () => generateDateRange().map(date => createEmptySlotData(date));
+  const generateEmptySlotRange = () =>
+    generateDateRange().map(date => createEmptySlotData(date));
 
   const fetchAllTimeSlots = async () => {
     try {
       setLoadingSlots(true);
       const userId = await getUserId();
+      console.log(userId,"%%%%%%%%%%%%%%%%%%%%")
       if (!userId) {
         setAvailableSlots(generateEmptySlotRange());
         return;
       }
       const token = await AsyncStorage.getItem('userToken');
-      const response = await Instance.get(`api/v1/time-slots/getAll?userId=${userId}&page=1&limit=10`, {
-        headers: {Authorization: `Bearer ${token}`},
-      });
+      const response = await Instance.get(
+        `/api/v1/time-slots/getAll?page=1&limit=10&userId=${userId}`,
+        {
+          headers: {Authorization: `Bearer ${token}`},
+        },
+      );
       if (response.data.success && response.data.data.timeSlots.length > 0) {
         const dates = generateDateRange();
-        const dateStrSet = new Set(dates.map(d => moment(d).format('YYYY-MM-DD')));
+        const dateStrSet = new Set(
+          dates.map(d => moment(d).format('YYYY-MM-DD')),
+        );
         const slotsMap = {};
         response.data.data.timeSlots.forEach(slot => {
           const slotDate = moment(slot.date).format('YYYY-MM-DD');
@@ -226,7 +244,10 @@ export default function Dr_AppointmentBook({route, navigation}) {
         setAvailableSlots(generateEmptySlotRange());
       }
     } catch (error) {
-      console.error('Error fetching time slots:', error.response?.data || error.message);
+      console.error(
+        'Error fetching time slots:',
+        error.response?.data || error.message,
+      );
       setAvailableSlots(generateEmptySlotRange());
     } finally {
       setLoadingSlots(false);
@@ -236,32 +257,75 @@ export default function Dr_AppointmentBook({route, navigation}) {
   const handleTimeSelect = time => setSelectedTime(time);
 
   const handleDaySelect = async index => {
-    if (availableSlots[index]?.available) {
-      setSelectedDay(index);
-      setSelectedTime(null);
-      const date = generateDateRange()[index];
-      const dateStr = moment(date).format('YYYY-MM-DD');
-      const userId = await getUserId();
-      if (!userId) return;
-      const token = await AsyncStorage.getItem('userToken');
-      try {
-        const response = await Instance.get(`api/v1/time-slots/getAll?userId=${userId}&page=1&limit=10`, {
+    if (!availableSlots[index]?.available) return;
+    setSelectedDay(index);
+    setSelectedTime(null);
+    const date = generateDateRange()[index];
+    const dateStr = moment(date).format('YYYY-MM-DD');
+    const userId = await getUserId();
+    console.log(
+      'handleDaySelect - userId:',
+      userId,
+      'dateStr:',
+      dateStr,
+      'index:',
+      index,
+    );
+    if (!userId) return;
+    const token = await AsyncStorage.getItem('userToken');
+    console.log('handleDaySelect - token present:', !!token);
+    try {
+      const response = await Instance.get(
+        `api/v1/time-slots/getAll?userId=${encodeURIComponent(
+          userId,
+        )}&page=1&limit=10`,
+        {
           headers: {Authorization: `Bearer ${token}`},
-        });
-        console.log(response,"this is timesolat data");
-
-        if (response.data.success && response.data.data.timeSlots.length > 0) {
-          const matched = response.data.data.timeSlots.find(slot => moment(slot.date).format('YYYY-MM-DD') === dateStr);
-          if (matched) {
-            const updatedSlot = processTimeSlotData(matched, date);
-            const updatedSlots = [...availableSlots];
-            updatedSlots[index] = updatedSlot;
-            setAvailableSlots(updatedSlots);
-          }
+        },
+      );
+      console.log(
+       response.data,"+++++++++++++++++++++++++++"
+      );
+  
+      if (
+        response?.data?.success &&
+        Array.isArray(response.data.data?.timeSlots)
+      ) {
+        const matched = response.data.data.timeSlots.find(
+          slot => moment(slot.date).format('YYYY-MM-DD') === dateStr,
+        );
+        console.log(
+          'handleDaySelect - matched:',
+          matched ? 'found' : 'not found',
+        );
+        if (matched) {
+          const updatedSlot = processTimeSlotData(matched, date);
+          setAvailableSlots(prev => {
+            const updatedSlots = [...prev];
+            if (updatedSlots[index]) {
+              updatedSlots[index] = updatedSlot;
+            } else {
+              console.warn(
+                'handleDaySelect - index out of bounds:',
+                index,
+                'length:',
+                updatedSlots.length,
+              );
+            }
+            return updatedSlots;
+          });
         }
-      } catch (error) {
-        console.error('Error refreshing time slots:', error.response?.data || error.message);
+      } else {
+        console.log(
+          'handleDaySelect - API returned no success or no timeSlots array',
+        );
       }
+    } catch (error) {
+      console.error(
+        'handleDaySelect - Error refreshing time slots:',
+        error.response?.data || error.message,
+      );
+      console.error('handleDaySelect - Status:', error.response?.status);
     }
   };
 
@@ -279,7 +343,10 @@ export default function Dr_AppointmentBook({route, navigation}) {
         console.log('Token not found!');
       }
     } catch (error) {
-      console.error('Error fetching doctor details:', error.response ? error.response.data : error.message);
+      console.error(
+        'Error fetching doctor details:',
+        error.response ? error.response.data : error.message,
+      );
     } finally {
       setLoading(false);
     }
@@ -310,7 +377,7 @@ export default function Dr_AppointmentBook({route, navigation}) {
         endTime,
       },
     } = doctorDetails;
-
+console.log(doctorDetails,"+++++++++++++++++++++++++++")
     return (
       <Animated.View
         style={[
@@ -379,9 +446,7 @@ export default function Dr_AppointmentBook({route, navigation}) {
               </View>
               <View style={styles.feeContainer}>
                 <Text style={styles.infoText}>₹{fee}</Text>
-                {oldFee && (
-                  <Text style={styles.oldFeeText}>₹{oldFee}</Text>
-                )}
+                {oldFee && <Text style={styles.oldFeeText}>₹{oldFee}</Text>}
               </View>
             </View>
             <View style={styles.infoItem}>
@@ -479,13 +544,16 @@ export default function Dr_AppointmentBook({route, navigation}) {
       return (
         <View style={styles.noSlotsContainer}>
           <Icon name="schedule" size={scale(48)} color="#B0B0B0" />
-          <Text style={styles.noSlotsText}>No slots available for this day</Text>
+          <Text style={styles.noSlotsText}>
+            No slots available for this day
+          </Text>
         </View>
       );
     }
 
     const {morning = [], afternoon = [], evening = []} = selectedSlot.timeSlots;
-    const hasAnySlots = morning.length > 0 || afternoon.length > 0 || evening.length > 0;
+    const hasAnySlots =
+      morning.length > 0 || afternoon.length > 0 || evening.length > 0;
 
     if (!hasAnySlots) {
       return (
@@ -515,7 +583,9 @@ export default function Dr_AppointmentBook({route, navigation}) {
                     isSelected && styles.selectedTimeSlotButton,
                     !timeSlot.available && styles.disabledTimeSlotButton,
                   ]}
-                  onPress={() => timeSlot.available && handleTimeSelect(timeSlot.time)}
+                  onPress={() =>
+                    timeSlot.available && handleTimeSelect(timeSlot.time)
+                  }
                   disabled={!timeSlot.available}
                   activeOpacity={0.7}>
                   <Text
@@ -614,7 +684,8 @@ export default function Dr_AppointmentBook({route, navigation}) {
     } catch (error) {
       console.error('Booking error:', error.response?.data || error.message);
       setToastMessage(
-        error.response?.data?.message || 'Failed to book appointment. Please try again.',
+        error.response?.data?.message ||
+          'Failed to book appointment. Please try again.',
       );
       setToastType('danger');
     } finally {
