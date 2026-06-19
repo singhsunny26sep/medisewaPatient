@@ -248,6 +248,8 @@ export default function Dr_AppointmentBook({route, navigation}) {
         const response = await Instance.get(`api/v1/time-slots/getAll?userId=${userId}&page=1&limit=10`, {
           headers: {Authorization: `Bearer ${token}`},
         });
+        console.log(response,"this is timesolat data");
+
         if (response.data.success && response.data.data.timeSlots.length > 0) {
           const matched = response.data.data.timeSlots.find(slot => moment(slot.date).format('YYYY-MM-DD') === dateStr);
           if (matched) {

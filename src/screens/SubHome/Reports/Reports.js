@@ -83,7 +83,7 @@ export default function Reports({ navigation }) {
     try {
       const token = await AsyncStorage.getItem('userToken');
       if (token) {
-        const response = await Instance.get('/reports/user', {
+        const response = await Instance.get('api/v1/reports/user', {
           headers: {
             Authorization: token,
           },
@@ -93,7 +93,7 @@ export default function Reports({ navigation }) {
         setError('No token found');
       }
     } catch (err) {
-      console.log(err);
+      console.log(err.response?.data || err.message);
       setError('Failed to fetch reports');
     } finally {
       setLoading(false);

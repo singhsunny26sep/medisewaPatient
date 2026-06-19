@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Dimensions,
   Platform,
+  Animated,
 } from 'react-native';
 import { COLORS } from '../../Theme/Colors';
 import { moderateScale, scale, verticalScale } from '../../utils/Scaling';
@@ -19,6 +20,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import strings from '../../../localization';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
+import ShimmerPlaceholder from 'react-native-shimmer-placeholder'; // npm install react-native-shimmer-placeholder
+import { jwtDecode } from 'jwt-decode';
 
 const { width } = Dimensions.get('window');
 
@@ -28,34 +31,59 @@ export default function MyAppointment({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('all');
 
+  // Animated values for cards
+  const cardAnimations = useRef([]).current;
+
   const filters = [
-    { id: 'all', label: 'All' },
-    { id: 'confirmed', label: 'Confirmed' },
-    { id: 'pending', label: 'Pending' },
-    { id: 'completed', label: 'Completed' },
-    { id: 'cancelled', label: 'Cancelled' },
+    { id: 'all', label: 'All', icon: 'apps-outline' },
+    { id: 'confirmed', label: 'Confirmed', icon: 'checkmark-circle-outline' },
+    { id: 'pending', label: 'Pending', icon: 'time-outline' },
+    { id: 'completed', label: 'Completed', icon: 'checkbox-outline' },
+    { id: 'cancelled', label: 'Cancelled', icon: 'close-circle-outline' },
   ];
 
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      if (!token) {
+      const userToken = await AsyncStorage.getItem('userToken');
+      if (!userToken) {
         console.warn('No token found');
         setLoading(false);
         return;
       }
 
+      const decodedToken = jwtDecode(userToken);
+      const patientId =
+        decodedToken?._id ||
+        decodedToken?.id ||
+        decodedToken?.userId ||
+        decodedToken?.user?._id ||
+        decodedToken?.user?.id ||
+        decodedToken?.sub;
+      if (!patientId) {
+        console.warn('Patient id not found in token:', decodedToken);
+        setLoading(false);
+        return;
+      }
+
       const response = await Instance.get(
-        '/api/v1/bookings/patientBooking/patient/null',
+        `api/v1/labs/getByPatientId/${patientId}`,
         {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${userToken}`,
           },
         },
       );
 
       if (response.data.success) {
-        setAppointments(response.data.result);
+        const result = response.data.result || [];
+        setAppointments(result);
+        // Initialize animations for each card
+        cardAnimations.length = result.length;
+        result.forEach((_, index) => {
+          if (!cardAnimations[index]) {
+            cardAnimations[index] = new Animated.Value(0);
+          }
+        });
       }
     } catch (error) {
       console.error(
@@ -65,7 +93,7 @@ export default function MyAppointment({ navigation }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [cardAnimations]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -75,142 +103,245 @@ export default function MyAppointment({ navigation }) {
 
   useEffect(() => {
     fetchAppointments();
-  }, []);
+  }, [fetchAppointments]);
+
+  // Animate cards on mount
+  useEffect(() => {
+    if (!loading && appointments.length > 0) {
+      const animations = appointments.map((_, index) => {
+        return Animated.timing(cardAnimations[index], {
+          toValue: 1,
+          duration: 300,
+          delay: index * 100,
+          useNativeDriver: true,
+        });
+      });
+      Animated.stagger(80, animations).start();
+    }
+  }, [loading, appointments, cardAnimations]);
 
   const getStatusConfig = (status) => {
     const statusMap = {
-      'confirmed': { color: '#10B981', bgColor: '#ECFDF5', icon: 'checkmark-circle' },
-      'pending': { color: '#F59E0B', bgColor: '#FFFBEB', icon: 'time-outline' },
-      'completed': { color: '#3B82F6', bgColor: '#EFF6FF', icon: 'checkbox-outline' },
-      'cancelled': { color: '#EF4444', bgColor: '#FEF2F2', icon: 'close-circle' },
+      confirmed: {
+        gradient: ['#10B981', '#059669'],
+        icon: 'checkmark-circle',
+        bgColor: '#ECFDF5',
+        color: '#10B981',
+      },
+      pending: {
+        gradient: ['#F59E0B', '#D97706'],
+        icon: 'time',
+        bgColor: '#FFFBEB',
+        color: '#F59E0B',
+      },
+      completed: {
+        gradient: ['#3B82F6', '#2563EB'],
+        icon: 'checkbox',
+        bgColor: '#EFF6FF',
+        color: '#3B82F6',
+      },
+      cancelled: {
+        gradient: ['#EF4444', '#DC2626'],
+        icon: 'close-circle',
+        bgColor: '#FEF2F2',
+        color: '#EF4444',
+      },
     };
     return statusMap[status?.toLowerCase()] || statusMap['pending'];
   };
 
-  const getStatusIcon = (status) => {
-    const config = getStatusConfig(status);
-    return config.icon;
+  const getAppointmentStatus = (item) => {
+    if (item.bookingStatus) {
+      return item.bookingStatus.toLowerCase();
+    }
+
+    if (item.paid || item.totalPaid > 0 || item.paidAmounts?.length > 0) {
+      return 'confirmed';
+    }
+
+    return 'pending';
   };
 
-  const filteredAppointments = appointments.filter(item => {
+  const filteredAppointments = appointments.filter((item) => {
     if (selectedFilter === 'all') return true;
-    return item.bookingStatus?.toLowerCase() === selectedFilter;
+    return getAppointmentStatus(item) === selectedFilter;
   });
 
-  const AppointmentCard = ({ item }) => {
-    const statusConfig = getStatusConfig(item.bookingStatus);
-    const appointmentDate = new Date(item.appointmentDate);
+  const AppointmentCard = ({ item, index }) => {
+    const status = getAppointmentStatus(item);
+    const statusConfig = getStatusConfig(status);
+    const isLabAppointment = Boolean(item.labId || item.test || item.type === 'test');
+    const provider = item.labId || item.doctorId || {};
+    const appointmentDate = item.appointmentDate || item.createdAt;
+    const appointmentTime = item.appointmentTime || (appointmentDate ? new Date(appointmentDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
     const today = new Date();
-    const isUpcoming = appointmentDate > today;
+    const isUpcoming = appointmentDate ? new Date(appointmentDate) > today : false;
+    const appointmentDateText = appointmentDate ? new Date(appointmentDate).toDateString() : 'Date not available';
+    const appointmentTimeText = appointmentTime || 'Time not available';
+
+    // Animated card style
+    const animatedStyle = {
+      opacity: cardAnimations[index] || new Animated.Value(1),
+      transform: [
+        {
+          translateY: Animated.multiply(
+            cardAnimations[index] || new Animated.Value(1),
+            new Animated.Value(-10)
+          ),
+        },
+      ],
+    };
 
     return (
-      <TouchableOpacity 
-        style={styles.appointmentCard}
-        activeOpacity={0.7}
-        onPress={() => navigation.navigate('AppointmentDetails', { appointment: item })}
-      >
-        {/* Card Header */}
-        <View style={styles.cardHeader}>
-          <View style={styles.doctorInfo}>
-            <View style={styles.doctorImageWrapper}>
-              {item.doctorId?.image ? (
-                <Image source={{ uri: item.doctorId.image }} style={styles.doctorImage} />
-              ) : (
-                <View style={styles.doctorImagePlaceholder}>
-                  <Ionicons name="person-outline" size={28} color="#3B82F6" />
+      <Animated.View style={[styles.cardContainer, animatedStyle]}>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('AppointmentDetails', { appointment: item })}
+        >
+          <LinearGradient
+            colors={['#FFFFFF', '#FAFBFC']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.appointmentCard}
+          >
+            {/* Card Header */}
+            <View style={styles.cardHeader}>
+              <View style={styles.doctorInfo}>
+                <View style={styles.doctorImageWrapper}>
+                  {provider?.image ? (
+                    <Image source={{ uri: provider.image }} style={styles.doctorImage} />
+                  ) : (
+                    <LinearGradient
+                      colors={['#EFF6FF', '#DBEAFE']}
+                      style={styles.doctorImagePlaceholder}
+                    >
+                      <Ionicons name={isLabAppointment ? 'flask-outline' : 'person-outline'} size={28} color="#3B82F6" />
+                    </LinearGradient>
+                  )}
                 </View>
-              )}
+                <View style={styles.doctorDetails}>
+                  <Text style={styles.doctorName}>
+                    {isLabAppointment ? item.testName || item.test?.name || 'Lab Test' : item.doctorId?.name || 'Doctor'}
+                  </Text>
+                  <Text style={styles.doctorSpecialty}>
+                    {isLabAppointment ? provider.name || 'Lab' : item.doctorId?.specialty || 'General Physician'}
+                  </Text>
+                  {!isLabAppointment && (
+                    <View style={styles.ratingRow}>
+                      <Ionicons name="star" size={14} color="#F59E0B" />
+                      <Text style={styles.ratingText}>{item.doctorId?.rating || '4.5'}</Text>
+                      <Text style={styles.reviewCount}>({item.doctorId?.reviews || '120'})</Text>
+                    </View>
+                  )}
+                  {isLabAppointment && (
+                    <View style={styles.ratingRow}>
+                      <Ionicons name="cube-outline" size={14} color="#3B82F6" />
+                      <Text style={styles.ratingText}>{item.type === 'test' ? 'Test' : 'Lab'}</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+              <LinearGradient
+                colors={statusConfig.gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.statusBadge}
+              >
+                <Ionicons name={statusConfig.icon} size={12} color="#FFF" />
+                <Text style={styles.statusText}>{status === 'confirmed' ? 'Confirmed' : status}</Text>
+              </LinearGradient>
             </View>
-            <View style={styles.doctorDetails}>
-              <Text style={styles.doctorName}>{item.doctorId?.name || 'Doctor'}</Text>
-              <Text style={styles.doctorSpecialty}>{item.doctorId?.specialty || 'General Physician'}</Text>
-              <View style={styles.ratingRow}>
-                <Ionicons name="star" size={14} color="#F59E0B" />
-                <Text style={styles.ratingText}>{item.doctorId?.rating || '4.5'}</Text>
-                <Text style={styles.reviewCount}>({item.doctorId?.reviews || '120'} reviews)</Text>
+
+            {/* Appointment Info */}
+            <View style={styles.appointmentInfo}>
+              <View style={styles.infoRow}>
+                <View style={styles.infoIconBg}>
+                  <Ionicons name="calendar-outline" size={16} color="#3B82F6" />
+                </View>
+                <Text style={styles.infoText}>{appointmentDateText}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <View style={styles.infoIconBg}>
+                  <Ionicons name="time-outline" size={16} color="#3B82F6" />
+                </View>
+                <Text style={styles.infoText}>{appointmentTimeText}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <View style={styles.infoIconBg}>
+                  <Ionicons name="location-outline" size={16} color="#3B82F6" />
+                </View>
+                <Text style={styles.infoText} numberOfLines={1}>
+                  {provider.address || provider.clinicAddress || 'Address not available'}
+                </Text>
               </View>
             </View>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: statusConfig.bgColor }]}>
-            <Ionicons name={getStatusIcon(item.bookingStatus)} size={12} color={statusConfig.color} />
-            <Text style={[styles.statusText, { color: statusConfig.color }]}>
-              {item.bookingStatus || 'Pending'}
-            </Text>
-          </View>
-        </View>
 
-        {/* Appointment Info */}
-        <View style={styles.appointmentInfo}>
-          <View style={styles.infoRow}>
-            <View style={styles.infoIconBg}>
-              <Ionicons name="calendar-outline" size={16} color="#3B82F6" />
+            {/* Fee Section */}
+            <View style={styles.feeSection}>
+              <View style={styles.feeRow}>
+                <Text style={styles.feeLabel}>{isLabAppointment ? 'Test Fee' : 'Consultation Fee'}</Text>
+                <Text style={styles.feeValue}>
+                  ₹{item.consultationFee || item.price || item.totalPaid || 0}
+                </Text>
+              </View>
+              <View style={styles.feeRow}>
+                <Text style={styles.feeLabel}>Total Amount</Text>
+                <Text style={styles.totalAmount}>₹{item.totalAmount || item.totalPaid || item.price || 0}</Text>
+              </View>
             </View>
-            <Text style={styles.infoText}>
-              {appointmentDate.toDateString()}
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <View style={styles.infoIconBg}>
-              <Ionicons name="time-outline" size={16} color="#3B82F6" />
-            </View>
-            <Text style={styles.infoText}>{item.appointmentTime}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <View style={styles.infoIconBg}>
-              <Ionicons name="location-outline" size={16} color="#3B82F6" />
-            </View>
-            <Text style={styles.infoText} numberOfLines={1}>
-              {item.doctorId?.clinicAddress || 'Clinic Address'}
-            </Text>
-          </View>
-        </View>
 
-        {/* Fee Section */}
-        <View style={styles.feeSection}>
-          <View style={styles.feeRow}>
-            <Text style={styles.feeLabel}>Consultation Fee</Text>
-            <Text style={styles.feeValue}>₹{item.consultationFee || 0}</Text>
-          </View>
-          <View style={styles.feeRow}>
-            <Text style={styles.feeLabel}>Total Amount</Text>
-            <Text style={styles.totalAmount}>₹{item.totalAmount || 0}</Text>
-          </View>
-        </View>
+            {/* Action Buttons */}
+            {status === 'pending' && (
+              <View style={styles.actionButtons}>
+                <TouchableOpacity style={styles.rescheduleBtn}>
+                  <Ionicons name="calendar-outline" size={16} color="#3B82F6" />
+                  <Text style={styles.rescheduleBtnText}>Reschedule</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.cancelAppointmentBtn}>
+                  <Ionicons name="close-outline" size={16} color="#EF4444" />
+                  <Text style={styles.cancelAppointmentText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
-        {/* Action Buttons */}
-        {item.bookingStatus?.toLowerCase() === 'pending' && (
-          <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.rescheduleBtn}>
-              <Text style={styles.rescheduleBtnText}>Reschedule</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.cancelAppointmentBtn}>
-              <Text style={styles.cancelAppointmentText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+            {status === 'confirmed' && isUpcoming && !isLabAppointment && (
+              <LinearGradient
+                colors={['#EFF6FF', '#DBEAFE']}
+                style={styles.upcomingBadge}
+              >
+                <Ionicons name="alert-circle-outline" size={14} color="#3B82F6" />
+                <Text style={styles.upcomingText}>Upcoming Appointment</Text>
+              </LinearGradient>
+            )}
 
-        {item.bookingStatus?.toLowerCase() === 'confirmed' && isUpcoming && (
-          <View style={styles.upcomingBadge}>
-            <Ionicons name="alert-circle-outline" size={14} color="#3B82F6" />
-            <Text style={styles.upcomingText}>Upcoming Appointment</Text>
-          </View>
-        )}
-      </TouchableOpacity>
+            {isLabAppointment && status === 'confirmed' && (
+              <LinearGradient
+                colors={['#EFF6FF', '#DBEAFE']}
+                style={styles.upcomingBadge}
+              >
+                <Ionicons name="checkmark-circle-outline" size={14} color="#3B82F6" />
+                <Text style={styles.upcomingText}>Lab Test Booked</Text>
+              </LinearGradient>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+      </Animated.View>
     );
   };
 
   const EmptyAppointments = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconWrapper}>
-        <Ionicons name="calendar-outline" size={60} color="#9CA3AF" />
+        <Ionicons name="calendar-outline" size={60} color="#CBD5E1" />
       </View>
-      <Text style={styles.emptyTitle}>No Appointments</Text>
+      <Text style={styles.emptyTitle}>No Appointments Yet</Text>
       <Text style={styles.emptySubtitle}>
-        You haven't booked any appointments yet.
+        Ready to take a step toward better health? Book your first appointment now.
       </Text>
       <TouchableOpacity
         style={styles.bookNowBtn}
         onPress={() => navigation.navigate('BookAppointment')}
+        activeOpacity={0.8}
       >
         <LinearGradient
           colors={['#3B82F6', '#2563EB']}
@@ -230,20 +361,20 @@ export default function MyAppointment({ navigation }) {
       {[1, 2, 3].map((item) => (
         <View key={item} style={styles.skeletonCard}>
           <View style={styles.skeletonHeader}>
-            <View style={styles.skeletonAvatar} />
+            <ShimmerPlaceholder style={styles.skeletonAvatar} />
             <View style={styles.skeletonTextBlock}>
-              <View style={styles.skeletonLine} />
-              <View style={[styles.skeletonLine, { width: '60%' }]} />
+              <ShimmerPlaceholder style={styles.skeletonLine} />
+              <ShimmerPlaceholder style={[styles.skeletonLine, { width: '60%' }]} />
             </View>
           </View>
           <View style={styles.skeletonDetail}>
-            <View style={styles.skeletonSmallLine} />
-            <View style={styles.skeletonSmallLine} />
-            <View style={styles.skeletonSmallLine} />
+            <ShimmerPlaceholder style={styles.skeletonSmallLine} />
+            <ShimmerPlaceholder style={styles.skeletonSmallLine} />
+            <ShimmerPlaceholder style={styles.skeletonSmallLine} />
           </View>
           <View style={styles.skeletonFooter}>
-            <View style={styles.skeletonMediumLine} />
-            <View style={styles.skeletonButton} />
+            <ShimmerPlaceholder style={styles.skeletonMediumLine} />
+            <ShimmerPlaceholder style={styles.skeletonButton} />
           </View>
         </View>
       ))}
@@ -253,13 +384,15 @@ export default function MyAppointment({ navigation }) {
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#111827" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>My Appointments</Text>
-          <View style={styles.placeholder} />
-        </View>
+        <LinearGradient colors={['#3B82F6', '#2563EB']} style={styles.headerGradient}>
+          <View style={styles.headerContent}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtnWhite}>
+              <Ionicons name="arrow-back" size={24} color="#FFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitleWhite}>My Appointments</Text>
+            <View style={styles.placeholder} />
+          </View>
+        </LinearGradient>
         <LoadingSkeleton />
       </View>
     );
@@ -267,40 +400,42 @@ export default function MyAppointment({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Appointments</Text>
-        <TouchableOpacity style={styles.filterBtn}>
-          <Ionicons name="options-outline" size={22} color="#3B82F6" />
-        </TouchableOpacity>
-      </View>
+      {/* Gradient Header */}
+      <LinearGradient colors={['#3B82F6', '#2563EB']} style={styles.headerGradient}>
+        <View style={styles.headerContent}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtnWhite}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitleWhite}>My Appointments</Text>
+          <TouchableOpacity style={styles.filterBtnWhite}>
+            <Ionicons name="options-outline" size={24} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
 
-      {/* Stats Summary */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statBox}>
+      {/* Stats Summary - Floating Pill */}
+      <View style={styles.statsPill}>
+        <View style={styles.statItem}>
           <Text style={styles.statNumber}>{appointments.length}</Text>
           <Text style={styles.statLabel}>Total</Text>
         </View>
         <View style={styles.statDivider} />
-        <View style={styles.statBox}>
+        <View style={styles.statItem}>
           <Text style={[styles.statNumber, { color: '#10B981' }]}>
-            {appointments.filter(a => a.bookingStatus?.toLowerCase() === 'confirmed').length}
+            {appointments.filter((a) => getAppointmentStatus(a) === 'confirmed').length}
           </Text>
           <Text style={styles.statLabel}>Confirmed</Text>
         </View>
         <View style={styles.statDivider} />
-        <View style={styles.statBox}>
+        <View style={styles.statItem}>
           <Text style={[styles.statNumber, { color: '#F59E0B' }]}>
-            {appointments.filter(a => a.bookingStatus?.toLowerCase() === 'pending').length}
+            {appointments.filter((a) => getAppointmentStatus(a) === 'pending').length}
           </Text>
           <Text style={styles.statLabel}>Pending</Text>
         </View>
       </View>
 
-      {/* Filter Chips */}
+      {/* Filter Chips with Icons */}
       <View style={styles.filterContainer}>
         <FlatList
           data={filters}
@@ -312,8 +447,19 @@ export default function MyAppointment({ navigation }) {
               key={item.id}
               style={[styles.filterChip, selectedFilter === item.id && styles.filterChipActive]}
               onPress={() => setSelectedFilter(item.id)}
+              activeOpacity={0.7}
             >
-              <Text style={[styles.filterChipText, selectedFilter === item.id && styles.filterChipTextActive]}>
+              <Ionicons
+                name={item.icon}
+                size={16}
+                color={selectedFilter === item.id ? '#FFF' : '#6B7280'}
+              />
+              <Text
+                style={[
+                  styles.filterChipText,
+                  selectedFilter === item.id && styles.filterChipTextActive,
+                ]}
+              >
                 {item.label}
               </Text>
             </TouchableOpacity>
@@ -326,11 +472,16 @@ export default function MyAppointment({ navigation }) {
       <FlatList
         data={filteredAppointments}
         keyExtractor={(item) => item._id}
-        renderItem={({ item }) => <AppointmentCard item={item} />}
+        renderItem={({ item, index }) => <AppointmentCard item={item} index={index} />}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#3B82F6"
+            colors={['#3B82F6']}
+          />
         }
         ListEmptyComponent={<EmptyAppointments />}
       />
@@ -341,86 +492,101 @@ export default function MyAppointment({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#F1F5F9',
   },
-  header: {
+  headerGradient: {
+    paddingTop: Platform.OS === 'ios' ? 50 : 40,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 20 : 20,
-    paddingBottom: 15,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
   },
-  backBtn: {
+  backBtnWhite: {
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
-  headerTitle: {
+  headerTitleWhite: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: '700',
+    color: '#FFF',
+    letterSpacing: 0.5,
+  },
+  filterBtnWhite: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   placeholder: {
     width: 40,
   },
-  filterBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-  },
-  statsContainer: {
+  statsPill: {
     flexDirection: 'row',
     backgroundColor: '#FFF',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 16,
-    padding: 16,
+    marginHorizontal: 20,
+    marginTop: -16,
+    borderRadius: 30,
+    paddingVertical: 16,
+    paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 4,
+    zIndex: 10,
   },
-  statBox: {
+  statItem: {
     flex: 1,
     alignItems: 'center',
   },
   statNumber: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 4,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 2,
   },
   statLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    fontWeight: '500',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   statDivider: {
     width: 1,
-    backgroundColor: '#E5E7EB',
-    marginHorizontal: 12,
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 8,
   },
   filterContainer: {
-    marginTop: 16,
-    paddingHorizontal: 16,
+    marginTop: 18,
+    paddingHorizontal: 20,
   },
   filterScroll: {
     gap: 10,
   },
   filterChip: {
-    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    borderRadius: 30,
+    backgroundColor: '#F1F5F9',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
+    gap: 6,
   },
   filterChipActive: {
     backgroundColor: '#3B82F6',
@@ -428,35 +594,38 @@ const styles = StyleSheet.create({
   },
   filterChipText: {
     fontSize: 13,
-    color: '#6B7280',
     fontWeight: '500',
+    color: '#64748B',
   },
   filterChipTextActive: {
     color: '#FFF',
   },
   listContent: {
-    padding: 16,
+    paddingHorizontal: 20,
     paddingBottom: 40,
+    paddingTop: 10,
+  },
+  cardContainer: {
+    marginBottom: 14,
   },
   appointmentCard: {
-    backgroundColor: '#FFF',
     borderRadius: 20,
-    marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 4,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#F1F5F9',
   },
   doctorInfo: {
     flexDirection: 'row',
@@ -474,22 +643,22 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
   doctorDetails: {
     flex: 1,
+    justifyContent: 'center',
   },
   doctorName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: '#0F172A',
     marginBottom: 2,
   },
   doctorSpecialty: {
     fontSize: 13,
-    color: '#6B7280',
+    color: '#64748B',
     marginBottom: 4,
   },
   ratingRow: {
@@ -504,7 +673,7 @@ const styles = StyleSheet.create({
   },
   reviewCount: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   statusBadge: {
     flexDirection: 'row',
@@ -518,12 +687,13 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 11,
     fontWeight: '600',
+    color: '#FFF',
     textTransform: 'capitalize',
   },
   appointmentInfo: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#F1F5F9',
     gap: 10,
   },
   infoRow: {
@@ -541,30 +711,30 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 13,
-    color: '#4B5563',
+    color: '#334155',
     flex: 1,
   },
   feeSection: {
     padding: 16,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
   },
   feeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   feeLabel: {
     fontSize: 13,
-    color: '#6B7280',
+    color: '#64748B',
   },
   feeValue: {
     fontSize: 13,
-    color: '#374151',
+    color: '#0F172A',
     fontWeight: '500',
   },
   totalAmount: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#3B82F6',
   },
   actionButtons: {
@@ -572,15 +742,18 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: '#F1F5F9',
   },
   rescheduleBtn: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 10,
     borderRadius: 12,
-    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#3B82F6',
+    gap: 6,
   },
   rescheduleBtnText: {
     fontSize: 14,
@@ -589,10 +762,13 @@ const styles = StyleSheet.create({
   },
   cancelAppointmentBtn: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 10,
     borderRadius: 12,
-    alignItems: 'center',
     backgroundColor: '#FEF2F2',
+    gap: 6,
   },
   cancelAppointmentText: {
     fontSize: 14,
@@ -605,7 +781,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 10,
-    backgroundColor: '#EFF6FF',
   },
   upcomingText: {
     fontSize: 12,
@@ -621,20 +796,20 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: '700',
+    color: '#0F172A',
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 20,
@@ -656,7 +831,8 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
   skeletonContainer: {
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingTop: 20,
   },
   skeletonCard: {
     backgroundColor: '#FFF',
@@ -664,7 +840,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
   },
   skeletonHeader: {
     flexDirection: 'row',
@@ -674,7 +850,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#F3F4F6',
     marginRight: 12,
   },
   skeletonTextBlock: {
@@ -682,7 +857,6 @@ const styles = StyleSheet.create({
   },
   skeletonLine: {
     height: 14,
-    backgroundColor: '#F3F4F6',
     borderRadius: 7,
     marginBottom: 8,
     width: '100%',
@@ -693,7 +867,6 @@ const styles = StyleSheet.create({
   },
   skeletonSmallLine: {
     height: 12,
-    backgroundColor: '#F3F4F6',
     borderRadius: 6,
     width: '40%',
   },
@@ -703,18 +876,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: '#F1F5F9',
   },
   skeletonMediumLine: {
     width: 100,
     height: 14,
-    backgroundColor: '#F3F4F6',
     borderRadius: 7,
   },
   skeletonButton: {
     width: 80,
     height: 14,
-    backgroundColor: '#F3F4F6',
     borderRadius: 7,
   },
 });

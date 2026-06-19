@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const Instance = axios.create({
   // baseURL: 'https://pathology-server.onrender.com/',
   // baseURL: 'http://192.168.115.164:5000/',
-  baseURL: 'https://f74f-157-34-41-92.ngrok-free.app/',
+  baseURL: 'https://medisawabackend.onrender.com/',
 });
 
 Instance.interceptors.request.use(
@@ -23,7 +23,6 @@ Instance.interceptors.request.use(
   },
   error => Promise.reject(error),
 );
-
 export const fetchAgoraToken = async (channelName, uid) => {
   try {
     console.log('Fetching Agora token for channel:', channelName, 'uid:', uid);
@@ -41,7 +40,6 @@ export const fetchAgoraToken = async (channelName, uid) => {
     throw error;
   }
 };
-
 export const fetchCallHistory = async userId => {
   try {
     const token = await AsyncStorage.getItem('userToken');

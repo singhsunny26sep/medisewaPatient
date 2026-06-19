@@ -63,8 +63,6 @@ export default function BookAppointment({route, navigation}) {
     mobile: '',
   });
 
- 
-
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -78,7 +76,7 @@ export default function BookAppointment({route, navigation}) {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [fadeAnim, slideAnim]);
 
   const handleInputChange = (name, value) => {
     setFormData(prev => ({
@@ -120,7 +118,7 @@ export default function BookAppointment({route, navigation}) {
     }
     if (!formData.gender) newErrors.gender = 'Please select gender';
     if (!textShowDate) newErrors.date = 'Please select appointment date';
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -134,16 +132,22 @@ export default function BookAppointment({route, navigation}) {
         return;
       }
       const decodedToken = jwtDecode(userToken);
+      const patientId =
+        decodedToken?._id ||
+        decodedToken?.id ||
+        decodedToken?.userId ||
+        decodedToken?.user?._id ||
+        decodedToken?.user?.id ||
+        decodedToken?.sub ||
+        '';
+
       const appointmentData = {
-        patientId: decodedToken?._id || decodedToken?.id || '',
+        patientId,
         paidAmount: paidAmount || '',
       };
-      console.log(
-        appointmentData,"this is appointmentData"
-      )
       await Instance.post(`api/v1/labs/book/${labId}`, appointmentData, {
         headers: {
-          authorization: userToken,
+          Authorization: userToken,
         },
       });
       Animated.parallel([
@@ -191,17 +195,20 @@ export default function BookAppointment({route, navigation}) {
     <View style={styles.stepContainer}>
       {[1, 2, 3].map(step => (
         <View key={step} style={styles.stepWrapper}>
-          <View style={[
-            styles.stepCircle,
-            step <= 2 ? styles.stepActive : styles.stepInactive,
-          ]}>
+          <View
+            style={[
+              styles.stepCircle,
+              step <= 2 ? styles.stepActive : styles.stepInactive,
+            ]}>
             <Text style={styles.stepNumber}>{step}</Text>
           </View>
           {step < 3 && (
-            <View style={[
-              styles.stepLine,
-              step < 2 ? styles.stepLineActive : styles.stepLineInactive,
-            ]} />
+            <View
+              style={[
+                styles.stepLine,
+                step < 2 ? styles.stepLineActive : styles.stepLineInactive,
+              ]}
+            />
           )}
         </View>
       ))}
@@ -219,15 +226,14 @@ export default function BookAppointment({route, navigation}) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled">
-          
-          <Animated.View style={[
-            styles.animatedContainer,
-            {
-              opacity: fadeAnim,
-              transform: [{translateY: slideAnim}],
-            },
-          ]}>
-
+          <Animated.View
+            style={[
+              styles.animatedContainer,
+              {
+                opacity: fadeAnim,
+                transform: [{translateY: slideAnim}],
+              },
+            ]}>
             <LinearGradient
               colors={['#4A90D9', '#357ABD', '#2C6EAD']}
               start={{x: 0, y: 0}}
@@ -259,8 +265,12 @@ export default function BookAppointment({route, navigation}) {
                     <Text style={styles.labName}>{labName}</Text>
                     {locationAddress && (
                       <Text style={styles.labAddress} numberOfLines={1}>
-                        <Icon name="location-outline" size={12} color={COLORS.silver} />
-                        {' '}{locationAddress}
+                        <Icon
+                          name="location-outline"
+                          size={12}
+                          color={COLORS.silver}
+                        />{' '}
+                        {locationAddress}
                       </Text>
                     )}
                   </View>
@@ -274,7 +284,11 @@ export default function BookAppointment({route, navigation}) {
                     <View style={styles.testsGrid}>
                       {selectedTestsname.map((item, index) => (
                         <View key={index} style={styles.testBadge}>
-                          <Icon name="flask" size={14} color={COLORS.DODGERBLUE} />
+                          <Icon
+                            name="flask"
+                            size={14}
+                            color={COLORS.DODGERBLUE}
+                          />
                           <Text style={styles.testBadgeText}>{item}</Text>
                         </View>
                       ))}
@@ -284,31 +298,33 @@ export default function BookAppointment({route, navigation}) {
               </View>
             ) : null}
 
-         <TouchableOpacity
-                  disabled={loading}
-                  onPress={handleSubmit}
-                  activeOpacity={0.9}>
-                  <LinearGradient
-                    colors={loading ? ['#B0B8C4', '#8A92A0'] : ['#4A90D9', '#357ABD']}
-                    start={{x: 0, y: 0}}
-                    end={{x: 1, y: 0}}
-                    style={styles.submitButton}>
-                    {loading ? (
-                      <ActivityIndicator color={COLORS.white} />
-                    ) : (
-                      <>
-                        <Icon
-                          name="checkmark-circle"
-                          size={22}
-                          color={COLORS.white}
-                        />
-                        <Text style={styles.submitButtonText}>
-                          Book Appointment
-                        </Text>
-                      </>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
+            <TouchableOpacity
+              disabled={loading}
+              onPress={handleSubmit}
+              activeOpacity={0.9}>
+              <LinearGradient
+                colors={
+                  loading ? ['#B0B8C4', '#8A92A0'] : ['#4A90D9', '#357ABD']
+                }
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 0}}
+                style={styles.submitButton}>
+                {loading ? (
+                  <ActivityIndicator color={COLORS.white} />
+                ) : (
+                  <>
+                    <Icon
+                      name="checkmark-circle"
+                      size={22}
+                      color={COLORS.white}
+                    />
+                    <Text style={styles.submitButtonText}>
+                      Book Appointment
+                    </Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -316,7 +332,7 @@ export default function BookAppointment({route, navigation}) {
       {/* SUCCESS MODAL */}
       <Modal transparent visible={successModal} animationType="none">
         <View style={styles.modalOverlay}>
-          <Animated.View 
+          <Animated.View
             style={[
               styles.modalContent,
               {
@@ -328,11 +344,7 @@ export default function BookAppointment({route, navigation}) {
               <LinearGradient
                 colors={['#4CAF50', '#45A049']}
                 style={styles.successIconGradient}>
-                <Icon
-                  name="checkmark"
-                  size={60}
-                  color={COLORS.white}
-                />
+                <Icon name="checkmark" size={60} color={COLORS.white} />
               </LinearGradient>
             </View>
 
@@ -344,12 +356,20 @@ export default function BookAppointment({route, navigation}) {
 
             <View style={styles.successDetails}>
               <View style={styles.successDetailItem}>
-                <Icon name="calendar-outline" size={18} color={COLORS.DODGERBLUE} />
+                <Icon
+                  name="calendar-outline"
+                  size={18}
+                  color={COLORS.DODGERBLUE}
+                />
                 <Text style={styles.successDetailText}>{textShowDate}</Text>
               </View>
               {labName && (
                 <View style={styles.successDetailItem}>
-                  <Icon name="business-outline" size={18} color={COLORS.DODGERBLUE} />
+                  <Icon
+                    name="business-outline"
+                    size={18}
+                    color={COLORS.DODGERBLUE}
+                  />
                   <Text style={styles.successDetailText}>{labName}</Text>
                 </View>
               )}

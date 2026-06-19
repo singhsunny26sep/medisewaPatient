@@ -23,7 +23,6 @@ export default function Add_FamilyMember({navigation}) {
       statusBarBackgroundColor={COLORS.white}
       backgroundColor={COLORS.white}>
       <CustomHeader title={strings.AddMember} navigation={navigation} />
-
       <ScrollView>
         <Image
           source={{
