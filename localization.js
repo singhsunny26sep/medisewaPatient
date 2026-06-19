@@ -34,7 +34,9 @@ const strings = new LocalizedStrings({
     OrderMedicines: 'Order \nMedicines',
     ChangeLanguage: 'Change Language',
     ChoosePreferredLanguage: 'Choose your Preferred Language',
-    MyAppointment: 'My Appointment',
+    MyAppointment: 'LAB Appointment',
+    doctorAppointment: 'Doctor Appointment',
+
     OrderHistory: 'Order History',
     PasswordManager: 'Password Manager',
     CurrentPassword: 'Current Password',

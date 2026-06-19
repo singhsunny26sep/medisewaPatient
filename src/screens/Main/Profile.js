@@ -41,7 +41,7 @@ export default function ProfileScreen({ navigation }) {
           Authorization: `Bearer ${token}`,
         },
       });
-
+console.log(response.data,"***************")
       if (response.data.success) {
         setProfileData(response.data.result);
       }
@@ -88,6 +88,14 @@ export default function ProfileScreen({ navigation }) {
     {
       id: 'appointments',
       title: strings.MyAppointment,
+      icon: 'calendar-outline',
+      color: '#3B82F6',
+      bgColor: '#EFF6FF',
+      route: 'MyAppointment',
+    },
+    {
+      id: 'appointments',
+      title: strings.doctorAppointment,
       icon: 'calendar-outline',
       color: '#3B82F6',
       bgColor: '#EFF6FF',

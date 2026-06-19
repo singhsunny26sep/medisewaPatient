@@ -207,18 +207,16 @@ export default function Dr_AppointmentBook({route, navigation}) {
   const generateEmptySlotRange = () =>
     generateDateRange().map(date => createEmptySlotData(date));
 
-  const fetchAllTimeSlots = async () => {
+   const fetchAllTimeSlots = async doctorUserId => {
     try {
       setLoadingSlots(true);
-      const userId = await getUserId();
-      console.log(userId,"%%%%%%%%%%%%%%%%%%%%")
-      if (!userId) {
+      if (!doctorUserId) {
         setAvailableSlots(generateEmptySlotRange());
         return;
       }
       const token = await AsyncStorage.getItem('userToken');
       const response = await Instance.get(
-        `/api/v1/time-slots/getAll?page=1&limit=10&userId=${userId}`,
+        `/api/v1/time-slots/getAll?page=1&limit=10&userId=${doctorUserId}`,
         {
           headers: {Authorization: `Bearer ${token}`},
         },
@@ -244,10 +242,10 @@ export default function Dr_AppointmentBook({route, navigation}) {
         setAvailableSlots(generateEmptySlotRange());
       }
     } catch (error) {
-      console.error(
-        'Error fetching time slots:',
-        error.response?.data || error.message,
-      );
+      const errMsg = error.response?.data?.message || error.message || 'Failed to load time slots';
+      console.error('Error fetching time slots:', errMsg);
+      setToastMessage(errMsg);
+      setToastType('danger');
       setAvailableSlots(generateEmptySlotRange());
     } finally {
       setLoadingSlots(false);
@@ -262,22 +260,14 @@ export default function Dr_AppointmentBook({route, navigation}) {
     setSelectedTime(null);
     const date = generateDateRange()[index];
     const dateStr = moment(date).format('YYYY-MM-DD');
-    const userId = await getUserId();
-    console.log(
-      'handleDaySelect - userId:',
-      userId,
-      'dateStr:',
-      dateStr,
-      'index:',
-      index,
-    );
-    if (!userId) return;
+    const doctorUserId = doctorDetails?.doctorId?.userId;
+    if (!doctorUserId) return;
     const token = await AsyncStorage.getItem('userToken');
-    console.log('handleDaySelect - token present:', !!token);
+    console.log('handleDaySelect - doctorUserId:', doctorUserId, 'dateStr:', dateStr, 'index:', index);
     try {
       const response = await Instance.get(
         `api/v1/time-slots/getAll?userId=${encodeURIComponent(
-          userId,
+          doctorUserId,
         )}&page=1&limit=10`,
         {
           headers: {Authorization: `Bearer ${token}`},
@@ -321,11 +311,10 @@ export default function Dr_AppointmentBook({route, navigation}) {
         );
       }
     } catch (error) {
-      console.error(
-        'handleDaySelect - Error refreshing time slots:',
-        error.response?.data || error.message,
-      );
-      console.error('handleDaySelect - Status:', error.response?.status);
+      const errMsg = error.response?.data?.message || error.message || 'Failed to refresh time slots';
+      console.error('handleDaySelect - Error refreshing time slots:', errMsg, 'Status:', error.response?.status);
+      setToastMessage(errMsg);
+      setToastType('danger');
     }
   };
 
@@ -338,23 +327,32 @@ export default function Dr_AppointmentBook({route, navigation}) {
         });
         if (response.data.success) {
           setDoctorDetails(response.data.result);
+          return response.data.result?.doctorId?.userId || null;
         }
       } else {
         console.log('Token not found!');
       }
     } catch (error) {
-      console.error(
-        'Error fetching doctor details:',
-        error.response ? error.response.data : error.message,
-      );
+      const errMsg = error.response?.data?.message || error.message || 'Failed to load doctor details';
+      console.error('Error fetching doctor details:', errMsg);
+      setToastMessage(errMsg);
+      setToastType('danger');
     } finally {
       setLoading(false);
     }
+    return null;
   };
 
   useEffect(() => {
-    fetchDoctorDetails();
-    fetchAllTimeSlots();
+    let cancelled = false;
+    const load = async () => {
+      const doctorUserId = await fetchDoctorDetails();
+      if (!cancelled && doctorUserId) {
+        fetchAllTimeSlots(doctorUserId);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
   }, [doctorId]);
 
   // ---- RENDER FUNCTIONS ----
@@ -377,7 +375,6 @@ export default function Dr_AppointmentBook({route, navigation}) {
         endTime,
       },
     } = doctorDetails;
-console.log(doctorDetails,"+++++++++++++++++++++++++++")
     return (
       <Animated.View
         style={[
@@ -618,7 +615,7 @@ console.log(doctorDetails,"+++++++++++++++++++++++++++")
     );
   };
 
-  const handleSubmitAppointment = async () => {
+  const handleSubmitAppointment = async (doctorUserId) => {
     setIsSubmitting(true);
     try {
       const token = await AsyncStorage.getItem('userToken');
@@ -629,9 +626,13 @@ console.log(doctorDetails,"+++++++++++++++++++++++++++")
         return;
       }
 
-      const userId = await getUserId();
-      if (!userId) {
-        setToastMessage('User ID not found!');
+      const profileRes = await Instance.get('/api/v1/users/profile', {
+        headers: {Authorization: `Bearer ${token}`},
+      });
+      const userProfile = profileRes.data?.result || profileRes.data;
+      const patientId = userProfile?.patientId?.[0]?._id;
+      if (!patientId) {
+        setToastMessage('Patient profile not found. Please complete your profile.');
         setToastType('danger');
         setIsSubmitting(false);
         return;
@@ -664,7 +665,7 @@ console.log(doctorDetails,"+++++++++++++++++++++++++++")
       };
 
       const response = await Instance.post(
-        `/api/v1/bookings/book/appointment/${userId}`,
+        `/api/v1/bookings/book/appointment/${patientId}`,
         bookingPayload,
         {
           headers: {
